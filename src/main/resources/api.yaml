@@ -1,0 +1,453 @@
+openapi: 3.0.0
+info:
+  title: CKHub Sharing API
+  description: |
+    The CKHub API is designed to provide a secure and efficient API for managing various educational documents, including Jupyter Notebooks, that are related to data science and statistics. The primary objective is to facilitate the storage, validation, and management of these documents by storing in a scalable and reliable technology. The API endpoints are designed to enhance the workflow of handling Jupyter Notebooks while maintaining security and data integrity. This API ensures that each document is validated for correct formatting, prevents duplication, and is stored anonymously, allowing for seamless integration with other services without requiring user or enrollment associations at this stage. This flexibility will support future expansions to handle a wider variety of educational content.
+  version: 1.0.0
+servers:
+  - url: https://ckhub.coursekata.org/api/v1
+    description: CKHub API v1
+
+paths:
+  /auth/issue:
+    get:
+      summary: Issue initial JWT token
+      description: Issue a JWT token for the user when they first visit the website. This token will be used for subsequent API requests and will include session data.
+      tags:
+        - Authentication
+      responses:
+        "200":
+          description: Initial JWT token issued successfully
+          headers:
+            Authorization:
+              description: "Bearer JWT token"
+              schema:
+                type: string
+                example: "Bearer initialJWTTokenHere"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    description: "The JWT token issued for the session."
+                    example: "initialJWTTokenHere"
+        "403":
+          $ref: "#/components/responses/OriginMismatch"
+        "500":
+          $ref: "#/components/responses/TokenGenerationError"
+  /auth/refresh:
+    post:
+      summary: Refresh JWT token
+      description: Refresh the JWT token before expiration to maintain a valid session. The current token must still be valid for the refresh to be successful.
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+                  description: "The current valid JWT that is about to expire."
+                  example: "currentJWTTokenHere"
+      responses:
+        "200":
+          description: JWT refreshed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    description: "The new JWT token with an extended expiration time."
+                    example: "newJWTTokenHere"
+        "403":
+          $ref: "#/components/responses/InvalidJWT"
+        "500":
+          $ref: "#/components/responses/TokenGenerationError"
+
+  /notebooks:
+    post:
+      summary: Create a new notebook
+      description: Upload a new notebook with content. The content will be validated using nbformat. JWT authentication and origin checking are required.
+      operationId: createNotebook
+      tags:
+        - Notebooks
+      security:
+        - jwtAuth: []
+      requestBody:
+        $ref: "#/components/requestBodies/NotebookContent"
+      responses:
+        "201":
+          $ref: "#/components/responses/NotebookCreated"
+        "202":
+          $ref: "#/components/responses/NotebookAccepted"
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "403":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "#/components/responses/StorageError"
+
+  /notebooks/{id}:
+    get:
+      summary: Retrieve a notebook
+      description: Retrieve the details of a notebook by its unique ID.
+      operationId: getNotebook
+      tags:
+        - Notebooks
+      security:
+        - jwtAuth: []
+      parameters:
+        - $ref: "#/components/parameters/NotebookID"
+      responses:
+        "200":
+          $ref: "#/components/responses/NotebookRetrieved"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/StorageError"
+
+    put:
+      summary: Update a notebook
+      description: Update an existing notebook by its unique ID. Only allowed if the request originates from the same session the notebook was created in.
+      operationId: updateNotebook
+      tags:
+        - Notebooks
+      security:
+        - jwtAuth: []
+      parameters:
+        - $ref: "#/components/parameters/NotebookID"
+      requestBody:
+        $ref: "#/components/requestBodies/NotebookContent"
+      responses:
+        "200":
+          $ref: "#/components/responses/NotebookUpdated"
+        "403":
+          $ref: "#/components/responses/UnauthorizedSession"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "#/components/responses/StorageError"
+
+components:
+  securitySchemes:
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT tokens are used for authentication. The token is time-limited and expires, and it must be included in the Authorization header as a Bearer token for all API requests.
+        Tokens can be refreshed using the `/auth/refresh` endpoint before expiration.
+        Claims:
+        - `exp` (Expiration time): Time when the token expires.
+        - `session_id`: Identifier for the session, ensuring updates are made by the same session.
+
+  requestBodies:
+    NotebookContent:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              content:
+                type: object
+                example: { "cells": [], "metadata": {}, "nbformat": 4, "nbformat_minor": 4 }
+                description: "Valid JSON notebook content"
+            required:
+              - content
+
+  parameters:
+    NotebookID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: "The unique identifier of the notebook."
+
+  responses:
+    NotebookCreated:
+      description: Notebook created and stored successfully
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                example: "Notebook created successfully"
+              notebook:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                    example: "123e4567-e89b-12d3-a456-426614174000"
+                  created_at:
+                    type: string
+                    format: date-time
+                  updated_at:
+                    type: string
+                    format: date-time
+                  status:
+                    type: string
+                    enum:
+                      - stored
+
+    NotebookAccepted:
+      description: Notebook accepted and queued/processing
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                example: "Notebook accepted and processing"
+              notebook:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                    example: "123e4567-e89b-12d3-a456-426614174000"
+                  status:
+                    type: string
+                    enum:
+                      - queued
+                      - processing
+                  created_at:
+                    type: string
+                    format: date-time
+
+    NotebookRetrieved:
+      description: Notebook retrieved successfully
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              content:
+                type: object
+                example: { "cells": [], "metadata": {}, "nbformat": 4, "nbformat_minor": 4 }
+              created_at:
+                type: string
+                format: date-time
+              updated_at:
+                type: string
+                format: date-time
+
+    NotebookUpdated:
+      description: Notebook updated successfully
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                example: "Notebook updated successfully"
+              notebook:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  updated_at:
+                    type: string
+                    format: date-time
+                  status:
+                    type: string
+                    enum:
+                      - stored
+
+    InvalidRequest:
+      description: Invalid request (e.g., missing required fields)
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: object
+                properties:
+                  error_code:
+                    type: string
+                    example: "INVALID_REQUEST"
+                  message:
+                    type: string
+                    example: "The input provided is invalid."
+                  details:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        field:
+                          type: string
+                          example: "content"
+                        issue:
+                          type: string
+                          example: "Required field is missing"
+              timestamp:
+                type: string
+                format: date-time
+
+    Unauthorized:
+      description: Unauthorized access
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error_code:
+                type: string
+                example: "FORBIDDEN"
+              message:
+                type: string
+                example: "You are not authorized to access this resource."
+              timestamp:
+                type: string
+                format: date-time
+
+    OriginMismatch:
+      description: CORS or Origin check failed
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error_code:
+                type: string
+                example: "FORBIDDEN"
+              message:
+                type: string
+                example: "Request from an invalid origin."
+              timestamp:
+                type: string
+                format: date-time
+
+    InvalidJWT:
+      description: Unauthorized (Invalid or Expired Token)
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error_code:
+                type: string
+                example: "FORBIDDEN"
+              message:
+                type: string
+                example: "The token is invalid or has expired. Please refresh or re-authenticate."
+              timestamp:
+                type: string
+                format: date-time
+
+    UnauthorizedSession:
+      description: Unauthorized session
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error_code:
+                type: string
+                example: "FORBIDDEN"
+              message:
+                type: string
+                example: "The session does not match the notebook creator's session."
+              timestamp:
+                type: string
+                format: date-time
+
+    NotFound:
+      description: Notebook not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error_code:
+                type: string
+                example: "NOT_FOUND"
+              message:
+                type: string
+                example: "Notebook with the given ID was not found."
+              timestamp:
+                type: string
+                format: date-time
+
+    UnprocessableEntity:
+      description: Unprocessable notebook content
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error_code:
+                type: string
+                example: "UNPROCESSABLE_ENTITY"
+              message:
+                type: string
+                example: "The notebook content is invalid."
+              details:
+                type: object
+                properties:
+                  validation_error:
+                    type: string
+                    example: "Cell 2 is missing a required field: 'source'"
+                  nbformat_version:
+                    type: string
+                    example: "4.4"
+              timestamp:
+                type: string
+                format: date-time
+
+    StorageError:
+      description: "S3/PostgreSQL Error: The system encountered an internal error while trying to store or retrieve the notebook."
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error_code:
+                type: string
+                example: "INTERNAL_SERVER_ERROR"
+              message:
+                type: string
+                example: "An error occurred while saving the notebook. Please try again."
+              timestamp:
+                type: string
+                format: date-time
+
+    TokenGenerationError:
+      description: "Error generating JWT token"
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error_code:
+                type: string
+                example: "INTERNAL_SERVER_ERROR"
+              message:
+                type: string
+                example: "An error occurred while generating the JWT token. Please try again."
+              timestamp:
+                type: string
+                format: date-time

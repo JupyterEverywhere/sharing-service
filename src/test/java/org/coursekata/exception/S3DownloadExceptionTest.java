@@ -1,0 +1,23 @@
+package org.coursekata.exception;
+
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
+class S3DownloadExceptionTest {
+
+  @Test
+  void testS3DownloadExceptionCreation() {
+    String errorMessage = "Error downloading notebook from S3";
+    Throwable cause = new RuntimeException("Underlying cause");
+
+    S3DownloadException exception = new S3DownloadException(errorMessage, cause);
+
+    assertNotNull(exception);
+
+    assertEquals(errorMessage, exception.getMessage());
+
+    assertEquals(cause, exception.getCause());
+  }
+}

@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  postgres:
+    container_name: ckhubapi-postgres-db
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ckhub
+      POSTGRES_PASSWORD: ckhub
+      POSTGRES_DB: ckhubapi
+    ports:
+      - "5433:5432"
+    volumes:
+      - ckhubapi_data:/var/lib/postgresql/data
+    networks:
+      - ckhubapi-network
+  localstack:
+    container_name: ckhubapi-localstack
+    image: localstack/localstack:latest
+    ports:
+      - "4567:4566"
+    environment:
+      - DEBUG=0
+    volumes:
+      - ckhubapi_localstack_data:/var/lib/localstack
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - ckhubapi-network
+  api:
+    container_name: ckhubapi-api
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    networks:
+      - ckhubapi-network
+volumes:
+  ckhubapi_data:
+    driver: local
+  ckhubapi_localstack_data:
+    driver: local
+networks:
+  ckhubapi-network:
+    driver: bridge

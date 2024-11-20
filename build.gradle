@@ -1,0 +1,137 @@
+plugins {
+	id 'java'
+	id 'jacoco'
+	id 'org.springframework.boot' version '3.3.3'
+	id 'io.spring.dependency-management' version '1.1.6'
+	id("org.springdoc.openapi-gradle-plugin") version "1.9.0"
+	id 'org.openapi.generator' version '6.4.0'
+}
+
+group = 'org.coursekata'
+version = '0.0.1-SNAPSHOT'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(17)
+	}
+}
+
+ext {
+	lombokVersion = '1.18.24'
+	jjwtVersion = '0.11.5'
+	awsSdkVersion = '1.12.311'
+	awsSdkBomVersion = '2.20.1'
+	springdocVersion = '1.7.0'
+	postgresVersion = '42.7.2'
+	classgraphVersion = '4.8.69'
+	webjarsVersion = '0.47'
+	persistenceApiVersion = '2.2'
+}
+
+repositories {
+	mavenCentral()
+	maven {
+		url = uri("https://plugins.gradle.org/m2/")
+	}
+}
+
+dependencies {
+	// Spring Boot core dependencies
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+
+	// Database dependencies for PostgreSQL and database migrations
+	implementation "org.postgresql:postgresql:${postgresVersion}"
+	implementation 'org.flywaydb:flyway-database-postgresql'
+	implementation 'org.flywaydb:flyway-core'
+
+	// Lombok
+	compileOnly "org.projectlombok:lombok:${lombokVersion}"
+	annotationProcessor "org.projectlombok:lombok:${lombokVersion}"
+	testCompileOnly "org.projectlombok:lombok:${lombokVersion}"
+	testAnnotationProcessor "org.projectlombok:lombok:${lombokVersion}"
+
+	// JWT for token-based authentication
+	implementation "io.jsonwebtoken:jjwt-api:${jjwtVersion}"
+	runtimeOnly "io.jsonwebtoken:jjwt-impl:${jjwtVersion}"
+	runtimeOnly "io.jsonwebtoken:jjwt-jackson:${jjwtVersion}"
+
+	// JPA and persistence
+	implementation "javax.persistence:javax.persistence-api:${persistenceApiVersion}"
+
+	// Amazon AWS SDK, RDS, S3 and Secrets Manager
+	implementation platform("software.amazon.awssdk:bom:${awsSdkBomVersion}")
+	implementation ("com.amazonaws:aws-java-sdk:${awsSdkVersion}") {
+		exclude group: 'commons-logging', module: 'commons-logging'
+	}
+	implementation 'software.amazon.awssdk:s3'
+	implementation 'software.amazon.awssdk:secretsmanager'
+
+	// Documentation (Springdoc OpenAPI)
+	implementation "org.springdoc:springdoc-openapi-ui:${springdocVersion}"
+	implementation "org.springdoc:springdoc-openapi-security:${springdocVersion}"
+
+	// WebJars locator core
+	implementation "org.webjars:webjars-locator-core:${webjarsVersion}"
+
+	// ClassGraph for classpath scanning
+	implementation "io.github.classgraph:classgraph:${classgraphVersion}"
+
+	// Security Testing
+	testImplementation 'org.springframework.security:spring-security-test'
+
+	// Test containers in-memory database for testing
+	testImplementation 'org.testcontainers:junit-jupiter:1.18.3'
+	testImplementation 'org.testcontainers:postgresql:1.18.3'
+
+	// Dev tools
+	developmentOnly 'org.springframework.boot:spring-boot-devtools'
+
+	// Testing frameworks
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+openApiGenerate {
+	generatorName = "spring"
+	inputSpec = "$rootDir/src/main/resources/api.yaml"
+	outputDir = "$buildDir/generated"
+	apiPackage = "org.coursekata.api"
+	modelPackage = "org.coursekata.model"
+	invokerPackage = "org.coursekata.invoker"
+	configOptions = [
+			dateLibrary: "java8"
+	]
+}
+
+jacoco {
+	toolVersion = "0.8.8"
+}
+
+test {
+	useJUnitPlatform()
+	finalizedBy jacocoTestReport
+}
+
+jacocoTestReport {
+	reports {
+		xml.required.set(true)
+		html.required.set(true)
+	}
+	afterEvaluate {
+		classDirectories.setFrom(
+				files(classDirectories.files.collect {
+					fileTree(dir: it, exclude: [
+							'org/coursekata/service/aws/S3StorageService.class', // Exclude until next iteration
+							'org/coursekata/config/',
+							'org/coursekata/CKHubApiApplication.class'
+					])
+				})
+		)
+	}
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}
