@@ -40,6 +40,7 @@ public class JupyterNotebookEntity {
   @Column(nullable = false)
   private String domain;
 
+  @Column(nullable = false)
   private String storageUrl;
 
   private String readableId;

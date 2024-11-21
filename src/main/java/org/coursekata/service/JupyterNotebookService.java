@@ -205,6 +205,7 @@ public class JupyterNotebookService {
     JupyterNotebookEntity notebookEntity = new JupyterNotebookEntity();
     notebookEntity.setSessionId(sessionId);
     notebookEntity.setDomain(domain);
+    notebookEntity.setStorageUrl("");
 
     setNotebookEntityMetadata(notebookEntity, metadata);
 

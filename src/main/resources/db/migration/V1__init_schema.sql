@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS jupyter_notebooks_metadata (
     language VARCHAR(255) NOT NULL DEFAULT '',
     language_version VARCHAR(255) NOT NULL DEFAULT '',
     session_id UUID NOT NULL DEFAULT uuid_generate_v4(),
-    storage_url VARCHAR(255) DEFAULT '',
+    storage_url VARCHAR(255) NOT NULL DEFAULT '',
     domain VARCHAR(255) NOT NULL DEFAULT '',
     readable_id VARCHAR(128) UNIQUE DEFAULT ''
 );
