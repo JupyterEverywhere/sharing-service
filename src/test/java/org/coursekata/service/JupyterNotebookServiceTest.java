@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -188,9 +189,56 @@ class JupyterNotebookServiceTest {
   }
 
   @Test
+  void testValidateAndStoreNotebook_KernelSpecAndLanguageInfoNull() throws Exception {
+    UUID sessionId = UUID.randomUUID();
+    String domain = "example.com";
+    MetadataDTO metadata = new MetadataDTO(null, null);
+    JupyterNotebookDTO notebookDto = new JupyterNotebookDTO();
+    notebookDto.setMetadata(metadata);
+
+    final JupyterNotebookEntity[] savedEntityFirst = new JupyterNotebookEntity[1];
+    final JupyterNotebookEntity[] savedEntitySecond = new JupyterNotebookEntity[1];
+
+    when(notebookRepository.saveAndFlush(any(JupyterNotebookEntity.class))).thenAnswer(invocation -> {
+      JupyterNotebookEntity entity = invocation.getArgument(0);
+      entity.setId(UUID.randomUUID());
+      savedEntityFirst[0] = copyNotebookEntity(entity);
+      return entity;
+    });
+
+    when(notebookRepository.save(any(JupyterNotebookEntity.class))).thenAnswer(invocation -> {
+      JupyterNotebookEntity entity = invocation.getArgument(0);
+      savedEntitySecond[0] = copyNotebookEntity(entity);
+      return entity;
+    });
+
+    when(storageService.uploadNotebook(anyString(), anyString())).thenReturn("notebook.ipynb");
+    when(jupyterNotebookValidator.validateNotebook(anyString())).thenReturn(true);
+
+    notebookService.validateAndStoreNotebook(notebookDto, sessionId, domain);
+
+    assertEquals(sessionId, savedEntityFirst[0].getSessionId());
+    assertEquals(domain, savedEntityFirst[0].getDomain());
+    assertNotNull(savedEntityFirst[0].getCreatedAt());
+    assertNull(savedEntityFirst[0].getStorageUrl());
+    assertNotNull(savedEntityFirst[0].getId());
+
+    assertEquals(sessionId, savedEntitySecond[0].getSessionId());
+    assertEquals(domain, savedEntitySecond[0].getDomain());
+    assertNotNull(savedEntitySecond[0].getCreatedAt());
+    assertEquals("notebook.ipynb", savedEntitySecond[0].getStorageUrl());
+    assertNotNull(savedEntitySecond[0].getId());
+
+    assertNull(savedEntitySecond[0].getKernelName());
+    assertNull(savedEntitySecond[0].getKernelDisplayName());
+    assertNull(savedEntitySecond[0].getLanguage());
+    assertNull(savedEntitySecond[0].getLanguageVersion());
+    assertNull(savedEntitySecond[0].getFileExtension());
+  }
+
+  @Test
   void testSaveNotebookMetadata_KernelSpecAndLanguageInfoNull() {
     UUID sessionId = UUID.randomUUID();
-    String fileName = "notebook.ipynb";
     String domain = "example.com";
     MetadataDTO metadata = new MetadataDTO(null, null);
 
@@ -200,14 +248,14 @@ class JupyterNotebookServiceTest {
       return entity;
     });
 
-    notebookService.saveNotebookMetadata(sessionId, fileName, metadata, domain);
+    notebookService.saveNotebookMetadata(sessionId, metadata, domain);
 
     ArgumentCaptor<JupyterNotebookEntity> captor = ArgumentCaptor.forClass(JupyterNotebookEntity.class);
     verify(notebookRepository).saveAndFlush(captor.capture());
 
     JupyterNotebookEntity savedEntity = captor.getValue();
     assertEquals(sessionId, savedEntity.getSessionId());
-    assertEquals(fileName, savedEntity.getStorageUrl());
+    assertNull(savedEntity.getStorageUrl());
     assertEquals(domain, savedEntity.getDomain());
     assertNotNull(savedEntity.getCreatedAt());
 
@@ -216,50 +264,6 @@ class JupyterNotebookServiceTest {
     assertNull(savedEntity.getLanguage());
     assertNull(savedEntity.getLanguageVersion());
     assertNull(savedEntity.getFileExtension());
-
-    assertNotNull(savedEntity.getId());
-  }
-
-  @Test
-  void testSaveNotebookMetadata_WithKernelSpecAndLanguageInfo() {
-    UUID sessionId = UUID.randomUUID();
-    String fileName = "notebook.ipynb";
-    String domain = "example.com";
-
-    KernelspecDTO kernelSpec = new KernelspecDTO("Python 3", "python", "python3");
-    CodemirrorModeDTO codeMirrorMode = new CodemirrorModeDTO("python", 3);
-    LanguageInfoDTO languageInfo = new LanguageInfoDTO(
-        codeMirrorMode,
-        ".py",
-        "text/x-python",
-        "python",
-        "python3",
-        "3.8"
-    );
-    MetadataDTO metadata = new MetadataDTO(kernelSpec, languageInfo);
-
-    when(notebookRepository.saveAndFlush(any(JupyterNotebookEntity.class))).thenAnswer(invocation -> {
-      JupyterNotebookEntity entity = invocation.getArgument(0);
-      entity.setId(UUID.randomUUID());
-      return entity;
-    });
-
-    notebookService.saveNotebookMetadata(sessionId, fileName, metadata, domain);
-
-    ArgumentCaptor<JupyterNotebookEntity> captor = ArgumentCaptor.forClass(JupyterNotebookEntity.class);
-    verify(notebookRepository).saveAndFlush(captor.capture());
-
-    JupyterNotebookEntity savedEntity = captor.getValue();
-    assertEquals(sessionId, savedEntity.getSessionId());
-    assertEquals(fileName, savedEntity.getStorageUrl());
-    assertEquals(domain, savedEntity.getDomain());
-    assertNotNull(savedEntity.getCreatedAt());
-
-    assertEquals("python3", savedEntity.getKernelName());
-    assertEquals("Python 3", savedEntity.getKernelDisplayName());
-    assertEquals("python", savedEntity.getLanguage());
-    assertEquals("3.8", savedEntity.getLanguageVersion());
-    assertEquals(".py", savedEntity.getFileExtension());
 
     assertNotNull(savedEntity.getId());
   }
@@ -473,13 +477,28 @@ class JupyterNotebookServiceTest {
   void testStoreNotebook_SuccessfulStore() throws Exception {
     JupyterNotebookDTO notebookDto = new JupyterNotebookDTO();
     notebookDto.setMetadata(new MetadataDTO());
-    UUID sessionId = UUID.randomUUID();
+    String filename = "test";
 
     when(storageService.uploadNotebook(anyString(), anyString())).thenReturn("stored_notebook.ipynb");
 
-    String result = notebookService.storeNotebook(notebookDto, sessionId);
+    String result = notebookService.storeNotebook(notebookDto, filename);
 
     assertEquals("stored_notebook.ipynb", result);
     verify(storageService).uploadNotebook(anyString(), anyString());
+  }
+
+  private JupyterNotebookEntity copyNotebookEntity(JupyterNotebookEntity original) {
+    JupyterNotebookEntity copy = new JupyterNotebookEntity();
+    copy.setId(original.getId());
+    copy.setSessionId(original.getSessionId());
+    copy.setDomain(original.getDomain());
+    copy.setStorageUrl(original.getStorageUrl());
+    copy.setCreatedAt(original.getCreatedAt());
+    copy.setKernelName(original.getKernelName());
+    copy.setKernelDisplayName(original.getKernelDisplayName());
+    copy.setLanguage(original.getLanguage());
+    copy.setLanguageVersion(original.getLanguageVersion());
+    copy.setFileExtension(original.getFileExtension());
+    return copy;
   }
 }

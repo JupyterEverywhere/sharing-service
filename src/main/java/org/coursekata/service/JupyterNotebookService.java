@@ -131,8 +131,16 @@ public class JupyterNotebookService {
       throw new InvalidNotebookException(NOTEBOOK_VALIDATION_FAILED_MESSAGE);
     }
 
-    String fileName = storeNotebook(notebookDto, sessionId);
-    return saveNotebookMetadata(sessionId, fileName, notebookDto.getMetadata(), domain);
+    JupyterNotebookEntity notebookEntity = saveNotebookMetadata(sessionId, notebookDto.getMetadata(), domain);
+
+    String fileName = notebookEntity.getId().toString() + ".ipynb";
+
+    String storageUrl = storeNotebook(notebookDto, fileName);
+
+    notebookEntity.setStorageUrl(storageUrl);
+    notebookRepository.save(notebookEntity);
+
+    return notebookEntity;
   }
 
   public JupyterNotebookSaved updateNotebook(UUID notebookId, JupyterNotebookDTO notebookDto, UUID sessionId)
@@ -166,8 +174,9 @@ public class JupyterNotebookService {
       throw new InvalidNotebookException(NOTEBOOK_VALIDATION_FAILED_MESSAGE);
     }
 
-    String fileName = storeNotebook(notebookDto, sessionId);
-    storedNotebook.setStorageUrl(fileName);
+    String fileName = storedNotebook.getId().toString() + ".ipynb";
+
+    storeNotebook(notebookDto, fileName);
 
     updateNotebookMetadata(storedNotebook, notebookDto, sessionId);
 
@@ -186,23 +195,22 @@ public class JupyterNotebookService {
     notebookDto.setMetadata(metadata);
   }
 
-  String storeNotebook(JupyterNotebookDTO notebookDto, UUID sessionId) throws JsonProcessingException {
-    String notebookName = sessionId.toString() + "_" + UUID.randomUUID() + ".ipynb";
+  String storeNotebook(JupyterNotebookDTO notebookDto, String fileName) throws JsonProcessingException {
     String notebookJsonString = objectMapper.writeValueAsString(notebookDto);
-    return storageService.uploadNotebook(notebookJsonString, notebookName);
+    return storageService.uploadNotebook(notebookJsonString, fileName);
   }
 
-  JupyterNotebookEntity saveNotebookMetadata(UUID sessionId, String fileName, MetadataDTO metadata, String domain) {
+  JupyterNotebookEntity saveNotebookMetadata(UUID sessionId, MetadataDTO metadata, String domain) {
 
     JupyterNotebookEntity notebookEntity = new JupyterNotebookEntity();
     notebookEntity.setSessionId(sessionId);
     notebookEntity.setDomain(domain);
+    notebookEntity.setStorageUrl("");
 
     setNotebookEntityMetadata(notebookEntity, metadata);
 
     Timestamp createdAt = DateUtils.utcDateToTimestamp(Date.from(Instant.now()));
 
-    notebookEntity.setStorageUrl(fileName);
     notebookEntity.setCreatedAt(createdAt);
 
     JupyterNotebookEntity savedNotebook = notebookRepository.saveAndFlush(notebookEntity);
@@ -210,7 +218,6 @@ public class JupyterNotebookService {
 
     log.info(new StringMapMessage()
         .with(MESSAGE_KEY, "Notebook metadata saved in database")
-        .with("FileName", fileName)
         .with(NOTEBOOK_ID_MESSAGE_KEY, notebookEntity.getId().toString())
         .with("CreatedAt", createdAt.toString()));
 
@@ -255,7 +262,7 @@ public class JupyterNotebookService {
     JupyterNotebookEntity notebookEntity = notebookRepository.findByReadableId(readableId)
             .orElseThrow(() -> {
               log.error(new StringMapMessage()
-                      .with("Message", NOTEBOOK_NOT_FOUND_MESSAGE)
+                      .with(MESSAGE_KEY, NOTEBOOK_NOT_FOUND_MESSAGE)
                       .with("ReadableId", readableId)
               );
               return new NotebookNotFoundException(NOTEBOOK_NOT_FOUND_MESSAGE);
@@ -275,7 +282,7 @@ public class JupyterNotebookService {
     JupyterNotebookEntity notebookEntity = notebookRepository.findByReadableId(readableId)
             .orElseThrow(() -> {
               log.error(new StringMapMessage()
-                      .with("Message", NOTEBOOK_NOT_FOUND_MESSAGE)
+                      .with(MESSAGE_KEY, NOTEBOOK_NOT_FOUND_MESSAGE)
                       .with("ReadableId", readableId)
               );
               return new NotebookNotFoundException(NOTEBOOK_NOT_FOUND_MESSAGE);
