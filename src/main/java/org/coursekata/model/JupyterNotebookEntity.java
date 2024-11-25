@@ -45,6 +45,8 @@ public class JupyterNotebookEntity {
 
   private String readableId;
 
+  private String password;
+
   @Column(nullable = false)
   private Timestamp createdAt;
 }

@@ -12,6 +12,6 @@ import org.springframework.web.context.annotation.RequestScope;
 @Component
 @RequestScope
 public class AuthenticationRequest {
-  private String username;
+  private String notebookId;
   private String password;
 }

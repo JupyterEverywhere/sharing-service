@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import org.coursekata.exception.TokenRefreshException;
+import org.coursekata.model.auth.AuthenticationRequest;
 import org.coursekata.model.auth.AuthenticationResponse;
 import org.coursekata.model.auth.TokenRefreshRequest;
 import org.coursekata.service.AuthService;
@@ -36,11 +37,12 @@ class AuthControllerTest {
   @Test
   void testIssueToken_Success() {
     AuthenticationResponse expectedResponse = new AuthenticationResponse();
+    AuthenticationRequest expectedRequest = new AuthenticationRequest();
     expectedResponse.setToken("generated-token");
 
     when(authService.generateInitialTokenResponse()).thenReturn(expectedResponse);
 
-    ResponseEntity<AuthenticationResponse> responseEntity = authController.issueToken();
+    ResponseEntity<AuthenticationResponse> responseEntity = authController.issueToken(expectedRequest);
 
     assertNotNull(responseEntity);
     assertEquals(200, responseEntity.getStatusCode().value());
@@ -53,10 +55,11 @@ class AuthControllerTest {
 
   @Test
   void testIssueToken_Failure() {
+    AuthenticationRequest expectedRequest = new AuthenticationRequest();
     when(authService.generateInitialTokenResponse()).thenThrow(new RuntimeException("Token generation failed"));
 
     assertThrows(RuntimeException.class, () -> {
-      authController.issueToken();
+      authController.issueToken(expectedRequest);
     });
 
     verify(authService, times(1)).generateInitialTokenResponse();

@@ -14,6 +14,7 @@ import org.coursekata.dto.JupyterNotebookDTO;
 import org.coursekata.exception.InvalidNotebookException;
 import org.coursekata.exception.NotebookNotFoundException;
 import org.coursekata.exception.SessionMismatchException;
+import org.coursekata.model.request.JupyterNotebookRequest;
 import org.coursekata.model.response.JupyterNotebookErrorResponse;
 import org.coursekata.model.response.JupyterNotebookResponse;
 import org.coursekata.model.response.JupyterNotebookRetrieved;
@@ -101,7 +102,7 @@ class JupyterNotebookControllerTest {
 
   @Test
   void testUploadNotebook_Success() {
-    JupyterNotebookDTO notebookDto = new JupyterNotebookDTO();
+    JupyterNotebookRequest jupyterNotebookRequest = new JupyterNotebookRequest();
     UUID sessionId = UUID.randomUUID();
     String message = "Notebook uploaded, validated, and metadata stored successfully";
 
@@ -113,9 +114,9 @@ class JupyterNotebookControllerTest {
     when(authentication.getPrincipal()).thenReturn(sessionId);
     when(request.getRemoteAddr()).thenReturn(domain);
 
-    when(notebookService.uploadNotebook(notebookDto, sessionId, domain)).thenReturn(notebookSaved);
+    when(notebookService.uploadNotebook(jupyterNotebookRequest, sessionId, domain)).thenReturn(notebookSaved);
 
-    ResponseEntity<JupyterNotebookResponse> response = controller.uploadNotebook(notebookDto, authentication, request);
+    ResponseEntity<JupyterNotebookResponse> response = controller.uploadNotebook(jupyterNotebookRequest, authentication, request);
 
     assertEquals(201, response.getStatusCode().value());
     assertEquals(notebookSavedResponse, response.getBody());
@@ -123,7 +124,7 @@ class JupyterNotebookControllerTest {
 
   @Test
   void testUploadNotebook_InvalidNotebook() {
-    JupyterNotebookDTO notebookDto = new JupyterNotebookDTO();
+    JupyterNotebookRequest jupyterNotebookRequest = new JupyterNotebookRequest();
     UUID sessionId = UUID.randomUUID();
     var errorResponse = new JupyterNotebookErrorResponse(HttpStatus.UNPROCESSABLE_ENTITY.name(), "Invalid notebook format");
 
@@ -132,9 +133,9 @@ class JupyterNotebookControllerTest {
     when(HttpHeaderUtils.getDomainFromRequest(request)).thenReturn(domain);
 
     doThrow(new InvalidNotebookException("Invalid notebook format"))
-        .when(notebookService).uploadNotebook(notebookDto, sessionId, domain);
+        .when(notebookService).uploadNotebook(jupyterNotebookRequest, sessionId, domain);
 
-    ResponseEntity<JupyterNotebookResponse> response = controller.uploadNotebook(notebookDto, authentication, request);
+    ResponseEntity<JupyterNotebookResponse> response = controller.uploadNotebook(jupyterNotebookRequest, authentication, request);
     JupyterNotebookErrorResponse notebookResponse = (JupyterNotebookErrorResponse) response.getBody();
 
     assertNotNull(notebookResponse);
@@ -145,7 +146,7 @@ class JupyterNotebookControllerTest {
 
   @Test
   void testUploadNotebook_Exception() {
-    JupyterNotebookDTO notebookDto = new JupyterNotebookDTO();
+    JupyterNotebookRequest jupyterNotebookRequest = new JupyterNotebookRequest();
     UUID sessionId = UUID.randomUUID();
     var errorResponse = new JupyterNotebookErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR.name(), "Error uploading notebook");
 
@@ -154,9 +155,9 @@ class JupyterNotebookControllerTest {
     when(HttpHeaderUtils.getDomainFromRequest(request)).thenReturn(domain);
 
     doThrow(new RuntimeException("Unexpected error"))
-        .when(notebookService).uploadNotebook(eq(notebookDto), eq(sessionId), eq(domain));
+        .when(notebookService).uploadNotebook(eq(jupyterNotebookRequest), eq(sessionId), eq(domain));
 
-    ResponseEntity<JupyterNotebookResponse> response = controller.uploadNotebook(notebookDto, authentication, request);
+    ResponseEntity<JupyterNotebookResponse> response = controller.uploadNotebook(jupyterNotebookRequest, authentication, request);
     JupyterNotebookErrorResponse notebookResponse = (JupyterNotebookErrorResponse) response.getBody();
 
     assertNotNull(notebookResponse);
