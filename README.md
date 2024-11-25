@@ -101,12 +101,15 @@ deactivate
 
 2. Create a `.envrc` file in the project. 
 
-3. Export the following variable 
+3. Export the following variables 
 ```bash
-export PYTHON_INTERPRETER_PATH= PATH
+export PYTHON_INTERPRETER_PATH= INTERPRETER_PATH
+export PYTHON_SCRIPT_PATH= SCRIPT_PATH
 ```
-4. Replace PATH with the location of the /bin directory of your virtual environment. It should look like this:
-`/Users/youruser/envs/ckhubapi/bin/`
+4. Replace INTERPRETER_PATH and SCRIPT_PATH with the relative location of each one. It should look like this:
+
+`/Users/youruser/envs/ckhubapi/bin/python`
+`/Users/youruser/envs/ckhubapi/scripts/validate_notebook.py`(copy the script located in script project package)
 
 5. Test your variable was created using the command  `echo $PYTHON_INTERPRETER_PATH`. 
 
