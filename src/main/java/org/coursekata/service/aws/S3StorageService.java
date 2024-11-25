@@ -108,7 +108,7 @@ public class S3StorageService implements StorageService {
 
       log.info(successLog);
 
-      return bucketName + "/" + fileName;
+      return fileName;
     } catch (Exception e) {
       StringMapMessage errorLog = new StringMapMessage()
           .with("action", "uploadNotebook")
