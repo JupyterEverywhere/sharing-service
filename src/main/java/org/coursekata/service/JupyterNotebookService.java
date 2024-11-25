@@ -24,7 +24,6 @@ import org.coursekata.repository.JupyterNotebookRepository;
 import org.coursekata.service.utils.JupyterNotebookValidator;
 import org.coursekata.utils.DateUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 @Log4j2
@@ -47,7 +46,7 @@ public class JupyterNotebookService {
 
   @Autowired
   public JupyterNotebookService(
-      @Qualifier("storageServiceImpl") StorageService storageService,
+      StorageService storageService,
       JupyterNotebookValidator jupyterNotebookValidator,
       JupyterNotebookRepository notebookRepository,
       EntityManager entityManager,
@@ -110,9 +109,11 @@ public class JupyterNotebookService {
       throw e;
     } catch (Exception e) {
       log.error(new StringMapMessage()
-          .with(MESSAGE_KEY, "Error during notebook upload")
-          .with(SESSION_ID_MESSAGE_KEY, sessionId.toString())
-          .with(DOMAIN_MESSAGE_KEY, domain), e);
+              .with(MESSAGE_KEY, "Error during notebook upload")
+              .with(MESSAGE_KEY, "Error during notebook upload")
+              .with(SESSION_ID_MESSAGE_KEY, sessionId.toString())
+              .with(DOMAIN_MESSAGE_KEY, domain)
+              .with("Error",e.getMessage()));
       throw new RuntimeException("Error uploading notebook", e);
     }
   }

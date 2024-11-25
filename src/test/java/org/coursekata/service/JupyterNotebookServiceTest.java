@@ -220,7 +220,7 @@ class JupyterNotebookServiceTest {
     assertEquals(sessionId, savedEntityFirst[0].getSessionId());
     assertEquals(domain, savedEntityFirst[0].getDomain());
     assertNotNull(savedEntityFirst[0].getCreatedAt());
-    assertNull(savedEntityFirst[0].getStorageUrl());
+    assertNotNull(savedEntityFirst[0].getStorageUrl());
     assertNotNull(savedEntityFirst[0].getId());
 
     assertEquals(sessionId, savedEntitySecond[0].getSessionId());
@@ -255,7 +255,7 @@ class JupyterNotebookServiceTest {
 
     JupyterNotebookEntity savedEntity = captor.getValue();
     assertEquals(sessionId, savedEntity.getSessionId());
-    assertNull(savedEntity.getStorageUrl());
+    assertNotNull(savedEntity.getStorageUrl());
     assertEquals(domain, savedEntity.getDomain());
     assertNotNull(savedEntity.getCreatedAt());
 
