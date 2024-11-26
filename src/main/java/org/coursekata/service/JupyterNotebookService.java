@@ -109,9 +109,11 @@ public class JupyterNotebookService {
       throw e;
     } catch (Exception e) {
       log.error(new StringMapMessage()
-          .with(MESSAGE_KEY, "Error during notebook upload")
-          .with(SESSION_ID_MESSAGE_KEY, sessionId.toString())
-          .with(DOMAIN_MESSAGE_KEY, domain), e);
+              .with(MESSAGE_KEY, "Error during notebook upload")
+              .with(MESSAGE_KEY, "Error during notebook upload")
+              .with(SESSION_ID_MESSAGE_KEY, sessionId.toString())
+              .with(DOMAIN_MESSAGE_KEY, domain)
+              .with("Error",e.getMessage()));
       throw new RuntimeException("Error uploading notebook", e);
     }
   }
