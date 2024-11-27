@@ -289,7 +289,7 @@ public class JupyterNotebookService {
               return new NotebookNotFoundException(NOTEBOOK_NOT_FOUND_MESSAGE);
             });
 
-    updateNotebook(notebookEntity.getId(), notebookDto, sessionId);
+    updateNotebook(String.valueOf(notebookEntity.getId()), notebookDto, sessionId);
 
     return new JupyterNotebookSaved(notebookEntity.getId(), notebookEntity.getDomain(), notebookEntity.getReadableId());
   }
