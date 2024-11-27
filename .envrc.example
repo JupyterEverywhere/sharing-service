@@ -1,0 +1,7 @@
+# ensures that every time pixi.lock changes, direnv invokes the shell-hook again.
+watch_file pixi.lock
+eval "$(pixi shell-hook)"
+
+# needed when building the application
+export PYTHON_INTERPRETER_PATH=$(which python3)
+export PYTHON_SCRIPT_PATH="$PIXI_PROJECT_ROOT/src/main/java/org/coursekata/script/validate_notebook.py"

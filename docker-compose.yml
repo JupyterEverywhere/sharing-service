@@ -35,6 +35,7 @@ services:
 
   api:
     container_name: ckhubapi-api
+    profiles: ["api"]
     build:
       context: .
       dockerfile: Dockerfile

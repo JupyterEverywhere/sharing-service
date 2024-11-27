@@ -61,3 +61,7 @@ replay_pid*
 
 ### MacOs ###
 .DS_Store
+
+# pixi environments
+.pixi
+*.egg-info
