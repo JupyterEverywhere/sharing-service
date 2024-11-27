@@ -22,9 +22,26 @@ public class HttpHeaderUtils {
   }
 
   public static String getDomainFromRequest(HttpServletRequest request) {
-    String clientIp = request.getRemoteAddr();
+    String clientIp = extractClientIp(request);
     logInfo("Received request from client IP", CLIENT_IP_KEY, clientIp);
     return resolveHostName(clientIp);
+  }
+
+  private static String extractClientIp(HttpServletRequest request) {
+    String clientIp = getHeaderValue(request, "X-Forwarded-For");
+    if (clientIp != null) {
+      return clientIp.split(",")[0].trim();
+    }
+    clientIp = getHeaderValue(request, "X-Real-IP");
+    return (clientIp != null) ? clientIp : request.getRemoteAddr();
+  }
+
+  private static String getHeaderValue(HttpServletRequest request, String headerName) {
+    String headerValue = request.getHeader(headerName);
+    if (headerValue == null || headerValue.isEmpty() || "unknown".equalsIgnoreCase(headerValue)) {
+      return null;
+    }
+    return headerValue;
   }
 
   private static String resolveHostName(String clientIp) {
