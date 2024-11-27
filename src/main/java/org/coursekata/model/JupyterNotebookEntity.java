@@ -9,6 +9,7 @@ import jakarta.persistence.Table;
 import java.sql.Timestamp;
 import java.util.UUID;
 import lombok.Data;
+import lombok.ToString;
 
 @Entity
 @Table(name = "jupyter_notebooks_metadata")
@@ -45,6 +46,7 @@ public class JupyterNotebookEntity {
 
   private String readableId;
 
+  @ToString.Exclude
   private String password;
 
   @Column(nullable = false)

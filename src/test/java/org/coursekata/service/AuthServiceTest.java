@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 import java.util.UUID;
 import org.coursekata.exception.TokenRefreshException;
 import org.coursekata.model.TokenStore;
+import org.coursekata.model.auth.AuthenticationRequest;
 import org.coursekata.model.auth.AuthenticationResponse;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -40,7 +41,7 @@ class AuthServiceTest {
     String expectedToken = "some-jwt-token";
     when(jwtTokenService.generateToken(anyString())).thenReturn(expectedToken);
 
-    AuthenticationResponse response = authService.generateInitialTokenResponse();
+    AuthenticationResponse response = authService.generateInitialTokenResponse(new AuthenticationRequest());
 
     assertNotNull(response);
     assertEquals(expectedToken, response.getToken());
@@ -53,18 +54,23 @@ class AuthServiceTest {
     String oldToken = "old-jwt-token";
     UUID sessionId = UUID.randomUUID();
     String expectedToken = "new-jwt-token";
+    String notebookId = "notebook-123";
 
-    when(tokenStore.getToken(sessionId)).thenReturn(oldToken);
     when(jwtTokenService.extractSessionIdFromToken(oldToken)).thenReturn(sessionId);
+    when(jwtTokenService.extractNotebookIdFromToken(oldToken)).thenReturn(notebookId);
+    when(tokenStore.getToken(sessionId)).thenReturn(oldToken);
     when(jwtTokenService.validateToken(oldToken)).thenReturn(true);
-    when(jwtTokenService.generateToken(sessionId.toString())).thenReturn(expectedToken);
+    when(jwtTokenService.generateToken(sessionId.toString(), notebookId)).thenReturn(expectedToken);
 
     AuthenticationResponse response = authService.refreshTokenResponse(oldToken);
 
-    assertNotNull(response);
-    assertEquals(expectedToken, response.getToken());
+    assertNotNull(response, "AuthenticationResponse should not be null");
+    assertEquals(expectedToken, response.getToken(), "The new token should match the expected value");
+
     verify(jwtTokenService).extractSessionIdFromToken(oldToken);
-    verify(jwtTokenService).generateToken(sessionId.toString());
+    verify(jwtTokenService).extractNotebookIdFromToken(oldToken);
+    verify(jwtTokenService).validateToken(oldToken);
+    verify(jwtTokenService).generateToken(sessionId.toString(), notebookId);
     verify(tokenStore).removeToken(sessionId);
     verify(tokenStore).storeToken(sessionId, expectedToken);
   }

@@ -2,16 +2,15 @@ package org.coursekata.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
-import static org.mockito.MockitoAnnotations.openMocks;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.UUID;
 import org.coursekata.dto.JupyterNotebookDTO;
 import org.coursekata.exception.InvalidNotebookException;
+import org.coursekata.exception.InvalidNotebookPasswordException;
 import org.coursekata.exception.NotebookNotFoundException;
 import org.coursekata.exception.SessionMismatchException;
 import org.coursekata.model.request.JupyterNotebookRequest;
@@ -22,15 +21,23 @@ import org.coursekata.model.response.JupyterNotebookSaved;
 import org.coursekata.model.response.JupyterNotebookSavedResponse;
 import org.coursekata.service.JupyterNotebookService;
 import org.coursekata.utils.HttpHeaderUtils;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 
+@ExtendWith(MockitoExtension.class)
 class JupyterNotebookControllerTest {
+
+  @InjectMocks
+  private JupyterNotebookController controller;
 
   @Mock
   private JupyterNotebookService notebookService;
@@ -38,213 +45,365 @@ class JupyterNotebookControllerTest {
   @Mock
   private Authentication authentication;
 
-  @InjectMocks
-  private JupyterNotebookController controller;
-
   @Mock
   private HttpServletRequest request;
 
   private final String domain = "example.com";
   private final String readableId = "adorable-amazing-alligator";
 
+  private MockedStatic<HttpHeaderUtils> mockedStaticHttpHeaderUtils;
+
   @BeforeEach
   void setUp() {
-    openMocks(this);
+    mockedStaticHttpHeaderUtils = mockStatic(HttpHeaderUtils.class);
   }
 
-  @Test
-  void testGetNotebook_Success() {
-    UUID notebookId = UUID.randomUUID();
+  @AfterEach
+  void tearDown() {
+    mockedStaticHttpHeaderUtils.close();
+  }
 
+  private void mockDomainExtraction() {
+    mockedStaticHttpHeaderUtils.when(() -> HttpHeaderUtils.getDomainFromRequest(request)).thenReturn(
+        "example.com");
+  }
+
+  private void mockTokenExtraction(String token) {
+    mockedStaticHttpHeaderUtils.when(() -> HttpHeaderUtils.getTokenFromRequest(request)).thenReturn(token);
+  }
+
+
+  @Test
+  void testGetNotebookById_Success() {
+    UUID notebookId = UUID.randomUUID();
     var notebookRetrieved = new JupyterNotebookRetrieved(notebookId, domain, readableId, new JupyterNotebookDTO());
 
     when(notebookService.getNotebookContent(notebookId)).thenReturn(notebookRetrieved);
 
     ResponseEntity<JupyterNotebookResponse> response = controller.getNotebook(notebookId);
 
-    assertEquals(200, response.getStatusCode().value());
+    assertEquals(HttpStatus.OK, response.getStatusCode());
     assertEquals(notebookRetrieved, response.getBody());
   }
 
   @Test
-  void testGetNotebook_NotFound() {
+  void testGetNotebookById_NotFound() {
     UUID notebookId = UUID.randomUUID();
-    var errorResponse = new JupyterNotebookErrorResponse(HttpStatus.NOT_FOUND.name(), "Notebook not found");
 
-    doThrow(new NotebookNotFoundException("Notebook not found"))
-        .when(notebookService).getNotebookContent(notebookId);
+    when(notebookService.getNotebookContent(notebookId))
+        .thenThrow(new NotebookNotFoundException("Notebook not found"));
 
     ResponseEntity<JupyterNotebookResponse> response = controller.getNotebook(notebookId);
-    JupyterNotebookErrorResponse notebookResponse = (JupyterNotebookErrorResponse) response.getBody();
 
-    assertNotNull(notebookResponse);
-    assertEquals(404, response.getStatusCode().value());
-    assertEquals(errorResponse.getErrorCode(), notebookResponse.getErrorCode());
-    assertEquals(errorResponse.getMessage(), notebookResponse.getMessage());
+    assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+    JupyterNotebookErrorResponse errorResponse = (JupyterNotebookErrorResponse) response.getBody();
+    assertNotNull(errorResponse);
+    assertEquals("Notebook not found", errorResponse.getMessage());
+    assertEquals(HttpStatus.NOT_FOUND.name(), errorResponse.getErrorCode());
   }
 
   @Test
-  void testGetNotebook_Exception() {
+  void testGetNotebookById_Exception() {
     UUID notebookId = UUID.randomUUID();
-    var errorResponse = new JupyterNotebookErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR.name(), "Error fetching notebook");
 
-    doThrow(new RuntimeException("Unexpected error"))
-        .when(notebookService).getNotebookContent(notebookId);
+    when(notebookService.getNotebookContent(notebookId))
+        .thenThrow(new RuntimeException("Unexpected error"));
 
     ResponseEntity<JupyterNotebookResponse> response = controller.getNotebook(notebookId);
-    JupyterNotebookErrorResponse notebookResponse = (JupyterNotebookErrorResponse) response.getBody();
 
-    assertNotNull(notebookResponse);
-    assertEquals(500, response.getStatusCode().value());
-    assertEquals(errorResponse.getErrorCode(), notebookResponse.getErrorCode());
-    assertEquals(errorResponse.getMessage(), notebookResponse.getMessage());
+    assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+    JupyterNotebookErrorResponse errorResponse = (JupyterNotebookErrorResponse) response.getBody();
+    assertNotNull(errorResponse);
+    assertEquals("Error fetching notebook", errorResponse.getMessage());
+    assertEquals(HttpStatus.INTERNAL_SERVER_ERROR.name(), errorResponse.getErrorCode());
+  }
+
+  @Test
+  void testGetNotebookByReadableId_Success() {
+    var notebookRetrieved = new JupyterNotebookRetrieved(UUID.randomUUID(), domain, readableId, new JupyterNotebookDTO());
+
+    when(notebookService.getNotebookContent(readableId)).thenReturn(notebookRetrieved);
+
+    ResponseEntity<JupyterNotebookResponse> response = controller.getNotebook(readableId);
+
+    assertEquals(HttpStatus.OK, response.getStatusCode());
+    assertEquals(notebookRetrieved, response.getBody());
+  }
+
+  @Test
+  void testGetNotebookByReadableId_NotFound() {
+    when(notebookService.getNotebookContent(readableId))
+        .thenThrow(new NotebookNotFoundException("Notebook not found"));
+
+    ResponseEntity<JupyterNotebookResponse> response = controller.getNotebook(readableId);
+
+    assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+    JupyterNotebookErrorResponse errorResponse = (JupyterNotebookErrorResponse) response.getBody();
+    assertNotNull(errorResponse);
+    assertEquals("Notebook not found", errorResponse.getMessage());
+    assertEquals(HttpStatus.NOT_FOUND.name(), errorResponse.getErrorCode());
+  }
+
+  @Test
+  void testGetNotebookByReadableId_Exception() {
+    when(notebookService.getNotebookContent(readableId))
+        .thenThrow(new RuntimeException("Unexpected error"));
+
+    ResponseEntity<JupyterNotebookResponse> response = controller.getNotebook(readableId);
+
+    assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+    JupyterNotebookErrorResponse errorResponse = (JupyterNotebookErrorResponse) response.getBody();
+    assertNotNull(errorResponse);
+    assertEquals("Error fetching notebook", errorResponse.getMessage());
+    assertEquals(HttpStatus.INTERNAL_SERVER_ERROR.name(), errorResponse.getErrorCode());
   }
 
   @Test
   void testUploadNotebook_Success() {
-    JupyterNotebookRequest jupyterNotebookRequest = new JupyterNotebookRequest();
+    JupyterNotebookRequest notebookRequest = new JupyterNotebookRequest();
     UUID sessionId = UUID.randomUUID();
+    UUID notebookId = UUID.randomUUID();
     String message = "Notebook uploaded, validated, and metadata stored successfully";
 
-    UUID notebookId = UUID.randomUUID();
     var notebookSaved = new JupyterNotebookSaved(notebookId, domain, readableId);
-    var notebookSavedResponse = new JupyterNotebookSavedResponse(message, notebookSaved);
-
+    var expectedResponse = new JupyterNotebookSavedResponse(message, notebookSaved);
 
     when(authentication.getPrincipal()).thenReturn(sessionId);
-    when(request.getRemoteAddr()).thenReturn(domain);
+    mockDomainExtraction();
+    when(notebookService.uploadNotebook(notebookRequest, sessionId, domain)).thenReturn(notebookSaved);
 
-    when(notebookService.uploadNotebook(jupyterNotebookRequest, sessionId, domain)).thenReturn(notebookSaved);
+    ResponseEntity<JupyterNotebookResponse> response = controller.uploadNotebook(notebookRequest, authentication, request);
 
-    ResponseEntity<JupyterNotebookResponse> response = controller.uploadNotebook(jupyterNotebookRequest, authentication, request);
-
-    assertEquals(201, response.getStatusCode().value());
-    assertEquals(notebookSavedResponse, response.getBody());
+    assertEquals(HttpStatus.CREATED, response.getStatusCode());
+    assertEquals(expectedResponse, response.getBody());
   }
 
   @Test
-  void testUploadNotebook_InvalidNotebook() {
-    JupyterNotebookRequest jupyterNotebookRequest = new JupyterNotebookRequest();
+  void testUploadNotebook_InvalidNotebookException() {
+    JupyterNotebookRequest notebookRequest = new JupyterNotebookRequest();
     UUID sessionId = UUID.randomUUID();
-    var errorResponse = new JupyterNotebookErrorResponse(HttpStatus.UNPROCESSABLE_ENTITY.name(), "Invalid notebook format");
 
     when(authentication.getPrincipal()).thenReturn(sessionId);
-    when(request.getRemoteAddr()).thenReturn("127.0.0.1");
-    when(HttpHeaderUtils.getDomainFromRequest(request)).thenReturn(domain);
+    mockDomainExtraction();
+    when(notebookService.uploadNotebook(notebookRequest, sessionId, domain))
+        .thenThrow(new InvalidNotebookException("Invalid notebook format"));
 
-    doThrow(new InvalidNotebookException("Invalid notebook format"))
-        .when(notebookService).uploadNotebook(jupyterNotebookRequest, sessionId, domain);
+    ResponseEntity<JupyterNotebookResponse> response = controller.uploadNotebook(notebookRequest, authentication, request);
 
-    ResponseEntity<JupyterNotebookResponse> response = controller.uploadNotebook(jupyterNotebookRequest, authentication, request);
-    JupyterNotebookErrorResponse notebookResponse = (JupyterNotebookErrorResponse) response.getBody();
-
-    assertNotNull(notebookResponse);
-    assertEquals(422, response.getStatusCode().value());
-    assertEquals(errorResponse.getErrorCode(), notebookResponse.getErrorCode());
-    assertEquals(errorResponse.getMessage(), notebookResponse.getMessage());
+    assertEquals(HttpStatus.UNPROCESSABLE_ENTITY, response.getStatusCode());
+    JupyterNotebookErrorResponse errorResponse = (JupyterNotebookErrorResponse) response.getBody();
+    assertNotNull(errorResponse);
+    assertEquals("Invalid notebook format", errorResponse.getMessage());
+    assertEquals(HttpStatus.UNPROCESSABLE_ENTITY.name(), errorResponse.getErrorCode());
   }
 
   @Test
   void testUploadNotebook_Exception() {
-    JupyterNotebookRequest jupyterNotebookRequest = new JupyterNotebookRequest();
+    JupyterNotebookRequest notebookRequest = new JupyterNotebookRequest();
     UUID sessionId = UUID.randomUUID();
-    var errorResponse = new JupyterNotebookErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR.name(), "Error uploading notebook");
 
     when(authentication.getPrincipal()).thenReturn(sessionId);
-    when(request.getRemoteAddr()).thenReturn("127.0.0.1");
-    when(HttpHeaderUtils.getDomainFromRequest(request)).thenReturn(domain);
+    mockDomainExtraction();
+    when(notebookService.uploadNotebook(notebookRequest, sessionId, domain))
+        .thenThrow(new RuntimeException("Unexpected error"));
 
-    doThrow(new RuntimeException("Unexpected error"))
-        .when(notebookService).uploadNotebook(eq(jupyterNotebookRequest), eq(sessionId), eq(domain));
+    ResponseEntity<JupyterNotebookResponse> response = controller.uploadNotebook(notebookRequest, authentication, request);
 
-    ResponseEntity<JupyterNotebookResponse> response = controller.uploadNotebook(jupyterNotebookRequest, authentication, request);
-    JupyterNotebookErrorResponse notebookResponse = (JupyterNotebookErrorResponse) response.getBody();
-
-    assertNotNull(notebookResponse);
-    assertEquals(500, response.getStatusCode().value());
-    assertEquals(errorResponse.getErrorCode(), notebookResponse.getErrorCode());
-    assertEquals(errorResponse.getMessage(), notebookResponse.getMessage());
+    assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+    JupyterNotebookErrorResponse errorResponse = (JupyterNotebookErrorResponse) response.getBody();
+    assertNotNull(errorResponse);
+    assertEquals("Error uploading notebook", errorResponse.getMessage());
+    assertEquals(HttpStatus.INTERNAL_SERVER_ERROR.name(), errorResponse.getErrorCode());
   }
 
   @Test
-  void testUpdateNotebook_Success() throws JsonProcessingException {
+  void testUpdateNotebookById_Success() throws JsonProcessingException {
     UUID notebookId = UUID.randomUUID();
     JupyterNotebookDTO notebookDto = new JupyterNotebookDTO();
     UUID sessionId = UUID.randomUUID();
-
+    String token = "valid-token";
     String message = "Notebook updated successfully";
+
     var notebookSaved = new JupyterNotebookSaved(notebookId, domain, readableId);
-    var notebookSavedResponse = new JupyterNotebookSavedResponse(message, notebookSaved);
+    var expectedResponse = new JupyterNotebookSavedResponse(message, notebookSaved);
 
     when(authentication.getPrincipal()).thenReturn(sessionId);
-    when(notebookService.updateNotebook(notebookId, notebookDto, sessionId)).thenReturn(notebookSaved);
+    mockTokenExtraction(token);
+    when(notebookService.updateNotebook(notebookId, notebookDto, sessionId, token)).thenReturn(notebookSaved);
 
-    ResponseEntity<JupyterNotebookResponse> response = controller.updateNotebook(notebookId, notebookDto, authentication);
+    ResponseEntity<JupyterNotebookResponse> response = controller.updateNotebook(notebookId, notebookDto, authentication, request);
 
-    assertEquals(200, response.getStatusCode().value());
-    assertEquals(notebookSavedResponse, response.getBody());
+    assertEquals(HttpStatus.OK, response.getStatusCode());
+    assertEquals(expectedResponse, response.getBody());
   }
 
   @Test
-  void testUpdateNotebook_SessionMismatch() throws JsonProcessingException {
+  void testUpdateNotebookById_InvalidPasswordException() throws JsonProcessingException {
     UUID notebookId = UUID.randomUUID();
     JupyterNotebookDTO notebookDto = new JupyterNotebookDTO();
     UUID sessionId = UUID.randomUUID();
-
-    var errorResponse = new JupyterNotebookErrorResponse(HttpStatus.UNAUTHORIZED.name(), "Session ID mismatch");
+    String token = "invalid-token";
 
     when(authentication.getPrincipal()).thenReturn(sessionId);
-    doThrow(new SessionMismatchException("Session ID mismatch"))
-        .when(notebookService).updateNotebook(notebookId, notebookDto, sessionId);
+    mockTokenExtraction(token);
+    when(notebookService.updateNotebook(notebookId, notebookDto, sessionId, token))
+        .thenThrow(new InvalidNotebookPasswordException("Invalid password"));
 
-    ResponseEntity<JupyterNotebookResponse> response = controller.updateNotebook(notebookId, notebookDto, authentication);
-    JupyterNotebookErrorResponse notebookResponse = (JupyterNotebookErrorResponse) response.getBody();
+    ResponseEntity<JupyterNotebookResponse> response = controller.updateNotebook(notebookId, notebookDto, authentication, request);
 
-    assertNotNull(notebookResponse);
-    assertEquals(401, response.getStatusCode().value());
-    assertEquals(errorResponse.getErrorCode(), notebookResponse.getErrorCode());
-    assertEquals(errorResponse.getMessage(), notebookResponse.getMessage());
+    assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+    JupyterNotebookErrorResponse errorResponse = (JupyterNotebookErrorResponse) response.getBody();
+    assertNotNull(errorResponse);
+    assertEquals("Invalid password", errorResponse.getMessage());
+    assertEquals(HttpStatus.UNAUTHORIZED.name(), errorResponse.getErrorCode());
   }
 
   @Test
-  void testUpdateNotebook_InvalidNotebook() throws JsonProcessingException {
+  void testUpdateNotebookById_SessionMismatchException() throws JsonProcessingException {
     UUID notebookId = UUID.randomUUID();
     JupyterNotebookDTO notebookDto = new JupyterNotebookDTO();
     UUID sessionId = UUID.randomUUID();
-
-    var errorResponse = new JupyterNotebookErrorResponse(HttpStatus.BAD_REQUEST.name(), "Invalid notebook format");
+    String token = "valid-token";
 
     when(authentication.getPrincipal()).thenReturn(sessionId);
-    doThrow(new InvalidNotebookException("Invalid notebook format"))
-        .when(notebookService).updateNotebook(notebookId, notebookDto, sessionId);
+    mockTokenExtraction(token);
+    when(notebookService.updateNotebook(notebookId, notebookDto, sessionId, token))
+        .thenThrow(new SessionMismatchException("Session ID mismatch"));
 
-    ResponseEntity<JupyterNotebookResponse> response = controller.updateNotebook(notebookId, notebookDto, authentication);
-    JupyterNotebookErrorResponse notebookResponse = (JupyterNotebookErrorResponse) response.getBody();
+    ResponseEntity<JupyterNotebookResponse> response = controller.updateNotebook(notebookId, notebookDto, authentication, request);
 
-    assertNotNull(notebookResponse);
-    assertEquals(400, response.getStatusCode().value());
-    assertEquals(errorResponse.getErrorCode(), notebookResponse.getErrorCode());
-    assertEquals(errorResponse.getMessage(), notebookResponse.getMessage());
+    assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+    JupyterNotebookErrorResponse errorResponse = (JupyterNotebookErrorResponse) response.getBody();
+    assertNotNull(errorResponse);
+    assertEquals("Session ID mismatch", errorResponse.getMessage());
+    assertEquals(HttpStatus.UNAUTHORIZED.name(), errorResponse.getErrorCode());
   }
 
   @Test
-  void testUpdateNotebook_Exception() throws JsonProcessingException {
+  void testUpdateNotebookById_InvalidNotebookException() throws JsonProcessingException {
     UUID notebookId = UUID.randomUUID();
     JupyterNotebookDTO notebookDto = new JupyterNotebookDTO();
     UUID sessionId = UUID.randomUUID();
-
-    var errorResponse = new JupyterNotebookErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR.name(), "Error updating notebook");
+    String token = "valid-token";
 
     when(authentication.getPrincipal()).thenReturn(sessionId);
-    doThrow(new RuntimeException("Unexpected error"))
-        .when(notebookService).updateNotebook(notebookId, notebookDto, sessionId);
+    mockTokenExtraction(token);
+    when(notebookService.updateNotebook(notebookId, notebookDto, sessionId, token))
+        .thenThrow(new InvalidNotebookException("Invalid notebook format"));
 
-    ResponseEntity<JupyterNotebookResponse> response = controller.updateNotebook(notebookId, notebookDto, authentication);
-    JupyterNotebookErrorResponse notebookResponse = (JupyterNotebookErrorResponse) response.getBody();
+    ResponseEntity<JupyterNotebookResponse> response = controller.updateNotebook(notebookId, notebookDto, authentication, request);
 
-    assertNotNull(notebookResponse);
-    assertEquals(500, response.getStatusCode().value());
-    assertEquals(errorResponse.getErrorCode(), notebookResponse.getErrorCode());
-    assertEquals(errorResponse.getMessage(), notebookResponse.getMessage());
+    assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+    JupyterNotebookErrorResponse errorResponse = (JupyterNotebookErrorResponse) response.getBody();
+    assertNotNull(errorResponse);
+    assertEquals("Invalid notebook format", errorResponse.getMessage());
+    assertEquals(HttpStatus.BAD_REQUEST.name(), errorResponse.getErrorCode());
   }
+
+  @Test
+  void testUpdateNotebookById_Exception() throws JsonProcessingException {
+    UUID notebookId = UUID.randomUUID();
+    JupyterNotebookDTO notebookDto = new JupyterNotebookDTO();
+    UUID sessionId = UUID.randomUUID();
+    String token = "valid-token";
+
+    when(authentication.getPrincipal()).thenReturn(sessionId);
+    mockTokenExtraction(token);
+    when(notebookService.updateNotebook(notebookId, notebookDto, sessionId, token))
+        .thenThrow(new RuntimeException("Unexpected error"));
+
+    ResponseEntity<JupyterNotebookResponse> response = controller.updateNotebook(notebookId, notebookDto, authentication, request);
+
+    assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+    JupyterNotebookErrorResponse errorResponse = (JupyterNotebookErrorResponse) response.getBody();
+    assertNotNull(errorResponse);
+    assertEquals("Error updating notebook", errorResponse.getMessage());
+    assertEquals(HttpStatus.INTERNAL_SERVER_ERROR.name(), errorResponse.getErrorCode());
+  }
+
+  @Test
+  void testUpdateNotebookByReadableId_Success() throws JsonProcessingException {
+    JupyterNotebookDTO notebookDto = new JupyterNotebookDTO();
+    UUID sessionId = UUID.randomUUID();
+    String token = "valid-token";
+    String message = "Notebook updated successfully";
+
+    var notebookSaved = new JupyterNotebookSaved(UUID.randomUUID(), domain, readableId);
+    var expectedResponse = new JupyterNotebookSavedResponse(message, notebookSaved);
+
+    when(authentication.getPrincipal()).thenReturn(sessionId);
+    mockTokenExtraction(token);
+    when(notebookService.updateNotebook(readableId, notebookDto, sessionId, token))
+        .thenReturn(notebookSaved);
+
+    ResponseEntity<JupyterNotebookResponse> response = controller.updateNotebook(
+        readableId, notebookDto, authentication, request);
+
+    assertEquals(HttpStatus.OK, response.getStatusCode());
+    assertEquals(expectedResponse, response.getBody());
+  }
+
+  @Test
+  void testUpdateNotebookByReadableId_SessionMismatchException() throws JsonProcessingException {
+    JupyterNotebookDTO notebookDto = new JupyterNotebookDTO();
+    UUID sessionId = UUID.randomUUID();
+    String token = "valid-token";
+
+    when(authentication.getPrincipal()).thenReturn(sessionId);
+    mockTokenExtraction(token);
+    when(notebookService.updateNotebook(readableId, notebookDto, sessionId, token))
+        .thenThrow(new SessionMismatchException("Session ID mismatch"));
+
+    ResponseEntity<JupyterNotebookResponse> response = controller.updateNotebook(
+        readableId, notebookDto, authentication, request);
+
+    assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+    JupyterNotebookErrorResponse errorResponse = (JupyterNotebookErrorResponse) response.getBody();
+    assertNotNull(errorResponse);
+    assertEquals("Session ID mismatch", errorResponse.getMessage());
+    assertEquals(HttpStatus.UNAUTHORIZED.name(), errorResponse.getErrorCode());
+  }
+
+  @Test
+  void testUpdateNotebookByReadableId_InvalidNotebookException() throws JsonProcessingException {
+    JupyterNotebookDTO notebookDto = new JupyterNotebookDTO();
+    UUID sessionId = UUID.randomUUID();
+    String token = "valid-token";
+
+    when(authentication.getPrincipal()).thenReturn(sessionId);
+    mockTokenExtraction(token);
+    when(notebookService.updateNotebook(readableId, notebookDto, sessionId, token))
+        .thenThrow(new InvalidNotebookException("Invalid notebook format"));
+
+    ResponseEntity<JupyterNotebookResponse> response = controller.updateNotebook(
+        readableId, notebookDto, authentication, request);
+
+    assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+    JupyterNotebookErrorResponse errorResponse = (JupyterNotebookErrorResponse) response.getBody();
+    assertNotNull(errorResponse);
+    assertEquals("Invalid notebook format", errorResponse.getMessage());
+    assertEquals(HttpStatus.BAD_REQUEST.name(), errorResponse.getErrorCode());
+  }
+
+  @Test
+  void testUpdateNotebookByReadableId_Exception() throws JsonProcessingException {
+    JupyterNotebookDTO notebookDto = new JupyterNotebookDTO();
+    UUID sessionId = UUID.randomUUID();
+    String token = "valid-token";
+
+    when(authentication.getPrincipal()).thenReturn(sessionId);
+    mockTokenExtraction(token);
+    when(notebookService.updateNotebook(readableId, notebookDto, sessionId, token))
+        .thenThrow(new RuntimeException("Unexpected error"));
+
+    ResponseEntity<JupyterNotebookResponse> response = controller.updateNotebook(
+        readableId, notebookDto, authentication, request);
+
+    assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+    JupyterNotebookErrorResponse errorResponse = (JupyterNotebookErrorResponse) response.getBody();
+    assertNotNull(errorResponse);
+    assertEquals("Error updating notebook", errorResponse.getMessage());
+    assertEquals(HttpStatus.INTERNAL_SERVER_ERROR.name(), errorResponse.getErrorCode());
+  }
+
 }

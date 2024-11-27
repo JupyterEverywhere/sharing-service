@@ -142,14 +142,16 @@ public class JupyterNotebookController {
   @PutMapping("/update-by-readable-id/{readableId}")
   public ResponseEntity<JupyterNotebookResponse> updateNotebook(@PathVariable String readableId,
       @Valid @RequestBody JupyterNotebookDTO notebookDto,
-      Authentication authentication) {
+      Authentication authentication, HttpServletRequest request) {
     UUID sessionId = (UUID) authentication.getPrincipal();
     logInfo("Received notebook update request", READABLE_ID_MESSAGE_KEY, readableId,
         SESSION_ID_MESSAGE_KEY, sessionId.toString());
 
     try {
+      String token = HttpHeaderUtils.getTokenFromRequest(request);
+
       JupyterNotebookSaved notebookUpdated = notebookService.updateNotebook(readableId, notebookDto,
-          sessionId);
+          sessionId, token);
       logInfo("Notebook updated successfully", NOTEBOOK_ID_MESSAGE_KEY, readableId,
           SESSION_ID_MESSAGE_KEY, sessionId.toString());
 

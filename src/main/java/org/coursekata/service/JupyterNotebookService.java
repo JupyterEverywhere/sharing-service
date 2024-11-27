@@ -192,7 +192,7 @@ public class JupyterNotebookService {
     return new JupyterNotebookSaved(storedNotebook.getId(), storedNotebook.getDomain(), storedNotebook.getReadableId());
   }
 
-  private void validateNotebookMetadata(JupyterNotebookDTO notebookDto)
+  void validateNotebookMetadata(JupyterNotebookDTO notebookDto)
       throws InvalidNotebookException {
 
     MetadataDTO metadata = notebookDto.getMetadata();
@@ -291,7 +291,7 @@ public class JupyterNotebookService {
     );
   }
 
-  public JupyterNotebookSaved updateNotebook(String readableId, JupyterNotebookDTO notebookDto, UUID sessionId) throws JsonProcessingException {
+  public JupyterNotebookSaved updateNotebook(String readableId, JupyterNotebookDTO notebookDto, UUID sessionId, String token) throws JsonProcessingException {
     JupyterNotebookEntity notebookEntity = notebookRepository.findByReadableId(readableId)
             .orElseThrow(() -> {
               log.error(new StringMapMessage()
@@ -301,7 +301,7 @@ public class JupyterNotebookService {
               return new NotebookNotFoundException(NOTEBOOK_NOT_FOUND_MESSAGE);
             });
 
-    updateNotebook(String.valueOf(notebookEntity.getId()), notebookDto, sessionId);
+    updateNotebook(notebookEntity.getId(), notebookDto, sessionId, token);
 
     return new JupyterNotebookSaved(notebookEntity.getId(), notebookEntity.getDomain(), notebookEntity.getReadableId());
   }

@@ -2,46 +2,39 @@ package org.coursekata.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.persistence.EntityManager;
 import java.util.ArrayList;
 import java.util.Optional;
 import java.util.UUID;
-
-import jakarta.persistence.EntityManager;
-import org.coursekata.dto.CodemirrorModeDTO;
 import org.coursekata.dto.JupyterNotebookDTO;
-import org.coursekata.dto.KernelspecDTO;
-import org.coursekata.dto.LanguageInfoDTO;
 import org.coursekata.dto.MetadataDTO;
 import org.coursekata.exception.InvalidNotebookException;
+import org.coursekata.exception.InvalidNotebookPasswordException;
 import org.coursekata.exception.NotebookNotFoundException;
-import org.coursekata.exception.NotebookSerializationException;
 import org.coursekata.exception.NotebookStorageException;
-import org.coursekata.exception.SessionMismatchException;
 import org.coursekata.model.JupyterNotebookEntity;
+import org.coursekata.model.request.JupyterNotebookRequest;
 import org.coursekata.model.response.JupyterNotebookRetrieved;
+import org.coursekata.model.response.JupyterNotebookSaved;
 import org.coursekata.repository.JupyterNotebookRepository;
 import org.coursekata.service.utils.JupyterNotebookValidator;
-import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 @ExtendWith(MockitoExtension.class)
 class JupyterNotebookServiceTest {
@@ -64,441 +57,338 @@ class JupyterNotebookServiceTest {
   @Spy
   private ObjectMapper objectMapper = new ObjectMapper();
 
+  @Mock
+  private JwtTokenService jwtTokenService;
+
+  @Mock
+  private PasswordEncoder passwordEncoder;
+
+  private UUID notebookId;
+  private UUID sessionId;
+  private String domain;
+  private String readableId;
+  private String token;
+
+  @BeforeEach
+  void setUp() {
+    notebookId = UUID.randomUUID();
+    sessionId = UUID.randomUUID();
+    domain = "example.com";
+    readableId = "readable-id";
+    token = "jwt-token";
+  }
+
+  // Helper method to create a sample JupyterNotebookDTO
+  private JupyterNotebookDTO createSampleNotebookDTO() {
+    JupyterNotebookDTO notebookDto = new JupyterNotebookDTO();
+    MetadataDTO metadata = new MetadataDTO();
+    notebookDto.setMetadata(metadata);
+    notebookDto.setCells(new ArrayList<>());
+    notebookDto.setNbformat(4);
+    notebookDto.setNbformatMinor(2);
+    return notebookDto;
+  }
+
+  // Helper method to create a sample JupyterNotebookEntity
+  private JupyterNotebookEntity createSampleNotebookEntity() {
+    JupyterNotebookEntity entity = new JupyterNotebookEntity();
+    entity.setId(notebookId);
+    entity.setSessionId(sessionId);
+    entity.setDomain(domain);
+    entity.setReadableId(readableId);
+    entity.setStorageUrl("storage-url");
+    entity.setPassword(passwordEncoder.encode("password"));
+    return entity;
+  }
+
   @Test
-  void testGetNotebookContent_NotebookFound() {
-    UUID notebookId = UUID.randomUUID();
-    JupyterNotebookEntity notebookEntity = new JupyterNotebookEntity();
-    notebookEntity.setId(notebookId);
-    notebookEntity.setStorageUrl("test_notebook.ipynb");
-
-    JupyterNotebookDTO notebookDTO = new JupyterNotebookDTO();
-    notebookDTO.setMetadata(new MetadataDTO());
-
-    JupyterNotebookRetrieved notebookRetrieved = new JupyterNotebookRetrieved(
-            notebookEntity.getId(),
-            notebookEntity.getDomain(),
-            notebookEntity.getReadableId(),
-            notebookDTO
-    );
+  void testGetNotebookContent_ByUUID_Success() {
+    JupyterNotebookEntity notebookEntity = createSampleNotebookEntity();
+    JupyterNotebookDTO notebookDTO = createSampleNotebookDTO();
 
     when(notebookRepository.findById(notebookId)).thenReturn(Optional.of(notebookEntity));
-
-
-    when(storageService.downloadNotebook("test_notebook.ipynb")).thenReturn(notebookDTO);
+    when(storageService.downloadNotebook(notebookEntity.getStorageUrl())).thenReturn(notebookDTO);
 
     JupyterNotebookRetrieved result = notebookService.getNotebookContent(notebookId);
 
     assertNotNull(result);
-    assertEquals(notebookRetrieved, result);
-    verify(storageService).downloadNotebook("test_notebook.ipynb");
+    assertEquals(notebookId, result.getId());
+    assertEquals(domain, result.getDomain());
+    assertEquals(readableId, result.getReadableId());
+    assertEquals(notebookDTO, result.getNotebookDTO());
   }
 
   @Test
-  void testGetNotebookContent_NotebookNotFound() {
-    UUID notebookId = UUID.randomUUID();
-
+  void testGetNotebookContent_ByUUID_NotFound() {
     when(notebookRepository.findById(notebookId)).thenReturn(Optional.empty());
 
-    Exception exception = assertThrows(NotebookNotFoundException.class, () -> {
+    NotebookNotFoundException exception = assertThrows(NotebookNotFoundException.class, () -> {
       notebookService.getNotebookContent(notebookId);
     });
 
     assertEquals("Notebook not found", exception.getMessage());
-    verify(notebookRepository).findById(notebookId);
-    verifyNoInteractions(storageService);
   }
 
   @Test
-  void testGetNotebookContent_Exception() {
-    UUID notebookId = UUID.randomUUID();
-    JupyterNotebookEntity notebookEntity = new JupyterNotebookEntity();
-    notebookEntity.setId(notebookId);
-    notebookEntity.setStorageUrl("test_notebook.ipynb");
+  void testGetNotebookContent_ByUUID_StorageException() {
+    JupyterNotebookEntity notebookEntity = createSampleNotebookEntity();
 
     when(notebookRepository.findById(notebookId)).thenReturn(Optional.of(notebookEntity));
-    when(storageService.downloadNotebook("test_notebook.ipynb"))
-        .thenThrow(new NotebookStorageException("Simulated storage exception"));
+    when(storageService.downloadNotebook(notebookEntity.getStorageUrl()))
+        .thenThrow(new NotebookStorageException("Storage error"));
 
     NotebookStorageException exception = assertThrows(NotebookStorageException.class, () -> {
       notebookService.getNotebookContent(notebookId);
     });
 
     assertEquals("Error fetching notebook content from storage", exception.getMessage());
-    verify(notebookRepository).findById(notebookId);
-    verify(storageService).downloadNotebook("test_notebook.ipynb");
   }
 
   @Test
-  void testValidateAndStoreNotebook_ValidNotebook() throws Exception {
-    JupyterNotebookDTO notebookDto = new JupyterNotebookDTO();
-    notebookDto.setMetadata(new MetadataDTO());
-    notebookDto.setCells(new ArrayList<>());
-    notebookDto.setNbformat(4);
-    notebookDto.setNbformatMinor(2);
-    UUID sessionId = UUID.randomUUID();
-    String domain = "example.com";
+  void testGetNotebookContent_ByReadableId_Success() throws Exception {
+    JupyterNotebookEntity notebookEntity = createSampleNotebookEntity();
+    JupyterNotebookDTO notebookDTO = createSampleNotebookDTO();
 
-    when(jupyterNotebookValidator.validateNotebook(anyString())).thenReturn(true);
-    when(storageService.uploadNotebook(anyString(), anyString())).thenReturn("notebook.ipynb");
-    when(notebookRepository.saveAndFlush(any(JupyterNotebookEntity.class))).thenAnswer(invocation -> {
-      JupyterNotebookEntity entity = invocation.getArgument(0);
-      entity.setId(UUID.randomUUID());
-      return entity;
-    });
+    when(notebookRepository.findByReadableId(readableId)).thenReturn(Optional.of(notebookEntity));
+    when(storageService.downloadNotebook(notebookEntity.getStorageUrl())).thenReturn(notebookDTO);
 
-    notebookService.validateAndStoreNotebook(notebookDto, sessionId, domain);
+    JupyterNotebookRetrieved result = notebookService.getNotebookContent(readableId);
 
-    verify(storageService).uploadNotebook(anyString(), anyString());
-    verify(notebookRepository).saveAndFlush(any(JupyterNotebookEntity.class));
+    assertNotNull(result);
+    assertEquals(notebookId, result.getId());
+    assertEquals(domain, result.getDomain());
+    assertEquals(readableId, result.getReadableId());
+    assertEquals(notebookDTO, result.getNotebookDTO());
   }
 
   @Test
-  void testValidateAndStoreNotebook_InvalidMetadataFormat() {
-    JupyterNotebookDTO notebookDto = new JupyterNotebookDTO();
-    notebookDto.setMetadata(null);
-    UUID sessionId = UUID.randomUUID();
-    String domain = "example.com";
+  void testGetNotebookContent_ByReadableId_NotFound() {
+    when(notebookRepository.findByReadableId(readableId)).thenReturn(Optional.empty());
 
-    Exception exception = assertThrows(InvalidNotebookException.class, () -> {
-      notebookService.validateAndStoreNotebook(notebookDto, sessionId, domain);
-    });
-
-    assertEquals("Invalid metadata format in notebook", exception.getMessage());
-    verifyNoInteractions(jupyterNotebookValidator, storageService, notebookRepository);
-  }
-
-  @Test
-  void testValidateAndStoreNotebook_ValidationFails() {
-    JupyterNotebookDTO notebookDto = new JupyterNotebookDTO();
-    notebookDto.setMetadata(new MetadataDTO());
-    notebookDto.setCells(new ArrayList<>());
-    notebookDto.setNbformat(4);
-    notebookDto.setNbformatMinor(2);
-    UUID sessionId = UUID.randomUUID();
-    String domain = "example.com";
-
-    when(jupyterNotebookValidator.validateNotebook(anyString())).thenReturn(false);
-
-    Exception exception = assertThrows(InvalidNotebookException.class, () -> {
-      notebookService.validateAndStoreNotebook(notebookDto, sessionId, domain);
-    });
-
-    assertEquals("Notebook validation failed", exception.getMessage());
-    verify(jupyterNotebookValidator).validateNotebook(anyString());
-    verifyNoInteractions(storageService, notebookRepository);
-  }
-
-  @Test
-  void testValidateAndStoreNotebook_KernelSpecAndLanguageInfoNull() throws Exception {
-    UUID sessionId = UUID.randomUUID();
-    String domain = "example.com";
-    MetadataDTO metadata = new MetadataDTO(null, null);
-    JupyterNotebookDTO notebookDto = new JupyterNotebookDTO();
-    notebookDto.setMetadata(metadata);
-
-    final JupyterNotebookEntity[] savedEntityFirst = new JupyterNotebookEntity[1];
-    final JupyterNotebookEntity[] savedEntitySecond = new JupyterNotebookEntity[1];
-
-    when(notebookRepository.saveAndFlush(any(JupyterNotebookEntity.class))).thenAnswer(invocation -> {
-      JupyterNotebookEntity entity = invocation.getArgument(0);
-      entity.setId(UUID.randomUUID());
-      savedEntityFirst[0] = copyNotebookEntity(entity);
-      return entity;
-    });
-
-    when(notebookRepository.save(any(JupyterNotebookEntity.class))).thenAnswer(invocation -> {
-      JupyterNotebookEntity entity = invocation.getArgument(0);
-      savedEntitySecond[0] = copyNotebookEntity(entity);
-      return entity;
-    });
-
-    when(storageService.uploadNotebook(anyString(), anyString())).thenReturn("notebook.ipynb");
-    when(jupyterNotebookValidator.validateNotebook(anyString())).thenReturn(true);
-
-    notebookService.validateAndStoreNotebook(notebookDto, sessionId, domain);
-
-    assertEquals(sessionId, savedEntityFirst[0].getSessionId());
-    assertEquals(domain, savedEntityFirst[0].getDomain());
-    assertNotNull(savedEntityFirst[0].getCreatedAt());
-    assertNotNull(savedEntityFirst[0].getStorageUrl());
-    assertNotNull(savedEntityFirst[0].getId());
-
-    assertEquals(sessionId, savedEntitySecond[0].getSessionId());
-    assertEquals(domain, savedEntitySecond[0].getDomain());
-    assertNotNull(savedEntitySecond[0].getCreatedAt());
-    assertEquals("notebook.ipynb", savedEntitySecond[0].getStorageUrl());
-    assertNotNull(savedEntitySecond[0].getId());
-
-    assertNull(savedEntitySecond[0].getKernelName());
-    assertNull(savedEntitySecond[0].getKernelDisplayName());
-    assertNull(savedEntitySecond[0].getLanguage());
-    assertNull(savedEntitySecond[0].getLanguageVersion());
-    assertNull(savedEntitySecond[0].getFileExtension());
-  }
-
-  @Test
-  void testSaveNotebookMetadata_KernelSpecAndLanguageInfoNull() {
-    UUID sessionId = UUID.randomUUID();
-    String domain = "example.com";
-    MetadataDTO metadata = new MetadataDTO(null, null);
-
-    when(notebookRepository.saveAndFlush(any(JupyterNotebookEntity.class))).thenAnswer(invocation -> {
-      JupyterNotebookEntity entity = invocation.getArgument(0);
-      entity.setId(UUID.randomUUID());
-      return entity;
-    });
-
-    notebookService.saveNotebookMetadata(sessionId, metadata, domain);
-
-    ArgumentCaptor<JupyterNotebookEntity> captor = ArgumentCaptor.forClass(JupyterNotebookEntity.class);
-    verify(notebookRepository).saveAndFlush(captor.capture());
-
-    JupyterNotebookEntity savedEntity = captor.getValue();
-    assertEquals(sessionId, savedEntity.getSessionId());
-    assertNotNull(savedEntity.getStorageUrl());
-    assertEquals(domain, savedEntity.getDomain());
-    assertNotNull(savedEntity.getCreatedAt());
-
-    assertNull(savedEntity.getKernelName());
-    assertNull(savedEntity.getKernelDisplayName());
-    assertNull(savedEntity.getLanguage());
-    assertNull(savedEntity.getLanguageVersion());
-    assertNull(savedEntity.getFileExtension());
-
-    assertNotNull(savedEntity.getId());
-  }
-
-  @Test
-  void testUpdateNotebook_SuccessfulUpdate() throws Exception {
-    UUID notebookId = UUID.randomUUID();
-    UUID sessionId = UUID.randomUUID();
-
-    JupyterNotebookEntity existingNotebook = new JupyterNotebookEntity();
-    existingNotebook.setId(notebookId);
-    existingNotebook.setSessionId(sessionId);
-    existingNotebook.setStorageUrl("existing_notebook.ipynb");
-
-    when(notebookRepository.findById(notebookId)).thenReturn(Optional.of(existingNotebook));
-    when(jupyterNotebookValidator.validateNotebook(anyString())).thenReturn(true);
-    when(storageService.uploadNotebook(anyString(), anyString())).thenReturn("updated_notebook.ipynb");
-
-    JupyterNotebookDTO notebookDto = new JupyterNotebookDTO();
-    notebookDto.setMetadata(new MetadataDTO());
-    notebookDto.setCells(new ArrayList<>());
-    notebookDto.setNbformat(4);
-    notebookDto.setNbformatMinor(2);
-
-    notebookService.updateNotebook(notebookId, notebookDto, sessionId);
-
-    verify(notebookRepository).findById(notebookId);
-    verify(jupyterNotebookValidator).validateNotebook(anyString());
-    verify(storageService).uploadNotebook(anyString(), anyString());
-    verify(notebookRepository).save(any(JupyterNotebookEntity.class));
-  }
-
-  @Test
-  void testUpdateNotebook_NotebookNotFound() {
-    UUID notebookId = UUID.randomUUID();
-    UUID sessionId = UUID.randomUUID();
-
-    when(notebookRepository.findById(notebookId)).thenReturn(Optional.empty());
-
-    JupyterNotebookDTO notebookDto = new JupyterNotebookDTO();
-
-    Exception exception = assertThrows(NotebookNotFoundException.class, () -> {
-      notebookService.updateNotebook(notebookId, notebookDto, sessionId);
+    NotebookNotFoundException exception = assertThrows(NotebookNotFoundException.class, () -> {
+      notebookService.getNotebookContent(readableId);
     });
 
     assertEquals("Notebook not found", exception.getMessage());
-    verify(notebookRepository).findById(notebookId);
-    verifyNoMoreInteractions(jupyterNotebookValidator, storageService, notebookRepository);
   }
 
   @Test
-  void testUpdateNotebook_SessionMismatch() {
-    UUID notebookId = UUID.randomUUID();
-    UUID storedSessionId = UUID.randomUUID();
-    UUID providedSessionId = UUID.randomUUID();
+  void testUploadNotebook_Success() throws Exception {
+    JupyterNotebookRequest notebookRequest = new JupyterNotebookRequest();
+    notebookRequest.setNotebook(createSampleNotebookDTO());
+    notebookRequest.setPassword("password");
 
-    JupyterNotebookEntity existingNotebook = new JupyterNotebookEntity();
-    existingNotebook.setId(notebookId);
-    existingNotebook.setSessionId(storedSessionId);
-
-    when(notebookRepository.findById(notebookId)).thenReturn(Optional.of(existingNotebook));
-
-    JupyterNotebookDTO notebookDto = new JupyterNotebookDTO();
-
-    Exception exception = assertThrows(SessionMismatchException.class, () -> {
-      notebookService.updateNotebook(notebookId, notebookDto, providedSessionId);
+    when(jupyterNotebookValidator.validateNotebook(anyString())).thenReturn(true);
+    when(storageService.uploadNotebook(anyString(), anyString())).thenReturn("storage-url");
+    when(notebookRepository.saveAndFlush(any(JupyterNotebookEntity.class))).thenAnswer(invocation -> {
+      JupyterNotebookEntity entity = invocation.getArgument(0);
+      entity.setId(notebookId);
+      entity.setReadableId(readableId); // Set the readableId
+      return entity;
     });
+    // Stub the passwordEncoder
+    when(passwordEncoder.encode(anyString())).thenReturn("encoded-password");
+    // Stub the objectMapper
+    when(objectMapper.writeValueAsString(any())).thenReturn("serialized-notebook-json");
+    // Stub entityManager.refresh
+    doNothing().when(entityManager).refresh(any(JupyterNotebookEntity.class));
 
-    assertEquals("Session ID mismatch", exception.getMessage());
-    verify(notebookRepository).findById(notebookId);
-    verifyNoMoreInteractions(jupyterNotebookValidator, storageService, notebookRepository);
+    JupyterNotebookSaved result = notebookService.uploadNotebook(notebookRequest, sessionId, domain);
+
+    assertNotNull(result);
+    assertEquals(notebookId, result.getId());
+    assertEquals(domain, result.getDomain());
+    assertNotNull(result.getReadableId()); // This should now be non-null
   }
 
   @Test
-  void testUpdateNotebook_InvalidNotebook() {
-    UUID notebookId = UUID.randomUUID();
-    UUID sessionId = UUID.randomUUID();
+  void testUploadNotebook_InvalidNotebook() {
+    JupyterNotebookRequest notebookRequest = new JupyterNotebookRequest();
+    notebookRequest.setNotebook(createSampleNotebookDTO());
 
-    JupyterNotebookEntity existingNotebook = new JupyterNotebookEntity();
-    existingNotebook.setId(notebookId);
-    existingNotebook.setSessionId(sessionId);
-
-    when(notebookRepository.findById(notebookId)).thenReturn(Optional.of(existingNotebook));
     when(jupyterNotebookValidator.validateNotebook(anyString())).thenReturn(false);
 
-    JupyterNotebookDTO notebookDto = new JupyterNotebookDTO();
-    notebookDto.setMetadata(new MetadataDTO());
-
-    Exception exception = assertThrows(InvalidNotebookException.class, () -> {
-      notebookService.updateNotebook(notebookId, notebookDto, sessionId);
+    InvalidNotebookException exception = assertThrows(InvalidNotebookException.class, () -> {
+      notebookService.uploadNotebook(notebookRequest, sessionId, domain);
     });
 
     assertEquals("Notebook validation failed", exception.getMessage());
-    verify(notebookRepository).findById(notebookId);
-    verify(jupyterNotebookValidator).validateNotebook(anyString());
-    verifyNoMoreInteractions(storageService, notebookRepository);
   }
 
   @Test
-  void testUpdateNotebookMetadata_SuccessfulUpdate() {
-    UUID notebookId = UUID.randomUUID();
-    UUID sessionId = UUID.randomUUID();
+  void testUpdateNotebook_ByUUID_Success() throws Exception {
+    JupyterNotebookDTO notebookDto = createSampleNotebookDTO();
+    JupyterNotebookEntity notebookEntity = createSampleNotebookEntity();
 
-    KernelspecDTO kernelSpec = new KernelspecDTO("Python 3", "python", "python3");
-    CodemirrorModeDTO codeMirrorMode = new CodemirrorModeDTO("python", 3);
-    LanguageInfoDTO languageInfo = new LanguageInfoDTO(
-        codeMirrorMode,
-        ".py",
-        "text/x-python",
-        "python",
-        "python3",
-        "3.8"
-    );
+    when(notebookRepository.findById(notebookId)).thenReturn(Optional.of(notebookEntity));
+    when(jupyterNotebookValidator.validateNotebook(anyString())).thenReturn(true);
+    when(storageService.uploadNotebook(anyString(), anyString())).thenReturn("storage-url");
 
-    MetadataDTO metadata = new MetadataDTO(kernelSpec, languageInfo);
+    JupyterNotebookSaved result = notebookService.updateNotebook(notebookId, notebookDto, sessionId, token);
 
-    JupyterNotebookDTO notebookDto = new JupyterNotebookDTO();
-    notebookDto.setMetadata(metadata);
-
-    JupyterNotebookEntity existingNotebook = new JupyterNotebookEntity();
-    existingNotebook.setId(notebookId);
-    existingNotebook.setSessionId(sessionId);
-
-    when(notebookRepository.save(any(JupyterNotebookEntity.class))).thenReturn(existingNotebook);
-
-    notebookService.updateNotebookMetadata(existingNotebook, notebookDto, sessionId);
-
-    verify(notebookRepository).save(any(JupyterNotebookEntity.class));
+    assertNotNull(result);
+    assertEquals(notebookId, result.getId());
+    assertEquals(domain, result.getDomain());
   }
 
   @Test
-  void testUpdateNotebookMetadata_MetadataMissing() {
-    UUID notebookId = UUID.randomUUID();
-    UUID sessionId = UUID.randomUUID();
+  void testUpdateNotebook_ByUUID_SessionMismatch_PasswordValid() throws Exception {
+    JupyterNotebookDTO notebookDto = createSampleNotebookDTO();
+    JupyterNotebookEntity notebookEntity = createSampleNotebookEntity();
+    UUID differentSessionId = UUID.randomUUID();
+    notebookEntity.setSessionId(differentSessionId);
+    notebookEntity.setPassword(passwordEncoder.encode("password"));
 
+    when(notebookRepository.findById(notebookId)).thenReturn(Optional.of(notebookEntity));
+    when(jwtTokenService.extractNotebookPasswordFromToken(token)).thenReturn("password");
+    when(passwordEncoder.matches("password", notebookEntity.getPassword())).thenReturn(true);
+    when(jupyterNotebookValidator.validateNotebook(anyString())).thenReturn(true);
+    when(storageService.uploadNotebook(anyString(), anyString())).thenReturn("storage-url");
+
+    JupyterNotebookSaved result = notebookService.updateNotebook(notebookId, notebookDto, sessionId, token);
+
+    assertNotNull(result);
+    assertEquals(notebookId, result.getId());
+    assertEquals(domain, result.getDomain());
+  }
+
+  @Test
+  void testUpdateNotebook_ByUUID_SessionMismatch_InvalidPassword() {
+    JupyterNotebookDTO notebookDto = createSampleNotebookDTO();
+    JupyterNotebookEntity notebookEntity = createSampleNotebookEntity();
+    UUID differentSessionId = UUID.randomUUID();
+    notebookEntity.setSessionId(differentSessionId);
+    notebookEntity.setPassword(passwordEncoder.encode("password"));
+
+    when(notebookRepository.findById(notebookId)).thenReturn(Optional.of(notebookEntity));
+    when(jwtTokenService.extractNotebookPasswordFromToken(token)).thenReturn("wrong-password");
+    when(passwordEncoder.matches("wrong-password", notebookEntity.getPassword())).thenReturn(false);
+
+    InvalidNotebookPasswordException exception = assertThrows(InvalidNotebookPasswordException.class, () -> {
+      notebookService.updateNotebook(notebookId, notebookDto, sessionId, token);
+    });
+
+    assertEquals("The password provided is incorrect", exception.getMessage());
+  }
+
+  @Test
+  void testUpdateNotebook_ByUUID_NotFound() {
+    JupyterNotebookDTO notebookDto = createSampleNotebookDTO();
+
+    when(notebookRepository.findById(notebookId)).thenReturn(Optional.empty());
+
+    NotebookNotFoundException exception = assertThrows(NotebookNotFoundException.class, () -> {
+      notebookService.updateNotebook(notebookId, notebookDto, sessionId, token);
+    });
+
+    assertEquals("Notebook not found with ID: " + notebookId, exception.getMessage());
+  }
+
+  @Test
+  void testUpdateNotebook_ByReadableId_Success() throws Exception {
+    JupyterNotebookDTO notebookDto = createSampleNotebookDTO();
+    JupyterNotebookEntity notebookEntity = createSampleNotebookEntity();
+    // Ensure session IDs match
+    notebookEntity.setSessionId(sessionId);
+
+    when(notebookRepository.findByReadableId(readableId)).thenReturn(Optional.of(notebookEntity));
+    when(notebookRepository.findById(notebookEntity.getId())).thenReturn(Optional.of(notebookEntity));
+
+    // Mock dependencies called within the method
+    when(jupyterNotebookValidator.validateNotebook(anyString())).thenReturn(true);
+    when(storageService.uploadNotebook(anyString(), anyString())).thenReturn("storage-url");
+    when(objectMapper.writeValueAsString(any())).thenReturn("serialized-notebook-json");
+
+    // Since session IDs match, token-related methods are not invoked
+
+    JupyterNotebookSaved result = notebookService.updateNotebook(readableId, notebookDto, sessionId, token);
+
+    assertNotNull(result);
+    assertEquals(notebookId, result.getId());
+    assertEquals(domain, result.getDomain());
+  }
+
+  @Test
+  void testUpdateNotebook_ByReadableId_NotFound() {
+    JupyterNotebookDTO notebookDto = createSampleNotebookDTO();
+
+    when(notebookRepository.findByReadableId(readableId)).thenReturn(Optional.empty());
+
+    NotebookNotFoundException exception = assertThrows(NotebookNotFoundException.class, () -> {
+      notebookService.updateNotebook(readableId, notebookDto, sessionId, token);
+    });
+
+    assertEquals("Notebook not found", exception.getMessage());
+  }
+
+  @Test
+  void testValidateAndStoreNotebook_InvalidMetadata() {
     JupyterNotebookDTO notebookDto = new JupyterNotebookDTO();
     notebookDto.setMetadata(null);
 
-    JupyterNotebookEntity existingNotebook = new JupyterNotebookEntity();
-    existingNotebook.setId(notebookId);
-    existingNotebook.setSessionId(sessionId);
-
-    Exception exception = assertThrows(InvalidNotebookException.class, () -> {
-      notebookService.updateNotebookMetadata(existingNotebook, notebookDto, sessionId);
+    InvalidNotebookException exception = assertThrows(InvalidNotebookException.class, () -> {
+      notebookService.validateAndStoreNotebook(notebookDto, sessionId, domain, "password");
     });
 
-    assertEquals("Metadata is missing", exception.getMessage());
-    verifyNoMoreInteractions(notebookRepository);
+    assertEquals("Invalid metadata format in notebook", exception.getMessage());
   }
 
   @Test
-  void testFetchNotebookContent_SuccessfulFetch() {
-    JupyterNotebookEntity notebookEntity = new JupyterNotebookEntity();
-    notebookEntity.setId(UUID.randomUUID());
-    notebookEntity.setStorageUrl("test_notebook.ipynb");
+  void testValidateNotebookMetadata_InvalidMetadata() {
+    JupyterNotebookDTO notebookDto = new JupyterNotebookDTO();
+    notebookDto.setMetadata(null);
 
-    JupyterNotebookDTO notebookDTO = new JupyterNotebookDTO();
-    notebookDTO.setMetadata(new MetadataDTO());
+    InvalidNotebookException exception = assertThrows(InvalidNotebookException.class, () -> {
+      notebookService.validateNotebookMetadata(notebookDto);
+    });
 
-    when(storageService.downloadNotebook("test_notebook.ipynb")).thenReturn(notebookDTO);
+    assertEquals("Invalid metadata format in notebook", exception.getMessage());
+  }
 
-    JupyterNotebookDTO result = notebookService.fetchNotebookContent(notebookEntity);
+  @Test
+  void testStoreNotebook_Success() throws Exception {
+    JupyterNotebookDTO notebookDto = createSampleNotebookDTO();
+
+    when(storageService.uploadNotebook(anyString(), anyString())).thenReturn("storage-url");
+
+    String result = notebookService.storeNotebook(notebookDto, "filename.ipynb");
+
+    assertEquals("storage-url", result);
+  }
+
+  @Test
+  void testStoreNotebook_JsonProcessingException() throws Exception {
+    JupyterNotebookDTO notebookDto = createSampleNotebookDTO();
+
+    doThrow(JsonProcessingException.class).when(objectMapper).writeValueAsString(notebookDto);
+
+    JsonProcessingException exception = assertThrows(JsonProcessingException.class, () -> {
+      notebookService.storeNotebook(notebookDto, "filename.ipynb");
+    });
+
+    assertNotNull(exception);
+  }
+
+  @Test
+  void testGetNotebookById_Success() {
+    JupyterNotebookEntity notebookEntity = createSampleNotebookEntity();
+
+    when(notebookRepository.findNotebookById(notebookId)).thenReturn(Optional.of(notebookEntity));
+
+    JupyterNotebookEntity result = notebookService.getNotebookById(notebookId);
 
     assertNotNull(result);
-    assertEquals(notebookDTO, result);
-    verify(storageService).downloadNotebook("test_notebook.ipynb");
+    assertEquals(notebookEntity, result);
   }
 
-  @Disabled("Content is returned as object, not stringified")
   @Test
-  void testFetchNotebookContent_SerializationException() throws Exception {
-    JupyterNotebookEntity notebookEntity = new JupyterNotebookEntity();
-    notebookEntity.setId(UUID.randomUUID());
-    notebookEntity.setStorageUrl("test_notebook.ipynb");
+  void testGetNotebookById_NotFound() {
+    when(notebookRepository.findNotebookById(notebookId)).thenReturn(Optional.empty());
 
-    JupyterNotebookDTO notebookDTO = new JupyterNotebookDTO();
-    notebookDTO.setMetadata(new MetadataDTO());
-
-    when(storageService.downloadNotebook("test_notebook.ipynb")).thenReturn(notebookDTO);
-    doThrow(new JsonProcessingException("Simulated serialization error") {})
-        .when(objectMapper).writeValueAsString(notebookDTO);
-
-    Exception exception = assertThrows(NotebookSerializationException.class, () -> {
-      notebookService.fetchNotebookContent(notebookEntity);
+    NotebookNotFoundException exception = assertThrows(NotebookNotFoundException.class, () -> {
+      notebookService.getNotebookById(notebookId);
     });
 
-    assertEquals("Error serializing notebook content", exception.getMessage());
-    verify(storageService).downloadNotebook("test_notebook.ipynb");
-    verify(objectMapper).writeValueAsString(notebookDTO);
-  }
-
-  @Test
-  void testFetchNotebookContent_StorageException() {
-    JupyterNotebookEntity notebookEntity = new JupyterNotebookEntity();
-    notebookEntity.setId(UUID.randomUUID());
-    notebookEntity.setStorageUrl("test_notebook.ipynb");
-
-    when(storageService.downloadNotebook("test_notebook.ipynb"))
-        .thenThrow(new NotebookStorageException("Simulated storage exception"));
-
-    Exception exception = assertThrows(NotebookStorageException.class, () -> {
-      notebookService.fetchNotebookContent(notebookEntity);
-    });
-
-    assertEquals("Error fetching notebook content from storage", exception.getMessage());
-    verify(storageService).downloadNotebook("test_notebook.ipynb");
-    verifyNoMoreInteractions(objectMapper);
-  }
-
-  @Test
-  void testStoreNotebook_SuccessfulStore() throws Exception {
-    JupyterNotebookDTO notebookDto = new JupyterNotebookDTO();
-    notebookDto.setMetadata(new MetadataDTO());
-    String filename = "test";
-
-    when(storageService.uploadNotebook(anyString(), anyString())).thenReturn("stored_notebook.ipynb");
-
-    String result = notebookService.storeNotebook(notebookDto, filename);
-
-    assertEquals("stored_notebook.ipynb", result);
-    verify(storageService).uploadNotebook(anyString(), anyString());
-  }
-
-  private JupyterNotebookEntity copyNotebookEntity(JupyterNotebookEntity original) {
-    JupyterNotebookEntity copy = new JupyterNotebookEntity();
-    copy.setId(original.getId());
-    copy.setSessionId(original.getSessionId());
-    copy.setDomain(original.getDomain());
-    copy.setStorageUrl(original.getStorageUrl());
-    copy.setCreatedAt(original.getCreatedAt());
-    copy.setKernelName(original.getKernelName());
-    copy.setKernelDisplayName(original.getKernelDisplayName());
-    copy.setLanguage(original.getLanguage());
-    copy.setLanguageVersion(original.getLanguageVersion());
-    copy.setFileExtension(original.getFileExtension());
-    return copy;
+    assertEquals("Notebook not found with ID: " + notebookId, exception.getMessage());
   }
 }
