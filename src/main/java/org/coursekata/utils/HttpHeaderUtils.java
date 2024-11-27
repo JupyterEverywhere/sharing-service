@@ -36,7 +36,7 @@ public class HttpHeaderUtils {
     return (clientIp != null) ? clientIp : request.getRemoteAddr();
   }
 
-  private static String getHeaderValue(HttpServletRequest request, String headerName) {
+  static String getHeaderValue(HttpServletRequest request, String headerName) {
     String headerValue = request.getHeader(headerName);
     if (headerValue == null || headerValue.isEmpty() || "unknown".equalsIgnoreCase(headerValue)) {
       return null;
@@ -44,7 +44,7 @@ public class HttpHeaderUtils {
     return headerValue;
   }
 
-  private static String resolveHostName(String clientIp) {
+  static String resolveHostName(String clientIp) {
     try {
       InetAddress inetAddress = InetAddress.getByName(clientIp);
       String hostName = inetAddress.getHostName();
