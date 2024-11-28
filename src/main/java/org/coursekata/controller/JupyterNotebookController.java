@@ -17,13 +17,11 @@ import org.coursekata.model.response.JupyterNotebookRetrieved;
 import org.coursekata.model.response.JupyterNotebookSaved;
 import org.coursekata.model.response.JupyterNotebookSavedResponse;
 import org.coursekata.service.JupyterNotebookService;
-import org.coursekata.service.JwtTokenService;
 import org.coursekata.utils.HttpHeaderUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -45,8 +43,7 @@ public class JupyterNotebookController {
   private final JupyterNotebookService notebookService;
 
   @Autowired
-  public JupyterNotebookController(JupyterNotebookService notebookService,
-      JwtTokenService jwtTokenService, PasswordEncoder passwordEncoder) {
+  public JupyterNotebookController(JupyterNotebookService notebookService) {
     this.notebookService = notebookService;
   }
 

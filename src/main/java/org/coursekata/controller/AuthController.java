@@ -13,7 +13,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -34,8 +33,9 @@ public class AuthController {
         this.authService = authService;
     }
 
-    @GetMapping("/issue")
-    public ResponseEntity<AuthenticationResponse> issueToken(@RequestBody(required = false) AuthenticationRequest authenticationRequest) {
+    @PostMapping("/issue")
+    public ResponseEntity<AuthenticationResponse> issueToken(
+        @RequestBody(required = false) AuthenticationRequest authenticationRequest) {
         logInfo("Received token issuance request", "NotebookId",
             authenticationRequest != null ? authenticationRequest.getNotebookId() : "None");
 

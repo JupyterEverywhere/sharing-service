@@ -6,10 +6,11 @@ import org.apache.logging.log4j.message.StringMapMessage;
 import org.coursekata.exception.InvalidNotebookPasswordException;
 import org.coursekata.exception.TokenRefreshException;
 import org.coursekata.model.JupyterNotebookEntity;
+import org.coursekata.model.TokenStore;
 import org.coursekata.model.auth.AuthenticationRequest;
 import org.coursekata.model.auth.AuthenticationResponse;
-import org.coursekata.model.TokenStore;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Log4j2
@@ -19,12 +20,18 @@ public class AuthService {
     private final JwtTokenService jwtTokenService;
     private final TokenStore tokenStore;
     private final JupyterNotebookService notebookService;
+    private final PasswordEncoder passwordEncoder;
 
     @Autowired
-    public AuthService(JwtTokenService jwtTokenService, TokenStore tokenStore, JupyterNotebookService notebookService) {
+    public AuthService(
+        JwtTokenService jwtTokenService,
+        TokenStore tokenStore,
+        JupyterNotebookService notebookService,
+        PasswordEncoder passwordEncoder) {
         this.jwtTokenService = jwtTokenService;
         this.tokenStore = tokenStore;
         this.notebookService = notebookService;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public AuthenticationResponse generateInitialTokenResponse(AuthenticationRequest authRequest) {
@@ -73,7 +80,7 @@ public class AuthService {
     private boolean verifyNotebookPassword(UUID notebookId, String password) {
         JupyterNotebookEntity notebook = notebookService.getNotebookById(notebookId);
         if (notebook != null && notebook.getPassword() != null) {
-            return notebook.getPassword().equals(password);
+            return passwordEncoder.matches(password, notebook.getPassword());
         }
         return false;
     }

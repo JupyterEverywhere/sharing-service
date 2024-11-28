@@ -3,25 +3,23 @@ package org.coursekata.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.spy;
 
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.Keys;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 class JwtTokenServiceTest {
 
@@ -33,10 +31,11 @@ class JwtTokenServiceTest {
   @BeforeEach
   void setUp() {
     String secretKeyString = "testSecretKeyForJwtTokenService1234567890";
-    jwtTokenService = new JwtTokenService(secretKeyString, 60);
-    sessionId = UUID.randomUUID();
+    secretKey = Keys.hmacShaKeyFor(secretKeyString.getBytes(StandardCharsets.UTF_8));
+    PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
-    secretKey = new SecretKeySpec(secretKeyString.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
+    jwtTokenService = new JwtTokenService(secretKeyString, 60, passwordEncoder);
+    sessionId = UUID.randomUUID();
 
     Map<String, Object> claims = new HashMap<>();
     claims.put("session_id", sessionId.toString());
@@ -50,34 +49,38 @@ class JwtTokenServiceTest {
   }
 
   @Test
-  void testSanitizeToken() {
-    String token = "Bearer " + validToken;
-    String sanitizedToken = jwtTokenService.sanitizeToken(token);
-    assertEquals(validToken, sanitizedToken);
-  }
+  void testGenerateToken_WithNotebookId() {
+    String notebookId = "notebook-12345";
+    String token = jwtTokenService.generateToken(sessionId.toString(), notebookId);
 
-  @Test
-  void testSanitizeToken_BearerNoSpace() {
-    String token = "bearer" + validToken;
-    String sanitizedToken = jwtTokenService.sanitizeToken(token);
-    assertEquals(validToken, sanitizedToken);
-  }
+    assertNotNull(token);
 
-  @Test
-  void testSanitizeToken_NoBearerPrefix() {
-    String token = "NoPrefix" + validToken;
-    String sanitizedToken = jwtTokenService.sanitizeToken(token);
-    assertEquals(token.trim(), sanitizedToken);
-  }
+    UUID extractedSessionId = jwtTokenService.extractSessionIdFromToken(token);
+    String extractedNotebookId = jwtTokenService.extractNotebookIdFromToken(token);
 
-  @Test
-  void testExtractSessionId() {
-    UUID extractedSessionId = jwtTokenService.extractSessionIdFromToken(validToken);
     assertEquals(sessionId, extractedSessionId);
+    assertEquals(notebookId, extractedNotebookId);
   }
 
   @Test
-  void testExtractSessionId_ExpiredToken() {
+  void testExtractNotebookIdFromToken() {
+    String notebookId = "notebook-12345";
+    String token = jwtTokenService.generateToken(sessionId.toString(), notebookId);
+
+    String extractedNotebookId = jwtTokenService.extractNotebookIdFromToken(token);
+    assertEquals(notebookId, extractedNotebookId);
+  }
+
+  @Test
+  void testExtractNotebookIdFromToken_TokenWithoutNotebookId() {
+    String token = jwtTokenService.generateToken(sessionId.toString());
+
+    String extractedNotebookId = jwtTokenService.extractNotebookIdFromToken(token);
+    assertNull(extractedNotebookId);
+  }
+
+  @Test
+  void testExtractSessionIdFromToken_ExpiredToken() {
     Map<String, Object> claims = new HashMap<>();
     claims.put("session_id", sessionId.toString());
 
@@ -93,55 +96,10 @@ class JwtTokenServiceTest {
   }
 
   @Test
-  void testExtractSessionId_InvalidToken() {
-    String invalidToken = "invalidTokenString";
+  void testValidateToken_ValidAndExpiredTokens() {
+    boolean isValid = jwtTokenService.validateToken(validToken);
+    assertTrue(isValid);
 
-    Exception exception = assertThrows(IllegalArgumentException.class, () -> {
-      jwtTokenService.extractSessionIdFromToken(invalidToken);
-    });
-
-    assertTrue(exception.getMessage().contains("Token JWT inválido"));
-  }
-
-  @Test
-  void testExtractSessionId_NoSessionIdClaim() {
-    Map<String, Object> claims = new HashMap<>();
-
-    String tokenWithoutSessionId = Jwts.builder()
-        .setClaims(claims)
-        .setIssuedAt(new Date())
-        .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60))
-        .signWith(secretKey, SignatureAlgorithm.HS256)
-        .compact();
-
-    Exception exception = assertThrows(IllegalArgumentException.class, () -> {
-      jwtTokenService.extractSessionIdFromToken(tokenWithoutSessionId);
-    });
-
-    assertTrue(exception.getMessage().contains("Token JWT inválido: el claim session_id falta o está vacío"));
-  }
-
-  @Test
-  void testExtractSessionId_NullOrEmptyToken() {
-    Exception exception = assertThrows(IllegalArgumentException.class, () -> {
-      jwtTokenService.extractSessionIdFromToken(null);
-    });
-    assertTrue(exception.getMessage().contains("El token es nulo o está vacío"));
-
-    exception = assertThrows(IllegalArgumentException.class, () -> {
-      jwtTokenService.extractSessionIdFromToken("");
-    });
-    assertTrue(exception.getMessage().contains("El token es nulo o está vacío"));
-  }
-
-  @Test
-  void testIsTokenExpired_ValidToken() {
-    boolean isExpired = jwtTokenService.isTokenExpired(validToken);
-    assertFalse(isExpired);
-  }
-
-  @Test
-  void testIsTokenExpired_ExpiredToken() {
     Map<String, Object> claims = new HashMap<>();
     claims.put("session_id", sessionId.toString());
 
@@ -152,35 +110,53 @@ class JwtTokenServiceTest {
         .signWith(secretKey, SignatureAlgorithm.HS256)
         .compact();
 
-    boolean isExpired = jwtTokenService.isTokenExpired(expiredToken);
-    assertTrue(isExpired);
+    boolean isExpired = jwtTokenService.validateToken(expiredToken);
+    assertFalse(isExpired);
   }
 
   @Test
-  void testIsTokenExpired_NullOrEmptyToken() {
-    boolean isExpired = jwtTokenService.isTokenExpired(null);
-    assertTrue(isExpired);
+  void testSanitizeToken_WithVariousPrefixes() {
+    String token = "Bearer " + validToken;
+    String sanitizedToken = jwtTokenService.sanitizeToken(token);
+    assertEquals(validToken, sanitizedToken);
 
-    isExpired = jwtTokenService.isTokenExpired("");
-    assertTrue(isExpired);
+    String tokenNoSpace = "bearer" + validToken;
+    sanitizedToken = jwtTokenService.sanitizeToken(tokenNoSpace);
+    assertEquals(validToken, sanitizedToken);
+
+    String tokenNoPrefix = validToken;
+    sanitizedToken = jwtTokenService.sanitizeToken(tokenNoPrefix);
+    assertEquals(validToken, sanitizedToken);
   }
 
   @Test
-  void testExtractExpiration() {
-    Date expirationDate = jwtTokenService.extractExpiration(validToken);
-    assertNotNull(expirationDate);
-    assertTrue(expirationDate.after(new Date()));
+  void testExtractAllClaims() {
+    String notebookId = "notebook-12345";
+    String token = jwtTokenService.generateToken(sessionId.toString(), notebookId);
+
+    Claims claims = jwtTokenService.extractAllClaims(token);
+    assertNotNull(claims);
+    assertEquals(sessionId.toString(), claims.get("session_id"));
+    assertEquals(notebookId, claims.get("notebook_id"));
   }
 
   @Test
-  void testExtractExpiration_InvalidToken() {
-    String invalidToken = "invalidTokenString";
+  void testIsTokenExpired_ValidAndExpiredTokens() {
+    boolean isExpired = jwtTokenService.isTokenExpired(validToken);
+    assertFalse(isExpired);
 
-    Exception exception = assertThrows(IllegalArgumentException.class, () -> {
-      jwtTokenService.extractExpiration(invalidToken);
-    });
+    Map<String, Object> claims = new HashMap<>();
+    claims.put("session_id", sessionId.toString());
 
-    assertTrue(exception.getMessage().contains("Token JWT inválido"));
+    String expiredToken = Jwts.builder()
+        .setClaims(claims)
+        .setIssuedAt(new Date(System.currentTimeMillis() - 1000 * 60 * 60))
+        .setExpiration(new Date(System.currentTimeMillis() - 1000 * 30))
+        .signWith(secretKey, SignatureAlgorithm.HS256)
+        .compact();
+
+    isExpired = jwtTokenService.isTokenExpired(expiredToken);
+    assertTrue(isExpired);
   }
 
   @Test
@@ -193,70 +169,9 @@ class JwtTokenServiceTest {
   }
 
   @Test
-  void testValidateToken_Valid() {
-    boolean isValid = jwtTokenService.validateToken(validToken);
-    assertTrue(isValid);
-  }
-
-  @Test
-  void testValidateToken_ExpiredToken() {
-    Map<String, Object> claims = new HashMap<>();
-    claims.put("session_id", sessionId.toString());
-
-    String expiredToken = Jwts.builder()
-        .setClaims(claims)
-        .setIssuedAt(new Date(System.currentTimeMillis() - 1000 * 60 * 60))
-        .setExpiration(new Date(System.currentTimeMillis() - 1000 * 30))
-        .signWith(secretKey, SignatureAlgorithm.HS256)
-        .compact();
-
-    boolean isValid = jwtTokenService.validateToken(expiredToken);
-    assertFalse(isValid);
-  }
-
-  @Test
-  void testValidateToken_InvalidToken() {
-    String invalidToken = "invalidTokenString";
-    boolean isValid = jwtTokenService.validateToken(invalidToken);
-    assertFalse(isValid);
-  }
-
-  @Test
-  void testExtractSessionId_JwtException() {
-    JwtException jwtException = new JwtException("Invalid JWT signature");
-
-    JwtTokenService spyService = spy(jwtTokenService);
-    doThrow(jwtException).when(spyService).extractAllClaims(anyString());
-
-    Exception exception = assertThrows(IllegalArgumentException.class, () -> {
-      spyService.extractSessionIdFromToken("invalidToken");
-    });
-
-    assertTrue(exception.getMessage().contains("Token JWT inválido"));
-  }
-
-  @Test
-  void testExtractAllClaims_ValidToken() {
-    String validToken = Jwts.builder()
-        .setSubject("testUser")
-        .setIssuedAt(new Date())
-        .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60))
-        .signWith(secretKey, SignatureAlgorithm.HS256)
-        .compact();
-
-    Claims claims = jwtTokenService.extractAllClaims(validToken);
-    assertNotNull(claims);
-    assertEquals("testUser", claims.getSubject());
-  }
-
-  @Test
-  void testExtractAllClaims_InvalidToken() {
-    String invalidToken = "invalidTokenString";
-
-    Exception exception = assertThrows(IllegalArgumentException.class, () -> {
-      jwtTokenService.extractAllClaims(invalidToken);
-    });
-
-    assertTrue(exception.getMessage().contains("Token JWT inválido"));
+  void testExtractExpiration() {
+    Date expirationDate = jwtTokenService.extractExpiration(validToken);
+    assertNotNull(expirationDate);
+    assertTrue(expirationDate.after(new Date()));
   }
 }

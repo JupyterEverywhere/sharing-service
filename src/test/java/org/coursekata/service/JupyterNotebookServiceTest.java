@@ -18,9 +18,9 @@ import java.util.UUID;
 import org.coursekata.dto.JupyterNotebookDTO;
 import org.coursekata.dto.MetadataDTO;
 import org.coursekata.exception.InvalidNotebookException;
-import org.coursekata.exception.InvalidNotebookPasswordException;
 import org.coursekata.exception.NotebookNotFoundException;
 import org.coursekata.exception.NotebookStorageException;
+import org.coursekata.exception.UnauthorizedNotebookAccessException;
 import org.coursekata.model.JupyterNotebookEntity;
 import org.coursekata.model.request.JupyterNotebookRequest;
 import org.coursekata.model.response.JupyterNotebookRetrieved;
@@ -78,7 +78,6 @@ class JupyterNotebookServiceTest {
     token = "jwt-token";
   }
 
-  // Helper method to create a sample JupyterNotebookDTO
   private JupyterNotebookDTO createSampleNotebookDTO() {
     JupyterNotebookDTO notebookDto = new JupyterNotebookDTO();
     MetadataDTO metadata = new MetadataDTO();
@@ -89,7 +88,6 @@ class JupyterNotebookServiceTest {
     return notebookDto;
   }
 
-  // Helper method to create a sample JupyterNotebookEntity
   private JupyterNotebookEntity createSampleNotebookEntity() {
     JupyterNotebookEntity entity = new JupyterNotebookEntity();
     entity.setId(notebookId);
@@ -145,7 +143,7 @@ class JupyterNotebookServiceTest {
   }
 
   @Test
-  void testGetNotebookContent_ByReadableId_Success() throws Exception {
+  void testGetNotebookContent_ByReadableId_Success() {
     JupyterNotebookEntity notebookEntity = createSampleNotebookEntity();
     JupyterNotebookDTO notebookDTO = createSampleNotebookDTO();
 
@@ -183,14 +181,11 @@ class JupyterNotebookServiceTest {
     when(notebookRepository.saveAndFlush(any(JupyterNotebookEntity.class))).thenAnswer(invocation -> {
       JupyterNotebookEntity entity = invocation.getArgument(0);
       entity.setId(notebookId);
-      entity.setReadableId(readableId); // Set the readableId
+      entity.setReadableId(readableId);
       return entity;
     });
-    // Stub the passwordEncoder
     when(passwordEncoder.encode(anyString())).thenReturn("encoded-password");
-    // Stub the objectMapper
     when(objectMapper.writeValueAsString(any())).thenReturn("serialized-notebook-json");
-    // Stub entityManager.refresh
     doNothing().when(entityManager).refresh(any(JupyterNotebookEntity.class));
 
     JupyterNotebookSaved result = notebookService.uploadNotebook(notebookRequest, sessionId, domain);
@@ -198,7 +193,7 @@ class JupyterNotebookServiceTest {
     assertNotNull(result);
     assertEquals(notebookId, result.getId());
     assertEquals(domain, result.getDomain());
-    assertNotNull(result.getReadableId()); // This should now be non-null
+    assertNotNull(result.getReadableId());
   }
 
   @Test
@@ -232,16 +227,21 @@ class JupyterNotebookServiceTest {
   }
 
   @Test
-  void testUpdateNotebook_ByUUID_SessionMismatch_PasswordValid() throws Exception {
+  void testUpdateNotebook_ByUUID_SessionMismatch_NotebookIdMatches() throws Exception {
+    UUID notebookId = UUID.randomUUID();
+    UUID sessionId = UUID.randomUUID();
+    UUID differentSessionId = UUID.randomUUID();
+    String token = "test-token";
+    String domain = "test-domain";
+
     JupyterNotebookDTO notebookDto = createSampleNotebookDTO();
     JupyterNotebookEntity notebookEntity = createSampleNotebookEntity();
-    UUID differentSessionId = UUID.randomUUID();
+    notebookEntity.setId(notebookId);
     notebookEntity.setSessionId(differentSessionId);
-    notebookEntity.setPassword(passwordEncoder.encode("password"));
+    notebookEntity.setDomain(domain);
 
     when(notebookRepository.findById(notebookId)).thenReturn(Optional.of(notebookEntity));
-    when(jwtTokenService.extractNotebookPasswordFromToken(token)).thenReturn("password");
-    when(passwordEncoder.matches("password", notebookEntity.getPassword())).thenReturn(true);
+    when(jwtTokenService.extractNotebookIdFromToken(token)).thenReturn(notebookId.toString());
     when(jupyterNotebookValidator.validateNotebook(anyString())).thenReturn(true);
     when(storageService.uploadNotebook(anyString(), anyString())).thenReturn("storage-url");
 
@@ -253,23 +253,28 @@ class JupyterNotebookServiceTest {
   }
 
   @Test
-  void testUpdateNotebook_ByUUID_SessionMismatch_InvalidPassword() {
+  void testUpdateNotebook_ByUUID_SessionMismatch_NotebookIdDoesNotMatch() {
+    UUID notebookId = UUID.randomUUID();
+    UUID sessionId = UUID.randomUUID();
+    UUID differentSessionId = UUID.randomUUID();
+    UUID differentNotebookId = UUID.randomUUID();
+    String token = "test-token";
+
     JupyterNotebookDTO notebookDto = createSampleNotebookDTO();
     JupyterNotebookEntity notebookEntity = createSampleNotebookEntity();
-    UUID differentSessionId = UUID.randomUUID();
+    notebookEntity.setId(notebookId);
     notebookEntity.setSessionId(differentSessionId);
-    notebookEntity.setPassword(passwordEncoder.encode("password"));
 
     when(notebookRepository.findById(notebookId)).thenReturn(Optional.of(notebookEntity));
-    when(jwtTokenService.extractNotebookPasswordFromToken(token)).thenReturn("wrong-password");
-    when(passwordEncoder.matches("wrong-password", notebookEntity.getPassword())).thenReturn(false);
+    when(jwtTokenService.extractNotebookIdFromToken(token)).thenReturn(differentNotebookId.toString());
 
-    InvalidNotebookPasswordException exception = assertThrows(InvalidNotebookPasswordException.class, () -> {
+    UnauthorizedNotebookAccessException exception = assertThrows(UnauthorizedNotebookAccessException.class, () -> {
       notebookService.updateNotebook(notebookId, notebookDto, sessionId, token);
     });
 
-    assertEquals("The password provided is incorrect", exception.getMessage());
+    assertEquals("You do not have permission to update this notebook", exception.getMessage());
   }
+
 
   @Test
   void testUpdateNotebook_ByUUID_NotFound() {
@@ -288,18 +293,14 @@ class JupyterNotebookServiceTest {
   void testUpdateNotebook_ByReadableId_Success() throws Exception {
     JupyterNotebookDTO notebookDto = createSampleNotebookDTO();
     JupyterNotebookEntity notebookEntity = createSampleNotebookEntity();
-    // Ensure session IDs match
     notebookEntity.setSessionId(sessionId);
 
     when(notebookRepository.findByReadableId(readableId)).thenReturn(Optional.of(notebookEntity));
     when(notebookRepository.findById(notebookEntity.getId())).thenReturn(Optional.of(notebookEntity));
 
-    // Mock dependencies called within the method
     when(jupyterNotebookValidator.validateNotebook(anyString())).thenReturn(true);
     when(storageService.uploadNotebook(anyString(), anyString())).thenReturn("storage-url");
     when(objectMapper.writeValueAsString(any())).thenReturn("serialized-notebook-json");
-
-    // Since session IDs match, token-related methods are not invoked
 
     JupyterNotebookSaved result = notebookService.updateNotebook(readableId, notebookDto, sessionId, token);
 

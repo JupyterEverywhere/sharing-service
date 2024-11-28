@@ -2,26 +2,25 @@ package org.coursekata.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.persistence.EntityManager;
+import jakarta.transaction.Transactional;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Date;
+import java.util.Map;
 import java.util.UUID;
-
-import jakarta.persistence.EntityManager;
-import jakarta.transaction.Transactional;
 import lombok.extern.log4j.Log4j2;
 import org.apache.logging.log4j.message.StringMapMessage;
-import org.coursekata.exception.InvalidNotebookPasswordException;
-import org.coursekata.model.request.JupyterNotebookRequest;
-import org.coursekata.model.response.JupyterNotebookRetrieved;
-import org.coursekata.model.response.JupyterNotebookSaved;
 import org.coursekata.dto.JupyterNotebookDTO;
 import org.coursekata.dto.MetadataDTO;
 import org.coursekata.exception.InvalidNotebookException;
 import org.coursekata.exception.NotebookNotFoundException;
 import org.coursekata.exception.NotebookStorageException;
-import org.coursekata.exception.SessionMismatchException;
+import org.coursekata.exception.UnauthorizedNotebookAccessException;
 import org.coursekata.model.JupyterNotebookEntity;
+import org.coursekata.model.request.JupyterNotebookRequest;
+import org.coursekata.model.response.JupyterNotebookRetrieved;
+import org.coursekata.model.response.JupyterNotebookSaved;
 import org.coursekata.repository.JupyterNotebookRepository;
 import org.coursekata.service.utils.JupyterNotebookValidator;
 import org.coursekata.utils.DateUtils;
@@ -160,22 +159,40 @@ public class JupyterNotebookService {
   }
 
   public JupyterNotebookSaved updateNotebook(UUID notebookId, JupyterNotebookDTO notebookDto, UUID sessionId, String token)
-      throws SessionMismatchException, InvalidNotebookPasswordException, InvalidNotebookException, JsonProcessingException {
+      throws UnauthorizedNotebookAccessException, InvalidNotebookException, JsonProcessingException {
 
     JupyterNotebookEntity storedNotebook = notebookRepository.findById(notebookId)
         .orElseThrow(() -> new NotebookNotFoundException("Notebook not found with ID: " + notebookId));
 
-    if (!sessionId.equals(storedNotebook.getSessionId())) {
-      log.warn(new StringMapMessage()
-          .with(MESSAGE_KEY, "Session ID mismatch")
-          .with("StoredSessionId", storedNotebook.getSessionId().toString())
-          .with("ProvidedSessionId", sessionId.toString())
-          .with(NOTEBOOK_ID_MESSAGE_KEY, notebookId.toString()));
+    Map<String, String> commonLogDetails = Map.of(
+        NOTEBOOK_ID_MESSAGE_KEY, notebookId.toString(),
+        "StoredSessionId", storedNotebook.getSessionId().toString(),
+        "ProvidedSessionId", sessionId.toString()
+    );
 
-      String passwordFromToken = jwtTokenService.extractNotebookPasswordFromToken(token);
-      if (passwordFromToken == null || !passwordEncoder.matches(passwordFromToken, storedNotebook.getPassword())) {
-        throw new InvalidNotebookPasswordException("The password provided is incorrect");
+    if (sessionId.equals(storedNotebook.getSessionId())) {
+      logInfo("Session IDs match", commonLogDetails);
+    } else {
+      logInfo("Session ID mismatch", commonLogDetails);
+
+      String notebookIdFromToken = jwtTokenService.extractNotebookIdFromToken(token);
+
+      if (notebookIdFromToken == null) {
+        logInfo("Notebook ID missing in token", Map.of(
+            NOTEBOOK_ID_MESSAGE_KEY, notebookId.toString()
+        ));
+        throw new UnauthorizedNotebookAccessException("You do not have permission to update this notebook");
       }
+
+      if (!notebookId.equals(UUID.fromString(notebookIdFromToken))) {
+        logInfo("Unauthorized notebook update attempt", Map.of(
+            NOTEBOOK_ID_MESSAGE_KEY, notebookId.toString(),
+            "NotebookIdFromToken", notebookIdFromToken
+        ));
+        throw new UnauthorizedNotebookAccessException("You do not have permission to update this notebook");
+      }
+
+      logInfo("Notebook ID validation succeeded", Map.of(NOTEBOOK_ID_MESSAGE_KEY, notebookId.toString()));
     }
 
     validateNotebookMetadata(notebookDto);
@@ -187,9 +204,11 @@ public class JupyterNotebookService {
 
     String fileName = storedNotebook.getId().toString() + ".ipynb";
     storeNotebook(notebookDto, fileName);
+
     updateNotebookMetadata(storedNotebook, notebookDto, sessionId);
 
-    return new JupyterNotebookSaved(storedNotebook.getId(), storedNotebook.getDomain(), storedNotebook.getReadableId());
+    return new JupyterNotebookSaved(
+        storedNotebook.getId(), storedNotebook.getDomain(), storedNotebook.getReadableId());
   }
 
   void validateNotebookMetadata(JupyterNotebookDTO notebookDto)
@@ -309,5 +328,11 @@ public class JupyterNotebookService {
   public JupyterNotebookEntity getNotebookById(UUID notebookId) {
     return notebookRepository.findNotebookById(notebookId)
         .orElseThrow(() -> new NotebookNotFoundException("Notebook not found with ID: " + notebookId));
+  }
+
+  private void logInfo(String message, Map<String, String> details) {
+    StringMapMessage logMessage = new StringMapMessage().with(MESSAGE_KEY, message);
+    details.forEach(logMessage::with);
+    log.info(logMessage);
   }
 }
