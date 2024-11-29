@@ -1,6 +1,7 @@
 ../HELP.md
 .gradle/
 build/
+.vscode/
 
 # Include Gradle Wrapper
 !gradle/wrapper/gradle-wrapper.jar
