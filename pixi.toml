@@ -6,10 +6,8 @@ platforms = ["osx-arm64", "osx-64", "linux-64", "win-64"]
 
 [tasks]
 build = "./init-local-stack.sh && gradle wrapper && ./gradlew clean build"
-start = "docker-compose --profile api up -d"
-start-services = "docker-compose up -d"
-"start:watch" = "docker-compose --profile api up"
-"start-services:watch" = "docker-compose up"
+start = "docker-compose --profile api up --build"
+start-services = "docker-compose up"
 stop = "docker-compose --profile api down"
 
 [dependencies]
