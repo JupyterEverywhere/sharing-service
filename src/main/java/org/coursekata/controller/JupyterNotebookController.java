@@ -7,8 +7,10 @@ import lombok.extern.log4j.Log4j2;
 import org.apache.logging.log4j.message.StringMapMessage;
 import org.coursekata.dto.JupyterNotebookDTO;
 import org.coursekata.exception.InvalidNotebookException;
+import org.coursekata.exception.InvalidNotebookPasswordException;
 import org.coursekata.exception.NotebookNotFoundException;
 import org.coursekata.exception.SessionMismatchException;
+import org.coursekata.model.request.JupyterNotebookRequest;
 import org.coursekata.model.response.JupyterNotebookErrorResponse;
 import org.coursekata.model.response.JupyterNotebookResponse;
 import org.coursekata.model.response.JupyterNotebookRetrieved;
@@ -67,12 +69,14 @@ public class JupyterNotebookController {
     } catch (NotebookNotFoundException e) {
       return handleException(HttpStatus.NOT_FOUND, "Notebook not found", e, readableId);
     } catch (Exception e) {
-      return handleException(HttpStatus.INTERNAL_SERVER_ERROR, "Error fetching notebook", e, readableId);
+      return handleException(HttpStatus.INTERNAL_SERVER_ERROR, "Error fetching notebook", e,
+          readableId);
     }
   }
 
   @PostMapping
-  public ResponseEntity<JupyterNotebookResponse> uploadNotebook(@Valid @RequestBody JupyterNotebookDTO notebookDto,
+  public ResponseEntity<JupyterNotebookResponse> uploadNotebook(
+      @Valid @RequestBody JupyterNotebookRequest notebookRequest,
       Authentication authentication, HttpServletRequest request) {
 
     UUID sessionId = (UUID) authentication.getPrincipal();
@@ -81,35 +85,52 @@ public class JupyterNotebookController {
     logInfo("Received notebook upload request", SESSION_ID_MESSAGE_KEY, sessionId.toString());
 
     try {
-      JupyterNotebookSaved notebookSaved = notebookService.uploadNotebook(notebookDto, sessionId, domain);
-      logInfo("Notebook uploaded and validated successfully", SESSION_ID_MESSAGE_KEY, sessionId.toString());
+      JupyterNotebookSaved notebookSaved = notebookService.uploadNotebook(notebookRequest,
+          sessionId,
+          domain);
+      logInfo("Notebook uploaded and validated successfully", SESSION_ID_MESSAGE_KEY,
+          sessionId.toString());
 
-      var response = new JupyterNotebookSavedResponse("Notebook uploaded, validated, and metadata stored successfully", notebookSaved);
+      var response = new JupyterNotebookSavedResponse(
+          "Notebook uploaded, validated, and metadata stored successfully", notebookSaved);
       return ResponseEntity.status(HttpStatus.CREATED).body(response);
     } catch (InvalidNotebookException e) {
-      return handleException(HttpStatus.UNPROCESSABLE_ENTITY, "Invalid notebook format", e, sessionId);
+      return handleException(HttpStatus.UNPROCESSABLE_ENTITY, "Invalid notebook format", e,
+          sessionId);
     } catch (Exception e) {
-      return handleException(HttpStatus.INTERNAL_SERVER_ERROR, "Error uploading notebook", e, sessionId);
+      return handleException(HttpStatus.INTERNAL_SERVER_ERROR, "Error uploading notebook", e,
+          sessionId);
     }
   }
 
   @PutMapping("/{uuid}")
-  public ResponseEntity<JupyterNotebookResponse> updateNotebook(@PathVariable UUID uuid,
+  public ResponseEntity<JupyterNotebookResponse> updateNotebook(
+      @PathVariable UUID uuid,
       @Valid @RequestBody JupyterNotebookDTO notebookDto,
-      Authentication authentication) {
+      Authentication authentication,
+      HttpServletRequest request) {
+
     UUID sessionId = (UUID) authentication.getPrincipal();
-    logInfo("Received notebook update request", NOTEBOOK_ID_MESSAGE_KEY, uuid.toString(), SESSION_ID_MESSAGE_KEY, sessionId.toString());
+
+    logInfo("Received notebook update request", NOTEBOOK_ID_MESSAGE_KEY, uuid.toString(),
+        SESSION_ID_MESSAGE_KEY, sessionId.toString());
 
     try {
-      JupyterNotebookSaved notebookUpdated = notebookService.updateNotebook(uuid, notebookDto, sessionId);
-      logInfo("Notebook updated successfully", NOTEBOOK_ID_MESSAGE_KEY, uuid.toString(), SESSION_ID_MESSAGE_KEY, sessionId.toString());
+      String token = HttpHeaderUtils.getTokenFromRequest(request);
+
+      JupyterNotebookSaved notebookUpdated = notebookService.updateNotebook(uuid, notebookDto, sessionId, token);
+
+      logInfo("Notebook updated successfully", NOTEBOOK_ID_MESSAGE_KEY, uuid.toString(),
+          SESSION_ID_MESSAGE_KEY, sessionId.toString());
 
       var response = new JupyterNotebookSavedResponse("Notebook updated successfully", notebookUpdated);
       return ResponseEntity.ok(response);
-    } catch (InvalidNotebookException e) {
-      return handleException(HttpStatus.BAD_REQUEST, "Invalid notebook format", e, uuid, sessionId);
+    } catch (InvalidNotebookPasswordException e) {
+      return handleException(HttpStatus.UNAUTHORIZED, "Invalid password", e, uuid, sessionId);
     } catch (SessionMismatchException e) {
       return handleException(HttpStatus.UNAUTHORIZED, "Session ID mismatch", e, uuid, sessionId);
+    } catch (InvalidNotebookException e) {
+      return handleException(HttpStatus.BAD_REQUEST, "Invalid notebook format", e, uuid, sessionId);
     } catch (Exception e) {
       return handleException(HttpStatus.INTERNAL_SERVER_ERROR, "Error updating notebook", e, uuid, sessionId);
     }
@@ -117,23 +138,32 @@ public class JupyterNotebookController {
 
   @PutMapping("/update-by-readable-id/{readableId}")
   public ResponseEntity<JupyterNotebookResponse> updateNotebook(@PathVariable String readableId,
-                                               @Valid @RequestBody JupyterNotebookDTO notebookDto,
-                                               Authentication authentication) {
+      @Valid @RequestBody JupyterNotebookDTO notebookDto,
+      Authentication authentication, HttpServletRequest request) {
     UUID sessionId = (UUID) authentication.getPrincipal();
-    logInfo("Received notebook update request", READABLE_ID_MESSAGE_KEY, readableId, SESSION_ID_MESSAGE_KEY, sessionId.toString());
+    logInfo("Received notebook update request", READABLE_ID_MESSAGE_KEY, readableId,
+        SESSION_ID_MESSAGE_KEY, sessionId.toString());
 
     try {
-      JupyterNotebookSaved notebookUpdated = notebookService.updateNotebook(readableId, notebookDto, sessionId);
-      logInfo("Notebook updated successfully", NOTEBOOK_ID_MESSAGE_KEY, readableId, SESSION_ID_MESSAGE_KEY, sessionId.toString());
+      String token = HttpHeaderUtils.getTokenFromRequest(request);
 
-      var response = new JupyterNotebookSavedResponse("Notebook updated successfully", notebookUpdated);
+      JupyterNotebookSaved notebookUpdated = notebookService.updateNotebook(readableId, notebookDto,
+          sessionId, token);
+      logInfo("Notebook updated successfully", NOTEBOOK_ID_MESSAGE_KEY, readableId,
+          SESSION_ID_MESSAGE_KEY, sessionId.toString());
+
+      var response = new JupyterNotebookSavedResponse("Notebook updated successfully",
+          notebookUpdated);
       return ResponseEntity.ok(response);
     } catch (InvalidNotebookException e) {
-      return handleException(HttpStatus.BAD_REQUEST, "Invalid notebook format", e, readableId, sessionId);
+      return handleException(HttpStatus.BAD_REQUEST, "Invalid notebook format", e, readableId,
+          sessionId);
     } catch (SessionMismatchException e) {
-      return handleException(HttpStatus.UNAUTHORIZED, "Session ID mismatch", e, readableId, sessionId);
+      return handleException(HttpStatus.UNAUTHORIZED, "Session ID mismatch", e, readableId,
+          sessionId);
     } catch (Exception e) {
-      return handleException(HttpStatus.INTERNAL_SERVER_ERROR, "Error updating notebook", e, readableId, sessionId);
+      return handleException(HttpStatus.INTERNAL_SERVER_ERROR, "Error updating notebook", e,
+          readableId, sessionId);
     }
   }
 
@@ -147,7 +177,8 @@ public class JupyterNotebookController {
     log.info(logMessage);
   }
 
-  private ResponseEntity<JupyterNotebookResponse> handleException(HttpStatus status, String message, Exception e, Object... params) {
+  private ResponseEntity<JupyterNotebookResponse> handleException(HttpStatus status, String message,
+      Exception e, Object... params) {
     StringMapMessage logMessage = new StringMapMessage().with(MESSAGE_KEY, message);
     for (int i = 0; i < params.length; i += 2) {
       if (i + 1 < params.length) {

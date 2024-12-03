@@ -2,15 +2,17 @@ package org.coursekata.controller;
 
 import lombok.extern.log4j.Log4j2;
 import org.apache.logging.log4j.message.StringMapMessage;
+import org.coursekata.exception.InvalidNotebookPasswordException;
 import org.coursekata.exception.TokenRefreshException;
+import org.coursekata.model.auth.AuthenticationRequest;
 import org.coursekata.model.auth.AuthenticationResponse;
 import org.coursekata.model.auth.TokenRefreshRequest;
 import org.coursekata.service.AuthService;
 import org.coursekata.utils.HttpHeaderUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -31,15 +33,24 @@ public class AuthController {
         this.authService = authService;
     }
 
-    @GetMapping("/issue")
-    public ResponseEntity<AuthenticationResponse> issueToken() {
-        logInfo();
+    @PostMapping("/issue")
+    public ResponseEntity<AuthenticationResponse> issueToken(
+        @RequestBody(required = false) AuthenticationRequest authenticationRequest) {
+        logInfo("Received token issuance request", "NotebookId",
+            authenticationRequest != null ? authenticationRequest.getNotebookId() : "None");
 
-        AuthenticationResponse authenticationResponse = authService.generateInitialTokenResponse();
-        HttpHeaders headers = HttpHeaderUtils.createAuthorizationHeader(authenticationResponse.getToken());
+        try {
+            AuthenticationResponse authenticationResponse = authService.generateInitialTokenResponse(authenticationRequest);
+            HttpHeaders headers = HttpHeaderUtils.createAuthorizationHeader(authenticationResponse.getToken());
 
-        logInfo("Initial token issued successfully", TOKEN_KEY, authenticationResponse.getToken());
-        return ResponseEntity.ok().headers(headers).body(authenticationResponse);
+            logInfo("Initial token issued successfully", TOKEN_KEY, authenticationResponse.getToken());
+            return ResponseEntity.ok().headers(headers).body(authenticationResponse);
+        } catch (InvalidNotebookPasswordException e) {
+            logError("Invalid notebook ID or password", e);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                new AuthenticationResponse("Invalid notebook ID or password")
+            );
+        }
     }
 
     @PostMapping("/refresh")

@@ -1,6 +1,7 @@
 package org.coursekata.utils;
 
 import jakarta.servlet.http.HttpServletRequest;
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import lombok.extern.log4j.Log4j2;
@@ -54,6 +55,21 @@ public class HttpHeaderUtils {
       logError(clientIp, e);
       return "Unknown";
     }
+  }
+
+  public static String getTokenFromRequest(HttpServletRequest request) {
+
+    String authorizationHeader = request.getHeader("Authorization");
+    if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
+      return authorizationHeader.substring(7);
+    }
+
+    String tokenFromQuery = request.getParameter("token");
+    if (tokenFromQuery != null && !tokenFromQuery.isEmpty()) {
+      return tokenFromQuery;
+    }
+
+    throw new IllegalArgumentException("No token found in the request");
   }
 
   private static void logInfo(String message, String key, String value) {
