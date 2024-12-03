@@ -2,6 +2,7 @@
 .gradle/
 build/
 .vscode/
+*.session.sql
 
 # Include Gradle Wrapper
 !gradle/wrapper/gradle-wrapper.jar

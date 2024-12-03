@@ -4,22 +4,10 @@
 
 ### Prerequisites
 
-Setup a development environment using [Pixi](https://pixi.sh/dev/). Pixi is a package management tool for developers. It allows the developer to install libraries and applications in a reproducible way. Use pixi cross-platform, on Windows, Mac and Linux.
+Install the following applications:
 
-To install pixi you can run the following command in your terminal:
-
-**Linux and MacOS**:
-
-```bash
-curl -fsSL https://pixi.sh/install.sh | bash
-```
-
-**Windows**:
-
-```powershell
-# PowerShell
-iwr -useb https://pixi.sh/install.ps1 | iex
-```
+- [Pixi](https://pixi.sh/dev/): for package management
+- [`direnv`](https://direnv.net): for environment variable management
 
 ### Installation
 
@@ -36,20 +24,27 @@ iwr -useb https://pixi.sh/install.ps1 | iex
    }
    ```
 
-5. Install and build with Pixi: `pixi run build`.
+5. Install and build the application with Pixi: `pixi run build`.
 
 This will install the following dependencies before building the application:
 
-- [Docker Compose](https://docs.docker.com/compose/)
 - [Java 17+](https://openjdk.org)
 - [Gradle](https://gradle.org)
 - [Python 3](https://www.python.org)
-- [`direnv`](https://direnv.net)
 - [`awslocal`](https://github.com/localstack/awscli-local)
 
-## Activate the Environment
+## Run the Application
 
-Every time you start a new terminal session, you need to initialize the environment. This is done by running the following two command in the project root directory:
+Use the pre-configured Pixi `tasks` to run the application. The following tasks are available:
+
+- `pixi run build`: Build the application. This will initialize LocalStack, ensure Gradle dependencies are installed, and then build the application.
+- `pixi run start`: Start the application. This will use Docker Compose to start the PostgreSQL database and then start the Spring Boot application.
+  - `pixi run start-services`: Start the database and other services. This will start the PostgreSQL database and other services needed for the application, but will **not** start the Spring Boot application. After running this task, you can start the Spring Boot application with `./start.sh`.
+- `pixi run stop`: Stop the application. This will stop the PostgreSQL database and the Spring Boot application.
+
+### Activating the Environment
+
+If you are doing something other than using the Pixi commands you need to ensure that your environment is properly activated. Every time you start a new terminal session, you need to initialize the environment. This is done by running the following two commands in the project root directory:
 
 ```bash
 # activate the virtual environment
@@ -59,15 +54,8 @@ pixi shell
 direnv allow
 ```
 
-## Run the Application
-
-Use the pre-configured Pixi `tasks` to run the application. The following tasks are available:
-
-- `pixi run build`: Build the application. This will initialize LocalStack, ensure Gradle dependencies are installed, and then build the application.
-- `pixi run start`: Start the application. This will use Docker Compose to start the PostgreSQL database and then start the Spring Boot application.
-  - `pixi run start-services`: Start the database and other services. This will start the PostgreSQL database and other services needed for the application, but will **not** start the Spring Boot application. After running this task, you can start the Spring Boot application with `./start.sh`.
-  - `pixi run start:watch` & `pixi run start-services:watch`: Start the application and services in non-detached mode. These variants will start the application and services in the foreground, allowing you to see the logs in real-time.
-- `pixi run stop`: Stop the application. This will stop the PostgreSQL database and the Spring Boot application.
+> [!IMPORTANT]
+> Always sure you have the Pixi environment activated before running any commands. If you ever run `direnv allow` without the Pixi environment activated, you will need to run `direnv reload` to reload the environment variables after you activate the Pixi environment with `pixi shell`.
 
 ## Database
 
