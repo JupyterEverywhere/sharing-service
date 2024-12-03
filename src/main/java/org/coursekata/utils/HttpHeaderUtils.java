@@ -1,6 +1,7 @@
 package org.coursekata.utils;
 
 import jakarta.servlet.http.HttpServletRequest;
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import lombok.extern.log4j.Log4j2;
@@ -22,12 +23,29 @@ public class HttpHeaderUtils {
   }
 
   public static String getDomainFromRequest(HttpServletRequest request) {
-    String clientIp = request.getRemoteAddr();
+    String clientIp = extractClientIp(request);
     logInfo("Received request from client IP", CLIENT_IP_KEY, clientIp);
     return resolveHostName(clientIp);
   }
 
-  private static String resolveHostName(String clientIp) {
+  private static String extractClientIp(HttpServletRequest request) {
+    String clientIp = getHeaderValue(request, "X-Forwarded-For");
+    if (clientIp != null) {
+      return clientIp.split(",")[0].trim();
+    }
+    clientIp = getHeaderValue(request, "X-Real-IP");
+    return (clientIp != null) ? clientIp : request.getRemoteAddr();
+  }
+
+  static String getHeaderValue(HttpServletRequest request, String headerName) {
+    String headerValue = request.getHeader(headerName);
+    if (headerValue == null || headerValue.isEmpty() || "unknown".equalsIgnoreCase(headerValue)) {
+      return null;
+    }
+    return headerValue;
+  }
+
+  static String resolveHostName(String clientIp) {
     try {
       InetAddress inetAddress = InetAddress.getByName(clientIp);
       String hostName = inetAddress.getHostName();
@@ -37,6 +55,21 @@ public class HttpHeaderUtils {
       logError(clientIp, e);
       return "Unknown";
     }
+  }
+
+  public static String getTokenFromRequest(HttpServletRequest request) {
+
+    String authorizationHeader = request.getHeader("Authorization");
+    if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
+      return authorizationHeader.substring(7);
+    }
+
+    String tokenFromQuery = request.getParameter("token");
+    if (tokenFromQuery != null && !tokenFromQuery.isEmpty()) {
+      return tokenFromQuery;
+    }
+
+    throw new IllegalArgumentException("No token found in the request");
   }
 
   private static void logInfo(String message, String key, String value) {
