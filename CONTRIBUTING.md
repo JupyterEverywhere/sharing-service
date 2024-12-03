@@ -14,7 +14,13 @@ Install the following applications:
 1. Clone or download this repository.
 2. Navigate to the project root directory.
 3. Make a copy of the `.envrc.example` file and rename it to `.envrc`. These variables are used to configure the environment.
-4. Create a file at `.aws-secrets/jupyter-s3.json` with the following content:
+4. Run `pixi shell` to install the project dependencies and activate the environment.
+   - [Java 17+](https://openjdk.org)
+   - [Gradle](https://gradle.org)
+   - [Python 3](https://www.python.org)
+   - [`awslocal`](https://github.com/localstack/awscli-local)
+5. Run `direnv allow` to allow the environment variables to be loaded into the shell session. **This must be done _after_ running `pixi shell`**.
+6. Create a file at `.aws-secrets/jupyter-s3.json` with the following content:
 
    ```json
    {
@@ -24,14 +30,7 @@ Install the following applications:
    }
    ```
 
-5. Install and build the application with Pixi: `pixi run build`.
-
-This will install the following dependencies before building the application:
-
-- [Java 17+](https://openjdk.org)
-- [Gradle](https://gradle.org)
-- [Python 3](https://www.python.org)
-- [`awslocal`](https://github.com/localstack/awscli-local)
+7. Install and build the application with Pixi: `pixi run build`.
 
 ## Run the Application
 
