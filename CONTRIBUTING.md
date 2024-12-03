@@ -35,27 +35,24 @@ This will install the following dependencies before building the application:
 
 ## Run the Application
 
-Use the pre-configured Pixi `tasks` to run the application. The following tasks are available:
+Use the pre-configured Pixi `tasks` to run the application. Using these tasks ensures that the environment is properly configured with the needed dependencies and that the application is started correctly.
+
+The following tasks are available:
 
 - `pixi run build`: Build the application. This will initialize LocalStack, ensure Gradle dependencies are installed, and then build the application.
 - `pixi run start`: Start the application. This will use Docker Compose to start the PostgreSQL database and then start the Spring Boot application.
   - `pixi run start-services`: Start the database and other services. This will start the PostgreSQL database and other services needed for the application, but will **not** start the Spring Boot application. After running this task, you can start the Spring Boot application with `./start.sh`.
 - `pixi run stop`: Stop the application. This will stop the PostgreSQL database and the Spring Boot application.
+- `pixi run test`: Run the tests. This will run the unit tests and integration tests.
+- `pixi run coverage`: Run the tests and generate a coverage report. This will run the tests and generate a coverage report in the `build/reports/jacoco/test/html` directory.
+- `pixi run clean`: Clean the project. This will remove the build artifacts and other temporary files.
 
 ### Activating the Environment
 
-If you are doing something other than using the Pixi commands you need to ensure that your environment is properly activated. Every time you start a new terminal session, you need to initialize the environment. This is done by running the following two commands in the project root directory:
-
-```bash
-# activate the virtual environment
-pixi shell
-
-# load the environment variables
-direnv allow
-```
+If you are doing something other than using the Pixi commands you need to ensure that your environment is properly activated with `pixi shell`. Every time you start a new terminal session, you need to initialize the environment.
 
 > [!IMPORTANT]
-> Always sure you have the Pixi environment activated before running any commands. If you ever run `direnv allow` without the Pixi environment activated, you will need to run `direnv reload` to reload the environment variables after you activate the Pixi environment with `pixi shell`.
+> Always sure you have the Pixi environment activated before running any commands. If you ever run `direnv allow` or `direnv reload` without the Pixi environment activated, you will need to run `direnv reload` to reload the environment variables after you activate the Pixi environment with `pixi shell`.
 
 ## Database
 
@@ -84,22 +81,6 @@ Flyway is already configured in the project. Migration scripts are located in `s
 ### Adding Necessary Extensions
 
 Some migrations require specific PostgreSQL extensions. For example, to use `uuid_generate_v4()`, the `uuid-ossp` extension must be created in the database. This is handled within Flyway migration scripts.
-
-## Testing and Coverage
-
-The project uses JUnit 5 for testing and Jacoco for coverage. To run the tests and generate a coverage report, use the following commands (make sure you have activated the Pixi environment with `pixi shell`):
-
-**Test**:
-
-```bash
-./gradlew test
-```
-
-**Coverage**:
-
-```bash
-./gradlew jacocoTestReport
-```
 
 ## Helpful Links
 
