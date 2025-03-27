@@ -37,7 +37,7 @@ jobs:
       - name: Run Unit Tests
         run: |
           echo "Running unit tests..."
-          ./gradlew -x test
+          ./gradlew  test
 
   build-and-deploy:
     needs: unit-test
