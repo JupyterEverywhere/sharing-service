@@ -123,14 +123,14 @@ We need Python in this project to run a script that uses the nbformat library, e
 1. In your home directory execute the following commands, to create a virtual environment.
 
 ```bash
-mkdir envs
-python3 -m venv envs/ckhubapi
-source envs/ckhubapi/bin/activate
+mkdir -p ~/envs
+python3 -m venv ~/envs/ckhubapi
+source ~/envs/ckhubapi/bin/activate
 pip install nbformat
 deactivate
 ```
 
-2. Create a `.envrc` file in the project. 
+2. Create a `.envrc` file in the project.
 
 3. Export the following variables 
 ```bash
