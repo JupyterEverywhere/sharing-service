@@ -25,9 +25,40 @@ Create a file at `.aws-secrets/jupyter-s3.json` with the following content:
 }
 ```
 
+## Building the project
+
+Before running `docker compose`, you must build the Java project to generate the required JAR file:
+
+### 1. Build the JAR file
+
+```bash
+# clean any previous builds
+./gradlew clean
+
+# build the project
+./gradlew build
+```
+
+This will create the JAR file at `build/libs/ckhubapi-0.0.1-SNAPSHOT.jar`
+
+If you encounter issues with the `gradlew` script:
+
+```bash
+# Install gradle if not present
+brew install gradle  # On macOS, or use your package manager
+
+# Generate gradle wrapper
+gradle wrapper
+
+# Then try building again
+./gradlew build
+```
+
+You should see something like `ckhubapi-0.0.1-SNAPSHOT.jar` in the `./build/libs/` directory.
+
 ## Docker Setup
 
-The CKHub API utilizes its own PostgreSQL database. For making this possible we use a Docker container that implements a postgres:15-alpine image. 
+The CKHub API utilizes its own PostgreSQL database. For making this possible we use a Docker container that implements a postgres:15-alpine image.
 
 ### Docker Compose Configuration
 You can find the docker configuration in the docker-compose.yml file.
@@ -89,10 +120,10 @@ PASSWORD=ckhub
 
 We need Python in this project to run a script that uses the nbformat library, ensuring that each Jupyter notebook is valid.
 
-1. In your home directory execute the following commands, to create a virtual environment. 
+1. In your home directory execute the following commands, to create a virtual environment.
 
 ```bash
-mkdir envs 
+mkdir envs
 python3 -m venv envs/ckhubapi
 source envs/ckhubapi/bin/activate
 pip install nbformat
@@ -137,7 +168,7 @@ or by default:
 
 If something is wrong, or you are receiving any exception try to solve this with:
 
-1. Install gradle in your machine, you can use brew install gradle command
+1. Install gradle in your machine, you can use the `brew install gradle` command
 2. Run gradle wrapper command in the project root.
 ```bash
 gradle wrapper
