@@ -1,6 +1,5 @@
 services:
   postgres:
-    container_name: ckhubapi-postgres-db
     image: postgres:15-alpine
     environment:
       POSTGRES_USER: ckhub
@@ -11,7 +10,10 @@ services:
     volumes:
       - ckhubapi_data:/var/lib/postgresql/data
     networks:
-      - ckhubapi-network
+      ckhubapi-network:
+        aliases:
+          - ckhubapi-postgres-db
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ckhub -d ckhubapi"]
       interval: 10s
@@ -19,23 +21,29 @@ services:
       retries: 5
       start_period: 3s
       start_interval: 3s
+    labels:
+      - "com.coursekata.service=database"
+      - "com.coursekata.environment=development"
 
   localstack:
-    container_name: ckhubapi-localstack
     image: localstack/localstack:latest
     ports:
       - "4567:4566"
     environment:
-      - DEBUG=0
+      DEBUG: "0"
     volumes:
       - ckhubapi_localstack_data:/var/lib/localstack
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
-      - ckhubapi-network
+      ckhubapi-network:
+        aliases:
+          - ckhubapi-localstack
+    restart: unless-stopped
+    labels:
+      - "com.coursekata.service=aws-mock"
+      - "com.coursekata.environment=development"
 
   api:
-    container_name: ckhubapi-api
-    profiles: ["api"]
     build:
       context: .
       dockerfile: Dockerfile
@@ -48,6 +56,10 @@ services:
       SPRING_PROFILES_ACTIVE: docker
     networks:
       - ckhubapi-network
+    restart: unless-stopped
+    labels:
+      - "com.coursekata.service=api"
+      - "com.coursekata.environment=development"
 
 volumes:
   ckhubapi_data:
