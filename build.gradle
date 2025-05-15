@@ -7,7 +7,7 @@ plugins {
 	id 'org.openapi.generator' version '6.4.0'
 }
 
-group = 'org.coursekata'
+group = 'org.jupytereverywhere'
 version = '0.0.1-SNAPSHOT'
 
 java {
@@ -97,9 +97,9 @@ openApiGenerate {
 	generatorName = "spring"
 	inputSpec = "$rootDir/src/main/resources/api.yaml"
 	outputDir = "$buildDir/generated"
-	apiPackage = "org.coursekata.api"
-	modelPackage = "org.coursekata.model"
-	invokerPackage = "org.coursekata.invoker"
+	apiPackage = "org.jupytereverywhere.api"
+	modelPackage = "org.jupytereverywhere.model"
+	invokerPackage = "org.jupytereverywhere.invoker"
 	configOptions = [
 			dateLibrary: "java8"
 	]
@@ -123,9 +123,9 @@ jacocoTestReport {
 		classDirectories.setFrom(
 				files(classDirectories.files.collect {
 					fileTree(dir: it, exclude: [
-							'org/coursekata/service/aws/S3StorageService.class', // Exclude until next iteration
-							'org/coursekata/config/',
-							'org/coursekata/CKHubApiApplication.class'
+							'org/jupytereverywhere/service/aws/S3StorageService.class', // Exclude until next iteration
+							'org/jupytereverywhere/config/',
+							'org/jupytereverywhere/SharingServiceApplication.class'
 					])
 				})
 		)
