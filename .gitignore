@@ -1,17 +1,16 @@
-../HELP.md
-.gradle/
-build/
+# IDE and Editor files
+#####################
+### VS Code ###
+.vscode/
 
-# Include Gradle Wrapper
-!gradle/wrapper/gradle-wrapper.jar
-!gradle/wrapper/gradle-wrapper.properties
-
-# Exclude build directories in source folders
-!**/src/main/**/build/
-!**/src/test/**/build/
-
-# Log file
-*.log
+### IntelliJ IDEA ###
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
 
 ### STS ###
 .apt_generated
@@ -25,15 +24,6 @@ bin/
 !**/src/main/**/bin/
 !**/src/test/**/bin/
 
-### IntelliJ IDEA ###
-.idea
-*.iws
-*.iml
-*.ipr
-out/
-!**/src/main/**/out/
-!**/src/test/**/out/
-
 ### NetBeans ###
 /nbproject/private/
 /nbbuild/
@@ -41,7 +31,19 @@ out/
 /nbdist/
 /.nb-gradle/
 
-# Package Files #
+# Build and dependency management
+#####################
+### Gradle ###
+.gradle/
+build/
+# Include Gradle Wrapper
+!gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties
+# Exclude build directories in source folders
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### Package Files ###
 *.jar
 *.war
 *.nar
@@ -50,14 +52,27 @@ out/
 *.tar.gz
 *.rar
 
-#### Local Stack Secrets ###
-.aws-secrets/**
+# Environment and configurations
+#####################
+.envrc
+.pixi/
+
+# Data and notebooks
+#####################
+.ipynb_checkpoints/
 /files/jupyter_notebooks
 
+# AWS and deployment
+#####################
+.aws-secrets/**
+
+# Logs and crash reports
+#####################
+*.log
 hs_err_pid*
 replay_pid*
 
-.envrc
-
-### MacOs ###
+# OS-specific files
+#####################
+### macOS ###
 .DS_Store
