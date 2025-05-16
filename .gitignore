@@ -33,6 +33,15 @@ bin/
 
 # Build and dependency management
 #####################
+### Package Files ###
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
 ### Gradle ###
 .gradle/
 build/
@@ -42,15 +51,6 @@ build/
 # Exclude build directories in source folders
 !**/src/main/**/build/
 !**/src/test/**/build/
-
-### Package Files ###
-*.jar
-*.war
-*.nar
-*.ear
-*.zip
-*.tar.gz
-*.rar
 
 # Environment and configurations
 #####################
