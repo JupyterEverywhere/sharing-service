@@ -1,12 +1,12 @@
 package org.jupytereverywhere.repository;
 
 import java.util.List;
-
-import org.jupytereverywhere.model.JupyterNotebookEntity;
-import org.springframework.data.jpa.repository.JpaRepository;
-
 import java.util.Optional;
 import java.util.UUID;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import org.jupytereverywhere.model.JupyterNotebookEntity;
 
 public interface JupyterNotebookRepository extends JpaRepository<JupyterNotebookEntity, UUID> {
   List<JupyterNotebookEntity> findBySessionId(UUID sessionId);

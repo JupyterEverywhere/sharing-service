@@ -1,5 +1,24 @@
 package org.jupytereverywhere.controller;
 
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+
+import org.jupytereverywhere.exception.InvalidNotebookPasswordException;
+import org.jupytereverywhere.exception.TokenRefreshException;
+import org.jupytereverywhere.model.auth.AuthenticationRequest;
+import org.jupytereverywhere.model.auth.AuthenticationResponse;
+import org.jupytereverywhere.model.auth.TokenRefreshRequest;
+import org.jupytereverywhere.service.AuthService;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -7,23 +26,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.jupytereverywhere.controller.AuthController;
-import org.jupytereverywhere.exception.InvalidNotebookPasswordException;
-import org.jupytereverywhere.exception.TokenRefreshException;
-import org.jupytereverywhere.model.auth.AuthenticationRequest;
-import org.jupytereverywhere.model.auth.AuthenticationResponse;
-import org.jupytereverywhere.model.auth.TokenRefreshRequest;
-import org.jupytereverywhere.service.AuthService;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 
 @ExtendWith(MockitoExtension.class)
 class AuthControllerTest {

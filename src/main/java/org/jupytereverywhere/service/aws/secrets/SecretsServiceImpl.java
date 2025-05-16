@@ -1,19 +1,19 @@
 package org.jupytereverywhere.service.aws.secrets;
 
+import java.util.Map;
+
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import com.amazonaws.services.secretsmanager.model.AWSSecretsManagerException;
 import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
 import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
-import com.amazonaws.services.secretsmanager.model.AWSSecretsManagerException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.NonNull;
-import java.util.Map;
+import lombok.extern.log4j.Log4j2;
 
 import org.jupytereverywhere.exception.SecretParsingException;
 import org.jupytereverywhere.exception.SecretRetrievalException;
-
-import lombok.extern.log4j.Log4j2;
 
 @Log4j2
 public abstract class SecretsServiceImpl implements SecretsService {

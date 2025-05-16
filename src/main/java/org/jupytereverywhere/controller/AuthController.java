@@ -1,14 +1,5 @@
 package org.jupytereverywhere.controller;
 
-import lombok.extern.log4j.Log4j2;
-import org.apache.logging.log4j.message.StringMapMessage;
-import org.jupytereverywhere.exception.InvalidNotebookPasswordException;
-import org.jupytereverywhere.exception.TokenRefreshException;
-import org.jupytereverywhere.model.auth.AuthenticationRequest;
-import org.jupytereverywhere.model.auth.AuthenticationResponse;
-import org.jupytereverywhere.model.auth.TokenRefreshRequest;
-import org.jupytereverywhere.service.AuthService;
-import org.jupytereverywhere.utils.HttpHeaderUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -17,6 +8,17 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import lombok.extern.log4j.Log4j2;
+import org.apache.logging.log4j.message.StringMapMessage;
+
+import org.jupytereverywhere.exception.InvalidNotebookPasswordException;
+import org.jupytereverywhere.exception.TokenRefreshException;
+import org.jupytereverywhere.model.auth.AuthenticationRequest;
+import org.jupytereverywhere.model.auth.AuthenticationResponse;
+import org.jupytereverywhere.model.auth.TokenRefreshRequest;
+import org.jupytereverywhere.service.AuthService;
+import org.jupytereverywhere.utils.HttpHeaderUtils;
 
 @Log4j2
 @RestController
@@ -65,10 +67,6 @@ public class AuthController {
             logError(refreshRequest.getToken(), e);
             throw e;
         }
-    }
-
-    private void logInfo() {
-        log.info(new StringMapMessage().with(MESSAGE_KEY, "Issuing initial JWT token for session"));
     }
 
     private void logInfo(String message, String key, String value) {

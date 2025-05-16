@@ -1,21 +1,22 @@
 package org.jupytereverywhere.service;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Map;
-import lombok.extern.log4j.Log4j2;
-import org.apache.logging.log4j.message.StringMapMessage;
-import org.jupytereverywhere.dto.JupyterNotebookDTO;
-import org.jupytereverywhere.exception.NotebookNotFoundException;
-import org.jupytereverywhere.exception.NotebookStorageException;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.log4j.Log4j2;
+import org.apache.logging.log4j.message.StringMapMessage;
+
+import org.jupytereverywhere.dto.JupyterNotebookDTO;
+import org.jupytereverywhere.exception.NotebookNotFoundException;
+import org.jupytereverywhere.exception.NotebookStorageException;
 
 @Log4j2
 @Service("fileStorageService")

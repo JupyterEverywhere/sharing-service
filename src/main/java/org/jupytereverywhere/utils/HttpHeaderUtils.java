@@ -1,12 +1,13 @@
 package org.jupytereverywhere.utils;
 
-import jakarta.servlet.http.HttpServletRequest;
-import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+
+import org.springframework.http.HttpHeaders;
+
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.log4j.Log4j2;
 import org.apache.logging.log4j.message.StringMapMessage;
-import org.springframework.http.HttpHeaders;
 
 @Log4j2
 public class HttpHeaderUtils {

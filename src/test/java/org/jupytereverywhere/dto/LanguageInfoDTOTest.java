@@ -2,11 +2,14 @@ package org.jupytereverywhere.dto;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.jupiter.api.Test;
-import org.jupytereverywhere.dto.CodemirrorModeDTO;
-import org.jupytereverywhere.dto.LanguageInfoDTO;
 
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class LanguageInfoDTOTest {
 
@@ -87,7 +90,8 @@ class LanguageInfoDTOTest {
   public void testEquals_DifferentClass() {
     CodemirrorModeDTO mode = new CodemirrorModeDTO("python", 3);
     LanguageInfoDTO langInfo = new LanguageInfoDTO(mode, ".py", "text/x-python", "python", "python", "3.8.5");
-    assertFalse(langInfo.equals("Not a LanguageInfoDTO"));
+    Object otherObject = "Not a LanguageInfoDTO";
+    assertFalse(langInfo.equals(otherObject));
   }
 
   @Test

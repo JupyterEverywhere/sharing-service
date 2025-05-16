@@ -43,7 +43,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv venv --python 3.13 "${VIRTUAL_ENV}" && uv pip install nbformat
 
 # Copy the built JAR from the build stage
-COPY --from=build /app/build/libs/sharing-service-0.0.1-SNAPSHOT.jar /app/sharing-service.jar
+COPY --from=build /app/build/libs/sharing-service-*.jar /app/sharing-service.jar
 COPY --chmod=0755 src/main/java/org/jupytereverywhere/script/validate_notebook.py /app/scripts/validate_notebook.py
 
 EXPOSE 8080

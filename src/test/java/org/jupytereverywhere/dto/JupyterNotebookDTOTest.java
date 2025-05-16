@@ -1,24 +1,21 @@
 package org.jupytereverywhere.dto;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import org.junit.jupiter.api.Test;
-import org.jupytereverywhere.dto.CodemirrorModeDTO;
-import org.jupytereverywhere.dto.JupyterNotebookDTO;
-import org.jupytereverywhere.dto.KernelspecDTO;
-import org.jupytereverywhere.dto.LanguageInfoDTO;
-import org.jupytereverywhere.dto.MetadataDTO;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class JupyterNotebookDTOTest {
 
@@ -128,7 +125,8 @@ class JupyterNotebookDTOTest {
   @Test
   public void testEquals_DifferentClass() {
     JupyterNotebookDTO notebook = new JupyterNotebookDTO();
-    assertFalse(notebook.equals("Not a JupyterNotebookDTO"));
+    Object otherObject = "Not a JupyterNotebookDTO";
+    assertFalse(notebook.equals(otherObject));
   }
 
   @Test

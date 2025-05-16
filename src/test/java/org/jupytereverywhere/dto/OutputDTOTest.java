@@ -1,13 +1,20 @@
 package org.jupytereverywhere.dto;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import org.junit.jupiter.api.Test;
-import org.jupytereverywhere.dto.OutputDTO;
 
-import java.util.*;
-
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class OutputDTOTest {
 
@@ -99,7 +106,8 @@ class OutputDTOTest {
   @Test
   public void testEquals_DifferentClass() {
     OutputDTO output = new OutputDTO();
-    assertFalse(output.equals("Not an OutputDTO"));
+    Object otherObject = "Not an OutputDTO";
+    assertFalse(output.equals(otherObject));
   }
 
   @Test
