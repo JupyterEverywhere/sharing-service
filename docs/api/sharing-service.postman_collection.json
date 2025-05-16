@@ -1,0 +1,214 @@
+{
+  "info": {
+    "_postman_id": "84b30f20-5147-45ab-ab40-6eaefaf276c6",
+    "name": "Sharing Service [JupyterEverywhere]",
+    "description": "# JupyterEverywhere Sharing API\n\n## Introduction\n\nThe **JupyterEverywhere API** is a secure and efficient platform designed to manage a variety of educational documents, with a particular focus on Jupyter Notebooks related to data science and statistics. This API facilitates the seamless storage, validation, and management of these documents, leveraging scalable and reliable technologies to ensure data integrity and security.\n\n## Key Features\n\n- **Authentication & Authorization**: Utilizes JWT (JSON Web Tokens) for secure authentication. Users can issue and refresh tokens to maintain valid sessions without the need for constant re-authentication.\n    \n- **Notebook Management**:\n    \n    - **Create Notebook**: Upload new Jupyter Notebooks, ensuring they are correctly formatted and free from duplication.\n        \n    - **Retrieve Notebook**: Access detailed information about a specific notebook using its unique identifier.\n        \n    - **Update Notebook**: Modify existing notebooks, with updates restricted to the original session that created the notebook to maintain data integrity.\n        \n- **Security**:\n    \n    - **JWT Tokens**: Tokens include session data and are time-limited, ensuring that only authorized and authenticated requests can access or modify resources.\n        \n    - **Origin Checks**: Ensures that requests originate from valid sources, enhancing the security posture of the API.\n        \n- **Error Handling**: Comprehensive responses for various scenarios, including invalid requests, unauthorized access, token issues, and internal server errors, ensuring clear communication with API consumers.\n    \n\n## API Endpoints\n\n### Authentication\n\n- **Issue Initial JWT Token**\n    \n    - **Endpoint**: `GET /auth/issue`\n        \n    - **Description**: Issues a JWT token for users upon their initial visit, which is used for subsequent API interactions.\n        \n- **Refresh JWT Token**\n    \n    - **Endpoint**: `POST /auth/refresh`\n        \n    - **Description**: Refreshes an existing JWT token to extend the user's session before expiration.\n        \n\n### Notebooks\n\n- **Create a New Notebook**\n    \n    - **Endpoint**: `POST /notebooks`\n        \n    - **Description**: Uploads a new notebook after validating its content and formatting.\n        \n- **Retrieve a Notebook**\n    \n    - **Endpoint**: `GET /notebooks/{id}`\n        \n    - **Description**: Fetches details of a specific notebook using its unique ID.\n        \n- **Update a Notebook**\n    \n    - **Endpoint**: `PUT /notebooks/{id}`\n        \n    - **Description**: Updates an existing notebook, ensuring that the request originates from the same session that created it.\n        \n\n## Security Schemes\n\n- **JWT Authentication (****`jwtAuth`****)**\n    \n    - **Type**: HTTP Bearer Token\n        \n    - **Description**: All protected endpoints require a valid JWT token to be included in the `Authorization` header as a Bearer token. Tokens can be refreshed using the `/auth/refresh` endpoint before they expire.\n        \n\n## Getting Started\n\nTo interact with the JupyterEverywhere Sharing API using Postman:\n\n1. **Authentication**:\n    \n    - **Issue a Token**: Send a `GET` request to `/auth/issue` to receive your initial JWT token.\n        \n    - **Refresh Token**: Use the `/auth/refresh` endpoint to refresh your token before it expires.\n        \n2. **Managing Notebooks**:\n    \n    - **Create**: Send a `POST` request to `/notebooks` with the notebook content in the request body.\n        \n    - **Retrieve**: Send a `GET` request to `/notebooks/{id}` with the notebook ID.\n        \n    - **Update**: Send a `PUT` request to `/notebooks/{id}` with the updated notebook content.\n        \n\nEnsure that all requests to protected endpoints include the `Authorization` header with your Bearer JWT token.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Authenticate",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"username\": \"admin_user\",\n    \"password\": \"password1\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/auth/issue",
+          "host": ["{{base_url}}"],
+          "path": ["auth", "issue"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Refresh Token",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"token\": \"eyJhbGciOiJIUzI1NiJ9.eyJyb2xlcyI6WyJST0xFX0lOVEVSTkFMIl0sInNlc3Npb25faWQiOiIxNWVlYWNiNS03MjMyLTQ3YjUtYmY5MS0wYmJiZGM4ZmU1NWUiLCJzdWIiOiJhZG1pbl91c2VyIiwiaWF0IjoxNzI5NjE3MjU1LCJleHAiOjE3Mjk2MjQ0NTV9.Pjd1mMn2VXGnGZjnqcZUidYczMQ6KAXWap9o7kmAhF\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/auth/refresh",
+          "host": ["{{base_url}}"],
+          "path": ["auth", "refresh"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Save a Jupyter notebook",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "eyJhbGciOiJIUzI1NiJ9.eyJyb2xlcyI6WyJST0xFX0lOVEVSTkFMIl0sInNlc3Npb25faWQiOiIxNWVlYWNiNS03MjMyLTQ3YjUtYmY5MS0wYmJiZGM4ZmU1NWUiLCJzdWIiOiJhZG1pbl91c2VyIiwiaWF0IjoxNzI5NjE3MjU1LCJleHAiOjE3Mjk2MjQ0NTV9.Pjd1mMn2VXGnGZjnqcZUidYczMQ6KAXWap9o7kmAhFA",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "",
+            "value": "",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"cells\": [\n    {\n      \"cell_type\": \"markdown\",\n      \"metadata\": {},\n      \"source\": [\n        \"# Notebook example\\n\",\n        \"This is an example of Markdown.\"\n      ]\n    },\n    {\n      \"cell_type\": \"code\",\n      \"execution_count\": null,\n      \"metadata\": {},\n      \"outputs\": [],\n      \"source\": [\n        \"print('Hello, world!')\"\n      ]\n    }\n  ],\n  \"metadata\": {\n    \"kernelspec\": {\n      \"display_name\": \"Python 3\",\n      \"language\": \"python\",\n      \"name\": \"python3\"\n    },\n    \"language_info\": {\n      \"codemirror_mode\": {\n        \"name\": \"ipython\",\n        \"version\": 3\n      },\n      \"file_extension\": \".py\",\n      \"mimetype\": \"text/x-python\",\n      \"name\": \"python\",\n      \"nbconvert_exporter\": \"python\",\n      \"version\": \"3.8.5\"\n    }\n  },\n  \"nbformat\": 4,\n  \"nbformat_minor\": 5\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/notebooks",
+          "host": ["{{base_url}}"],
+          "path": ["notebooks"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Update a JupyterNotebook",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "eyJhbGciOiJIUzI1NiJ9.eyJyb2xlcyI6WyJST0xFX0lOVEVSTkFMIl0sInNlc3Npb25faWQiOiIxNWVlYWNiNS03MjMyLTQ3YjUtYmY5MS0wYmJiZGM4ZmU1NWUiLCJzdWIiOiJhZG1pbl91c2VyIiwiaWF0IjoxNzI5NjE3MjU1LCJleHAiOjE3Mjk2MjQ0NTV9.Pjd1mMn2VXGnGZjnqcZUidYczMQ6KAXWap9o7kmAhFA",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "PUT",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"cells\": [\n    {\n      \"cell_type\": \"markdown\",\n      \"metadata\": {},\n      \"source\": [\n        \"# Notebook example\\n\",\n        \"This is an example of Markdown.\"\n      ]\n    },\n    {\n      \"cell_type\": \"code\",\n      \"execution_count\": null,\n      \"metadata\": {},\n      \"outputs\": [],\n      \"source\": [\n        \"print('Hello, world!')\"\n      ]\n    }\n  ],\n  \"metadata\": {\n    \"kernelspec\": {\n      \"display_name\": \"Python 3\",\n      \"language\": \"python\",\n      \"name\": \"python3\"\n    },\n    \"language_info\": {\n      \"codemirror_mode\": {\n        \"name\": \"ipython\",\n        \"version\": 3\n      },\n      \"file_extension\": \".py\",\n      \"mimetype\": \"text/x-python\",\n      \"name\": \"python\",\n      \"nbconvert_exporter\": \"python\",\n      \"version\": \"3.8.5\"\n    },\n    \"session_id\": \"15eeacb5-7232-47b5-bf91-0bbbdc8fe55e\"\n  },\n  \"nbformat\": 4,\n  \"nbformat_minor\": 5\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/notebooks/9e689d80-b40e-4c6b-b845-85e34559a68d",
+          "host": ["{{base_url}}"],
+          "path": ["notebooks", "9e689d80-b40e-4c6b-b845-85e34559a68d"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get a JupyterNotebook",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "eyJhbGciOiJIUzI1NiJ9.eyJyb2xlcyI6WyJST0xFX0lOVEVSTkFMIl0sInNlc3Npb25faWQiOiIxNWVlYWNiNS03MjMyLTQ3YjUtYmY5MS0wYmJiZGM4ZmU1NWUiLCJzdWIiOiJhZG1pbl91c2VyIiwiaWF0IjoxNzI5NjE3MjU1LCJleHAiOjE3Mjk2MjQ0NTV9.Pjd1mMn2VXGnGZjnqcZUidYczMQ6KAXWap9o7kmAhFA",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/notebooks/9e689d80-b40e-4c6b-b845-85e34559a68d",
+          "host": ["{{base_url}}"],
+          "path": ["notebooks", "9e689d80-b40e-4c6b-b845-85e34559a68d"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Create User",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "eyJhbGciOiJIUzI1NiJ9.eyJyb2xlcyI6WyJST0xFX0lOVEVSTkFMIl0sInNlc3Npb25faWQiOiIxNWVlYWNiNS03MjMyLTQ3YjUtYmY5MS0wYmJiZGM4ZmU1NWUiLCJzdWIiOiJhZG1pbl91c2VyIiwiaWF0IjoxNzI5NjE3MjU1LCJleHAiOjE3Mjk2MjQ0NTV9.Pjd1mMn2VXGnGZjnqcZUidYczMQ6KAXWap9o7kmAhFA",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"testuser7\",\n  \"password\": \"password123\",\n  \"enabled\": \"true\",\n  \"role\": \"ROLE_JUPYTER\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/users/create",
+          "host": ["{{base_url}}"],
+          "path": ["users", "create"],
+          "query": [
+            {
+              "key": "username",
+              "value": "test",
+              "disabled": true
+            },
+            {
+              "key": "password",
+              "value": "test",
+              "disabled": true
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Delete User",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "eyJhbGciOiJIUzI1NiJ9.eyJyb2xlcyI6WyJST0xFX0lOVEVSTkFMIl0sInNlc3Npb25faWQiOiIxNWVlYWNiNS03MjMyLTQ3YjUtYmY5MS0wYmJiZGM4ZmU1NWUiLCJzdWIiOiJhZG1pbl91c2VyIiwiaWF0IjoxNzI5NjE3MjU1LCJleHAiOjE3Mjk2MjQ0NTV9.Pjd1mMn2VXGnGZjnqcZUidYczMQ6KAXWap9o7kmAhFA",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/users/delete/8e090471-6358-4904-a5f9-f54583380a27",
+          "host": ["{{base_url}}"],
+          "path": ["users", "delete", "8e090471-6358-4904-a5f9-f54583380a27"]
+        }
+      },
+      "response": []
+    }
+  ]
+}

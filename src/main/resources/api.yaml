@@ -1,12 +1,12 @@
 openapi: 3.0.0
 info:
-  title: CKHub Sharing API
+  title: JupyterEverywhere Sharing Service API
   description: |
-    The CKHub API is designed to provide a secure and efficient API for managing various educational documents, including Jupyter Notebooks, that are related to data science and statistics. The primary objective is to facilitate the storage, validation, and management of these documents by storing in a scalable and reliable technology. The API endpoints are designed to enhance the workflow of handling Jupyter Notebooks while maintaining security and data integrity. This API ensures that each document is validated for correct formatting, prevents duplication, and is stored anonymously, allowing for seamless integration with other services without requiring user or enrollment associations at this stage. This flexibility will support future expansions to handle a wider variety of educational content.
+    The JupyterEverywhere Sharing Service API is designed to provide a secure and efficient API for managing various educational documents, including Jupyter Notebooks, that are related to data science and statistics. The primary objective is to facilitate the storage, validation, and management of these documents by storing in a scalable and reliable technology. The API endpoints are designed to enhance the workflow of handling Jupyter Notebooks while maintaining security and data integrity. This API ensures that each document is validated for correct formatting, prevents duplication, and is stored anonymously, allowing for seamless integration with other services without requiring user or enrollment associations at this stage. This flexibility will support future expansions to handle a wider variety of educational content.
   version: 1.0.0
 servers:
-  - url: https://ckhub.coursekata.org/api/v1
-    description: CKHub API v1
+  - url: https://jupytereverywhere.coursekata.org/api/v1
+    description: JupyterEverywhere API v1
 
 paths:
   /auth/issue:
