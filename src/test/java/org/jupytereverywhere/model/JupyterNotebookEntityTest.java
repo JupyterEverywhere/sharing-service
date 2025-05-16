@@ -1,16 +1,16 @@
 package org.jupytereverywhere.model;
 
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.util.UUID;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
-import java.sql.Timestamp;
-import java.time.Instant;
-import java.util.UUID;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.jupytereverywhere.model.JupyterNotebookEntity;
 
 class JupyterNotebookEntityTest {
 
@@ -176,7 +176,8 @@ class JupyterNotebookEntityTest {
 
   @Test
   void testEquals_DifferentType() {
-    assertFalse(notebook.equals("some string"), "The object should not be equal to an object of a different type");
+    Object otherObject = "Not a JupyterNotebookEntity";
+    assertFalse(notebook.equals(otherObject), "The object should not be equal to an object of a different type");
   }
 
   @Test
@@ -250,7 +251,7 @@ class JupyterNotebookEntityTest {
   @Test
   void testEquals_CanEqualFalse() {
     JupyterNotebookEntity notebook = new JupyterNotebookEntity();
-    String differentTypeObject = "I am not a JupyterNotebookEntity";
+    Object differentTypeObject = "I am not a JupyterNotebookEntity";
 
     assertFalse(notebook.equals(differentTypeObject), "The object should not be equal to an object of a different type");
   }

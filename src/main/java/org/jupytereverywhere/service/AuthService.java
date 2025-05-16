@@ -1,17 +1,20 @@
 package org.jupytereverywhere.service;
 
 import java.util.UUID;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+
 import lombok.extern.log4j.Log4j2;
 import org.apache.logging.log4j.message.StringMapMessage;
+
 import org.jupytereverywhere.exception.InvalidNotebookPasswordException;
 import org.jupytereverywhere.exception.TokenRefreshException;
 import org.jupytereverywhere.model.JupyterNotebookEntity;
 import org.jupytereverywhere.model.TokenStore;
 import org.jupytereverywhere.model.auth.AuthenticationRequest;
 import org.jupytereverywhere.model.auth.AuthenticationResponse;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
 
 @Log4j2
 @Service

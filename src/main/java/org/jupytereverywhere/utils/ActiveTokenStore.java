@@ -3,8 +3,9 @@ package org.jupytereverywhere.utils;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.jupytereverywhere.model.TokenStoreImpl;
 import org.springframework.stereotype.Service;
+
+import org.jupytereverywhere.model.TokenStoreImpl;
 
 @Service
 public class ActiveTokenStore extends TokenStoreImpl {

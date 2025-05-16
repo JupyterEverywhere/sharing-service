@@ -1,7 +1,6 @@
 package org.jupytereverywhere.exception;
 
 import org.junit.jupiter.api.Test;
-import org.jupytereverywhere.exception.SessionMismatchException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;

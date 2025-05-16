@@ -1,17 +1,14 @@
 package org.jupytereverywhere.dto;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import org.junit.jupiter.api.Test;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.jupiter.api.Test;
-import org.jupytereverywhere.dto.CodemirrorModeDTO;
-import org.jupytereverywhere.dto.KernelspecDTO;
-import org.jupytereverywhere.dto.LanguageInfoDTO;
-import org.jupytereverywhere.dto.MetadataDTO;
 
 class MetadataDTOTest {
 

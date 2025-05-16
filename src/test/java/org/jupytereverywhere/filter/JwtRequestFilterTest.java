@@ -1,31 +1,32 @@
 package org.jupytereverywhere.filter;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.anyString;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import java.io.IOException;
+import java.util.UUID;
+
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
 
 import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.util.UUID;
+
+import org.jupytereverywhere.service.JwtTokenService;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.jupytereverywhere.filter.JwtExtractor;
-import org.jupytereverywhere.filter.JwtRequestFilter;
-import org.jupytereverywhere.filter.JwtValidator;
-import org.jupytereverywhere.service.JwtTokenService;
+
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.mock.web.MockHttpServletRequest;
-import org.springframework.mock.web.MockHttpServletResponse;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class JwtRequestFilterTest {
@@ -166,7 +167,8 @@ class JwtRequestFilterTest {
     jwtRequestFilter.doFilterInternal(request, response, filterChain);
 
     assertEquals(HttpServletResponse.SC_FORBIDDEN, response.getStatus());
-    assertTrue(response.getErrorMessage().contains("JWT Token has expired"));
+    String errorMessage = response.getErrorMessage();
+    assertTrue(errorMessage != null && errorMessage.contains("JWT Token has expired"));
 
     verify(filterChain, never()).doFilter(request, response);
   }

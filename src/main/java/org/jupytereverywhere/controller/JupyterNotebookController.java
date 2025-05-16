@@ -1,10 +1,24 @@
 package org.jupytereverywhere.controller;
 
+import java.util.UUID;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import java.util.UUID;
 import lombok.extern.log4j.Log4j2;
 import org.apache.logging.log4j.message.StringMapMessage;
+
 import org.jupytereverywhere.dto.JupyterNotebookDTO;
 import org.jupytereverywhere.exception.InvalidNotebookException;
 import org.jupytereverywhere.exception.InvalidNotebookPasswordException;
@@ -18,17 +32,6 @@ import org.jupytereverywhere.model.response.JupyterNotebookSaved;
 import org.jupytereverywhere.model.response.JupyterNotebookSavedResponse;
 import org.jupytereverywhere.service.JupyterNotebookService;
 import org.jupytereverywhere.utils.HttpHeaderUtils;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
 
 @Log4j2
 @RestController

@@ -1,16 +1,13 @@
 package org.jupytereverywhere.model;
 
+import java.util.UUID;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.jupytereverywhere.model.TokenStore;
-import org.jupytereverywhere.model.TokenStoreImpl;
-import org.mockito.Mockito;
 
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 class TokenStoreTest {
 

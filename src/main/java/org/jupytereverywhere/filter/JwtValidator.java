@@ -1,8 +1,9 @@
 package org.jupytereverywhere.filter;
 
-import org.jupytereverywhere.service.JwtTokenService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+
+import org.jupytereverywhere.service.JwtTokenService;
 
 @Component
 public class JwtValidator {

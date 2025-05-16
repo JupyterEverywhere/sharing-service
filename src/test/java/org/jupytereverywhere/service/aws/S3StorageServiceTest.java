@@ -1,36 +1,38 @@
 package org.jupytereverywhere.service.aws;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.when;
-
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.jupytereverywhere.dto.JupyterNotebookDTO;
-import org.jupytereverywhere.exception.S3DownloadException;
-import org.jupytereverywhere.service.aws.S3StorageService;
-import org.jupytereverywhere.service.aws.secrets.SecretsService;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
+
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.http.AbortableInputStream;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
+
+import org.jupytereverywhere.dto.JupyterNotebookDTO;
+import org.jupytereverywhere.exception.S3DownloadException;
+import org.jupytereverywhere.service.aws.secrets.SecretsService;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class S3StorageServiceTest {
@@ -77,7 +79,7 @@ class S3StorageServiceTest {
 
   @Test
   void testDownloadNotebook_Success() {
-    String notebookJson = "{\"nbformat\":4,\"nbformat_minor\":2,\"metadata\":{\"kernelspec\":{\"name\":\"python3\",\"display_name\":\"Python 3\"},\"language_info\":{\"name\":\"python\",\"version\":\"3.8.5\"}},\"cells\":[]}";
+    notebookJson = "{\"nbformat\":4,\"nbformat_minor\":2,\"metadata\":{\"kernelspec\":{\"name\":\"python3\",\"display_name\":\"Python 3\"},\"language_info\":{\"name\":\"python\",\"version\":\"3.8.5\"}},\"cells\":[]}";
 
     InputStream inputStream = new ByteArrayInputStream(notebookJson.getBytes(StandardCharsets.UTF_8));
     GetObjectResponse getObjectResponse = GetObjectResponse.builder().build();

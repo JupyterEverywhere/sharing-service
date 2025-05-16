@@ -1,11 +1,13 @@
 package org.jupytereverywhere.service.aws.secrets;
 
+import java.util.Map;
+
+import org.springframework.context.annotation.Profile;
+import org.springframework.stereotype.Service;
+
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
-import java.util.Map;
-import org.springframework.context.annotation.Profile;
-import org.springframework.stereotype.Service;
 
 @Service("secretsService")
 @Profile("production")

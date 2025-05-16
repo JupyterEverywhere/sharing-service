@@ -1,20 +1,20 @@
 package org.jupytereverywhere.dto;
 
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import org.junit.jupiter.api.Test;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import org.junit.jupiter.api.Test;
-import org.jupytereverywhere.dto.CellDTO;
-import org.jupytereverywhere.dto.OutputDTO;
 
 class CellDTOTest {
 
@@ -121,7 +121,8 @@ class CellDTOTest {
   @Test
   public void testEquals_DifferentClass() {
     CellDTO cell = new CellDTO();
-    assertFalse(cell.equals("Not a CellDTO"));
+    Object differentObject = "Not a CellDTO";
+    assertFalse(cell.equals(differentObject));
   }
 
   @Test

@@ -2,10 +2,14 @@ package org.jupytereverywhere.dto;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.jupiter.api.Test;
-import org.jupytereverywhere.dto.KernelspecDTO;
 
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class KernelspecDTOTest {
 
@@ -69,7 +73,8 @@ class KernelspecDTOTest {
   @Test
   void testEquals_DifferentClass() {
     KernelspecDTO kernelspec = new KernelspecDTO("python3", "Python 3", "python");
-    assertFalse(kernelspec.equals("Not a KernelspecDTO"));
+    Object otherObject = "Not a KernelspecDTO";
+    assertFalse(kernelspec.equals(otherObject));
   }
 
   @Test

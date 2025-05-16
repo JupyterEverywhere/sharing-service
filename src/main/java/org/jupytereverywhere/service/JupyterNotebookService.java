@@ -1,16 +1,22 @@
 package org.jupytereverywhere.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.persistence.EntityManager;
-import jakarta.transaction.Transactional;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Date;
 import java.util.Map;
 import java.util.UUID;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.persistence.EntityManager;
+import jakarta.transaction.Transactional;
 import lombok.extern.log4j.Log4j2;
 import org.apache.logging.log4j.message.StringMapMessage;
+
 import org.jupytereverywhere.dto.JupyterNotebookDTO;
 import org.jupytereverywhere.dto.MetadataDTO;
 import org.jupytereverywhere.exception.InvalidNotebookException;
@@ -24,9 +30,6 @@ import org.jupytereverywhere.model.response.JupyterNotebookSaved;
 import org.jupytereverywhere.repository.JupyterNotebookRepository;
 import org.jupytereverywhere.service.utils.JupyterNotebookValidator;
 import org.jupytereverywhere.utils.DateUtils;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
 
 @Log4j2
 @Service
