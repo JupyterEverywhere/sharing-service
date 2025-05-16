@@ -1,3 +1,28 @@
+# -----------------------------------------------------------------------------
+# Build stage
+# -----------------------------------------------------------------------------
+FROM eclipse-temurin:17-jdk-ubi9-minimal AS build
+
+# Install required build utilities
+RUN microdnf update && microdnf install -y findutils which
+
+WORKDIR /app
+
+# Copy Gradle configuration files first for better caching
+COPY gradle/ /app/gradle/
+COPY build.gradle settings.gradle gradlew gradlew.bat /app/
+RUN chmod +x ./gradlew
+
+# Copy source code
+COPY src/ /app/src/
+
+# Build the application
+RUN ./gradlew clean bootJar --no-daemon
+
+
+# -----------------------------------------------------------------------------
+# Runtime stage
+# -----------------------------------------------------------------------------
 FROM eclipse-temurin:17-jre-ubi9-minimal
 
 # Set the location for the Python Virtual Environment
@@ -17,10 +42,10 @@ ENV UV_LINK_MODE=copy
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv venv --python 3.13 "${VIRTUAL_ENV}" && uv pip install nbformat
 
-# copy the built application files to the image
-COPY build/libs/ckhubapi-0.0.1-SNAPSHOT.jar /app/ckhub-api.jar
-COPY --chmod=0755 src/main/java/org/coursekata/script/validate_notebook.py /app/scripts/validate_notebook.py
+# Copy the built JAR from the build stage
+COPY --from=build /app/build/libs/sharing-service-0.0.1-SNAPSHOT.jar /app/sharing-service.jar
+COPY --chmod=0755 src/main/java/org/jupytereverywhere/script/validate_notebook.py /app/scripts/validate_notebook.py
 
 EXPOSE 8080
 
-ENTRYPOINT ["java", "-jar", "/app/ckhub-api.jar"]
+ENTRYPOINT ["java", "-jar", "/app/sharing-service.jar"]
