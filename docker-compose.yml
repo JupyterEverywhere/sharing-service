@@ -1,0 +1,71 @@
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: jupytereverywhere
+      POSTGRES_PASSWORD: jupytereverywhere
+      POSTGRES_DB: sharingservice
+    ports:
+      - "5433:5432"
+    volumes:
+      - sharingservice_data:/var/lib/postgresql/data
+    networks:
+      sharingservice-network:
+        aliases:
+          - sharingservice-db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jupytereverywhere -d sharingservice"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 3s
+      start_interval: 3s
+    labels:
+      - "com.jupytereverywhere.service=database"
+      - "com.jupytereverywhere.environment=development"
+
+  localstack:
+    image: localstack/localstack:latest
+    ports:
+      - "4567:4566"
+    environment:
+      DEBUG: "0"
+    volumes:
+      - sharingservice_localstack_data:/var/lib/localstack
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      sharingservice-network:
+        aliases:
+          - sharingservice-localstack
+    restart: unless-stopped
+    labels:
+      - "com.jupytereverywhere.service=aws-mock"
+      - "com.jupytereverywhere.environment=development"
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    networks:
+      - sharingservice-network
+    restart: unless-stopped
+    labels:
+      - "com.jupytereverywhere.service=api"
+      - "com.jupytereverywhere.environment=development"
+
+volumes:
+  sharingservice_data:
+    driver: local
+  sharingservice_localstack_data:
+    driver: local
+networks:
+  sharingservice-network:
+    driver: bridge

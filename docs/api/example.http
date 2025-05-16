@@ -1,0 +1,58 @@
+### Acquire a token
+POST http://localhost:8080/api/v1/auth/issue
+
+### Create a notebook (replace <token> with the actual token)
+POST http://localhost:8080/api/v1/notebooks
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+    "password": "",
+    "notebook": {
+        "cells": [
+            {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": [
+                    "# Notebook example\n",
+                    "This is an example of Markdown."
+                ]
+            },
+            {
+                "cell_type": "code",
+                "execution_count": null,
+                "metadata": {},
+                "outputs": [],
+                "source": [
+                    "print('Hello, world!')"
+                ]
+            }
+        ],
+        "metadata": {
+            "kernelspec": {
+                "display_name": "Python 3",
+                "language": "python",
+                "name": "python3"
+            },
+            "language_info": {
+                "codemirror_mode": {
+                    "name": "ipython",
+                    "version": 3
+                },
+                "file_extension": ".py",
+                "mimetype": "text/x-python",
+                "name": "python",
+                "nbconvert_exporter": "python",
+                "version": "3.8.5"
+            }
+        },
+        "visibility": "public",
+        "nbformat": 4,
+        "nbformat_minor": 5
+    }
+}
+
+
+### Get a stored notebook (replace <token> and <notebook_id> with the actual token and notebook ID)
+GET http://localhost:8080/api/v1/notebooks/<notebook_id>
+Authorization: Bearer <token>
