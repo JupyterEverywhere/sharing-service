@@ -4,6 +4,16 @@
 
 The JupyterEverywhere Sharing Service is designed to provide a secure and efficient way to manage various educational documents, particularly Jupyter Notebooks, related to data science and statistics. The primary goal is to facilitate the storage, validation, and management of these documents, ensuring scalability and reliability by utilizing cloud-based storage solutions. The API enhances workflows by validating notebook formatting, preventing duplication, and storing them anonymously, making it easier to integrate with other services without requiring user enrollment associations.
 
+## Development and Branching Strategy
+
+This project follows git flow branching strategy. The main branches are:
+
+- `main`: This is the main branch where the stable code resides. All production-ready code should be merged into this branch.
+- `develop`: This is the development branch where all the new features and bug fixes are merged before they are released to production. This branch should always be in a deployable state.
+- `feature/*`: These branches are used for developing new features. They should be branched off from `develop` and merged back into `develop` when the feature is complete.
+- `hotfix/*`: These branches are used for fixing critical bugs in production. They should be branched off from `main` and merged back into both `main` and `develop` when the bug is fixed.
+- `support/*`: These branches are used for supporting older versions of the code. They should be branched off from `main` and merged back into `main` when the support is no longer needed.
+
 ## Prerequisites
 
 Note that there are two ways to get set up to contribute to this project. You can either run the entire service and infrastructure using Docker, or you can run the infrastructure using Docker while you iterate on the Java code.
