@@ -56,6 +56,7 @@ build/
 #####################
 .envrc
 .pixi/
+.venv/
 
 # Data and notebooks
 #####################
