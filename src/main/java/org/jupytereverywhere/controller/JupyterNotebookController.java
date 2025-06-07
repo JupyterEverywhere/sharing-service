@@ -2,7 +2,6 @@ package org.jupytereverywhere.controller;
 
 import java.util.UUID;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -45,7 +44,7 @@ public class JupyterNotebookController {
 
   private final JupyterNotebookService notebookService;
 
-  @Autowired
+  
   public JupyterNotebookController(JupyterNotebookService notebookService) {
     this.notebookService = notebookService;
   }
