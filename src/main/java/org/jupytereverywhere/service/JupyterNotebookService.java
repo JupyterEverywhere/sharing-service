@@ -6,7 +6,6 @@ import java.util.Date;
 import java.util.Map;
 import java.util.UUID;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -52,7 +51,7 @@ public class JupyterNotebookService {
   private final JwtTokenService jwtTokenService;
   private final PasswordEncoder passwordEncoder;
 
-  @Autowired
+  
   public JupyterNotebookService(
       StorageService storageService,
       JupyterNotebookValidator jupyterNotebookValidator,

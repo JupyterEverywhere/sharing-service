@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.UUID;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -35,7 +34,7 @@ public class JwtRequestFilter extends OncePerRequestFilter {
   private final JwtExtractor jwtExtractor;
   private final JwtValidator jwtValidator;
 
-  @Autowired
+  
   public JwtRequestFilter(JwtTokenService jwtTokenService, JwtExtractor jwtExtractor, JwtValidator jwtValidator) {
     this.jwtTokenService = jwtTokenService;
     this.jwtExtractor = jwtExtractor;

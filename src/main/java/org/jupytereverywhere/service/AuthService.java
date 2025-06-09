@@ -2,7 +2,6 @@ package org.jupytereverywhere.service;
 
 import java.util.UUID;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -25,7 +24,7 @@ public class AuthService {
     private final JupyterNotebookService notebookService;
     private final PasswordEncoder passwordEncoder;
 
-    @Autowired
+    
     public AuthService(
         JwtTokenService jwtTokenService,
         TokenStore tokenStore,
