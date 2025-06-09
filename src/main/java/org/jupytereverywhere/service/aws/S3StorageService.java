@@ -5,7 +5,6 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
@@ -48,7 +47,7 @@ public class S3StorageService implements StorageService {
   private String accessKey;
   private String secretKey;
 
-  @Autowired
+  
   public S3StorageService(SecretsService secretsService) {
     this.secretsService = secretsService;
   }
