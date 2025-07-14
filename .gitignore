@@ -2,6 +2,8 @@
 #####################
 ### VS Code ###
 .vscode/
+jupytereverywhere.session.sql
+test-server/
 
 ### IntelliJ IDEA ###
 .idea/
