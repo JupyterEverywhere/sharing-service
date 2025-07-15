@@ -51,7 +51,7 @@ public class JupyterNotebookService {
   private final JwtTokenService jwtTokenService;
   private final PasswordEncoder passwordEncoder;
 
-  
+
   public JupyterNotebookService(
       StorageService storageService,
       JupyterNotebookValidator jupyterNotebookValidator,
@@ -222,6 +222,16 @@ public class JupyterNotebookService {
           .with(MESSAGE_KEY, "Invalid metadata format in notebook"));
       throw new InvalidNotebookException("Invalid metadata format in notebook");
     }
+
+    // Validate language_info if present - name is required in notebook format 4.5
+    if (metadata.getLanguageInfo() != null) {
+      if (metadata.getLanguageInfo().getName() == null || metadata.getLanguageInfo().getName().trim().isEmpty()) {
+        log.error(new StringMapMessage()
+            .with(MESSAGE_KEY, "language_info.name is required in notebook format 4.5"));
+        throw new InvalidNotebookException("language_info.name is required in notebook format 4.5");
+      }
+    }
+
     notebookDto.setMetadata(metadata);
   }
 
@@ -286,9 +296,16 @@ public class JupyterNotebookService {
     }
 
     if (metadata.getLanguageInfo() != null) {
+      // Only 'name' is required in notebook format 4.5
       notebookEntity.setLanguage(metadata.getLanguageInfo().getName());
-      notebookEntity.setLanguageVersion(metadata.getLanguageInfo().getVersion());
-      notebookEntity.setFileExtension(metadata.getLanguageInfo().getFileExtension());
+
+      // Optional fields - only set if present
+      if (metadata.getLanguageInfo().getVersion() != null) {
+        notebookEntity.setLanguageVersion(metadata.getLanguageInfo().getVersion());
+      }
+      if (metadata.getLanguageInfo().getFileExtension() != null) {
+        notebookEntity.setFileExtension(metadata.getLanguageInfo().getFileExtension());
+      }
     }
   }
 
