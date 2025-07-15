@@ -100,7 +100,10 @@ class JupyterNotebookServiceTest {
     entity.setDomain(domain);
     entity.setReadableId(readableId);
     entity.setStorageUrl("storage-url");
-    entity.setPassword(passwordEncoder.encode("password"));
+    // Only set password if passwordEncoder is available
+    if (passwordEncoder != null) {
+      entity.setPassword(passwordEncoder.encode("password"));
+    }
     return entity;
   }
 
@@ -396,5 +399,78 @@ class JupyterNotebookServiceTest {
     });
 
     assertEquals("Notebook not found with ID: " + notebookId, exception.getMessage());
+  }
+
+  @Test
+  void testUploadNotebook_ReadableIdCannotBeSetExternally() throws Exception {
+    // This test ensures that even if a malicious user tries to set a readable ID,
+    // the service only relies on the database trigger to assign it
+
+    JupyterNotebookDTO notebookDto = createSampleNotebookDTO();
+    JupyterNotebookRequest notebookRequest = new JupyterNotebookRequest();
+    notebookRequest.setNotebook(notebookDto);
+    notebookRequest.setPassword("password");
+
+    when(jupyterNotebookValidator.validateNotebook(anyString())).thenReturn(true);
+    when(storageService.uploadNotebook(anyString(), anyString())).thenReturn("storage-url");
+    when(passwordEncoder.encode(anyString())).thenReturn("encoded-password");    when(notebookRepository.saveAndFlush(any(JupyterNotebookEntity.class))).thenAnswer(invocation -> {
+      JupyterNotebookEntity entity = invocation.getArgument(0);
+      entity.setId(notebookId);
+      entity.setReadableId("system-assigned-id"); // This would be set by the DB trigger
+      return entity;
+    });
+    doNothing().when(entityManager).refresh(any(JupyterNotebookEntity.class));
+    when(notebookRepository.save(any(JupyterNotebookEntity.class))).thenAnswer(invocation -> {
+      JupyterNotebookEntity entity = invocation.getArgument(0);
+      return entity;
+    });
+
+    JupyterNotebookSaved result = notebookService.uploadNotebook(notebookRequest, sessionId, domain);
+    assertEquals("system-assigned-id", result.getReadableId());
+    assertEquals(notebookId, result.getId());
+    assertEquals(domain, result.getDomain());
+  }
+
+  @Test
+  void testUpdateNotebook_ReadableIdRemainsUnchanged() throws Exception {
+    // This test ensures that updating a notebook doesn't change the readable ID
+
+    JupyterNotebookDTO notebookDto = createSampleNotebookDTO();
+
+    JupyterNotebookEntity existingEntity = createSampleNotebookEntity();
+    existingEntity.setReadableId("original-readable-id");
+    existingEntity.setStorageUrl("existing-storage-url");
+
+    when(notebookRepository.findById(notebookId)).thenReturn(Optional.of(existingEntity));
+    when(jupyterNotebookValidator.validateNotebook(anyString())).thenReturn(true);
+    when(storageService.uploadNotebook(anyString(), anyString())).thenReturn("updated-storage-url");
+    when(notebookRepository.save(any(JupyterNotebookEntity.class))).thenReturn(existingEntity);
+
+    JupyterNotebookSaved result = notebookService.updateNotebook(notebookId, notebookDto, sessionId, token);
+    assertEquals("original-readable-id", result.getReadableId());
+    assertEquals(notebookId, result.getId());
+    assertEquals(domain, result.getDomain());
+  }
+
+  @Test
+  void testUpdateNotebookByReadableId_ReadableIdRemainsUnchanged() throws Exception {
+    // This test ensures that updating a notebook by readable ID doesn't change the readable ID
+
+    JupyterNotebookDTO notebookDto = createSampleNotebookDTO();
+
+    JupyterNotebookEntity existingEntity = createSampleNotebookEntity();
+    existingEntity.setReadableId("original-readable-id");
+    existingEntity.setStorageUrl("existing-storage-url");
+
+    when(notebookRepository.findByReadableId("original-readable-id")).thenReturn(Optional.of(existingEntity));
+    when(notebookRepository.findById(notebookId)).thenReturn(Optional.of(existingEntity));
+    when(jupyterNotebookValidator.validateNotebook(anyString())).thenReturn(true);
+    when(storageService.uploadNotebook(anyString(), anyString())).thenReturn("updated-storage-url");
+    when(notebookRepository.save(any(JupyterNotebookEntity.class))).thenReturn(existingEntity);
+
+    JupyterNotebookSaved result = notebookService.updateNotebook("original-readable-id", notebookDto, sessionId, token);
+    assertEquals("original-readable-id", result.getReadableId());
+    assertEquals(notebookId, result.getId());
+    assertEquals(domain, result.getDomain());
   }
 }

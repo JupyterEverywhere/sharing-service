@@ -12,7 +12,6 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.springframework.test.context.jdbc.Sql;
 
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -75,16 +74,22 @@ class JupyterNotebookRepositoryTest {
   }
 
   @Test
-  @Sql(statements = { "INSERT INTO jupyter_notebooks_metadata_readable_ids(readable_id, is_taken) VALUES ('adorable-amazing-alligator', false);" })
   void testFindByReadableId() {
-    String readableId = "adorable-amazing-alligator";
-    JupyterNotebookEntity notebook = createNotebook("s3://bucket/notebook2.ipynb");
-    notebookRepository.save(notebook);
+    // For testing purposes, we'll set a readable ID manually to test the findByReadableId functionality
+    // In production, this would be set by the system/trigger, but for unit testing we need predictable values
+    String testReadableId = "test-readable-id-for-testing";
 
-    Optional<JupyterNotebookEntity> foundNotebook = notebookRepository.findByReadableId(readableId);
+    JupyterNotebookEntity notebook = createNotebook("s3://bucket/notebook-readable-test.ipynb", UUID.randomUUID());
+    notebook.setReadableId(testReadableId);
+
+    JupyterNotebookEntity savedNotebook = notebookRepository.save(notebook);
+    notebookRepository.flush(); // Force database write
+
+    Optional<JupyterNotebookEntity> foundNotebook = notebookRepository.findByReadableId(testReadableId);
 
     assertTrue(foundNotebook.isPresent(), "Notebook should be found by readable id");
-    assertEquals(readableId, foundNotebook.get().getReadableId(), "Notebook readable id should match");
+    assertEquals(testReadableId, foundNotebook.get().getReadableId(), "Readable ID should match");
+    assertEquals(savedNotebook.getId(), foundNotebook.get().getId(), "Notebook IDs should match");
   }
 
   @Test
@@ -159,7 +164,7 @@ class JupyterNotebookRepositoryTest {
     notebook.setFileExtension(".ipynb");
     notebook.setStorageUrl(storageUrl);
     notebook.setCreatedAt(Timestamp.from(Instant.now()));
-    notebook.setReadableId("adorable-amazing-alligator");
+    // DO NOT set readableId - let the system assign it via trigger
     return notebook;
   }
 }
