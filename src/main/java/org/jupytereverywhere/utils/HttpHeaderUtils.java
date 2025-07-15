@@ -51,10 +51,28 @@ public class HttpHeaderUtils {
       InetAddress inetAddress = InetAddress.getByName(clientIp);
       String hostName = inetAddress.getHostName();
       logInfo("Resolved host name", CLIENT_IP_KEY, hostName);
+
+      // If the hostname is the same as the input and it's not a valid IP address,
+      // it means the resolution failed and we should return "Unknown"
+      if (hostName.equals(clientIp) && !isValidIpAddress(clientIp)) {
+        return "Unknown";
+      }
+
       return hostName.equals(clientIp) ? clientIp : hostName;
     } catch (UnknownHostException e) {
       logError(clientIp, e);
       return "Unknown";
+    }
+  }
+
+  private static boolean isValidIpAddress(String ip) {
+    try {
+      InetAddress inetAddress = InetAddress.getByName(ip);
+      // Check if it's a valid IP by verifying the hostname is an IP address format
+      String hostAddress = inetAddress.getHostAddress();
+      return hostAddress.equals(ip) || ip.matches("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$|^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$");
+    } catch (UnknownHostException e) {
+      return false;
     }
   }
 

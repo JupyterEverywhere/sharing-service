@@ -12,6 +12,8 @@ Content-Type: application/json
         "cells": [
             {
                 "cell_type": "markdown",
+                "execution_count": null,
+                "id": "f99e9668",
                 "metadata": {},
                 "source": [
                     "# Notebook example\n",
@@ -20,7 +22,8 @@ Content-Type: application/json
             },
             {
                 "cell_type": "code",
-                "execution_count": null,
+                "execution_count": 1,
+                "id": "b1c2d3e4",
                 "metadata": {},
                 "outputs": [],
                 "source": [

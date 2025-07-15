@@ -16,6 +16,12 @@ docker compose up
 
 This will start the service and all its dependencies, including a PostgreSQL database and LocalStack. The service will be available at `http://localhost:8080`.
 
+To run a quick smoke test to verify that the service is running, you can use the provided script to hit the healthcheck endpoint, issue a token, and share and retrieve a sample notebook:
+
+```bash
+./scripts/smoke-test.sh
+```
+
 ## API Documentation
 
 A Postman collection is available for testing the API endpoints in [docs/api](docs/api). You can import the collection into Postman to explore the available endpoints and their functionalities. There is also a couple of sample `curl` commands in `docs/api/example.http`.
