@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 public class LanguageInfoDTO {
 
   @JsonProperty("codemirror_mode")
-  private CodemirrorModeDTO codemirrorMode;
+  private Object codemirrorMode;
 
   @JsonProperty("file_extension")
   private String fileExtension;
