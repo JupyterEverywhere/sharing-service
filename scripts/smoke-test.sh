@@ -170,11 +170,19 @@ share_notebook() {
   data=$(jq -n --argjson notebook "${notebook}" '{password: "", notebook: $notebook}')
 
   local response
-  if response=$(curl -sf -X POST "${API_URL}/notebooks" \
+  local http_status
+
+  # Use a here-string to capture both response and status in one request
+  response=$(curl -s -w "HTTPSTATUS:%{http_code}" -X POST "${API_URL}/notebooks" \
     -H "Content-Type: application/json" \
     -H "Authorization: Bearer ${API_TOKEN}" \
-    -d "${data}" 2>/dev/null); then
+    -d "${data}" 2>/dev/null)
 
+  # Extract HTTP status and response body
+  http_status=$(echo "$response" | grep -o "HTTPSTATUS:[0-9]*" | cut -d: -f2)
+  response="${response//HTTPSTATUS:[0-9]*}"
+
+  if [[ "${http_status}" -ge 200 && "${http_status}" -lt 300 ]]; then
     local notebook_id
     local domain_id
     local readable_id
@@ -197,6 +205,10 @@ share_notebook() {
     fi
   else
     log_error "Failed to share ${notebook_type} notebook"
+    log_error "HTTP Status: ${http_status}"
+    if [[ -n "${response}" ]]; then
+      log_error "Server response: ${response}"
+    fi
     log_error "Please check the API endpoint and authentication"
     exit 1
   fi
@@ -224,16 +236,28 @@ retrieve_notebook() {
 
   log_step "Retrieving ${notebook_type} notebook..."
   local response
-  if response=$(curl -sf -X GET "${API_URL}/notebooks/${notebook_id}" \
-    -H "Authorization: Bearer ${API_TOKEN}" 2>/dev/null); then
+  local http_status
 
+  # Use a custom marker to capture both response and status in one request
+  response=$(curl -s -w "HTTPSTATUS:%{http_code}" -X GET "${API_URL}/notebooks/${notebook_id}" \
+    -H "Authorization: Bearer ${API_TOKEN}" 2>/dev/null)
+
+  # Extract HTTP status and response body
+  http_status=$(echo "$response" | grep -o "HTTPSTATUS:[0-9]*" | cut -d: -f2)
+  response=$(echo "$response" | sed 's/HTTPSTATUS:[0-9]*$//')
+
+  if [[ "${http_status}" -ge 200 && "${http_status}" -lt 300 ]]; then
     log_success "${notebook_type} notebook retrieved successfully"
 
-    # Show the full response content
+    # Uncomment to show the full response content
     # eecho -e "\n${CYAN}${notebook_type} notebook response content:${NC}"
     # echo "${response}" | jq '.'
   else
     log_error "Failed to retrieve ${notebook_type} notebook"
+    log_error "HTTP Status: ${http_status}"
+    if [[ -n "${response}" ]]; then
+      log_error "Server response: ${response}"
+    fi
     log_error "Please check the notebook ID and authentication"
     exit 1
   fi
