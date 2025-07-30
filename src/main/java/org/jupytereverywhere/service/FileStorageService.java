@@ -7,7 +7,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -20,7 +19,6 @@ import org.jupytereverywhere.exception.NotebookStorageException;
 
 @Log4j2
 @Service("fileStorageService")
-@Profile({"local","docker"})
 public class FileStorageService implements StorageService {
 
   public static final String MESSAGE = "Message";

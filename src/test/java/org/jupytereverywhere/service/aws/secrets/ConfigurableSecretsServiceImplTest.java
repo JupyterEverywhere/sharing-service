@@ -19,51 +19,48 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class LocalSecretsServiceImplTest {
+class ConfigurableSecretsServiceImplTest {
 
   @Mock
   private AWSSecretsManager secretsManager;
 
-  private LocalSecretsServiceImpl localSecretsService;
+  private ConfigurableSecretsServiceImpl configurableSecretsService;
 
-  private String serviceEndpoint = "https://mock-secrets-endpoint";
+  private String prefix = "test-prefix-";
 
   @BeforeEach
   void setUp() {
-    localSecretsService = new LocalSecretsServiceImpl(serviceEndpoint);
-    localSecretsService.secretsManager = secretsManager;
+    configurableSecretsService = new ConfigurableSecretsServiceImpl(secretsManager, prefix);
   }
 
   @Test
   void testGetSecretValues_Success() {
-    String secretName = "test-secret";
-    String secretJson = "{\"key1\":\"value1\", \"key2\":\"value2\"}";
+    String secretName = "my-secret";
+    String secretJson = "{\"foo\":\"bar\", \"baz\":\"qux\"}";
 
     GetSecretValueResult result = new GetSecretValueResult().withSecretString(secretJson);
     when(secretsManager.getSecretValue(any(GetSecretValueRequest.class))).thenReturn(result);
 
-    Map<String, String> secretValues = localSecretsService.getSecretValues(secretName);
+    Map<String, String> secretValues = configurableSecretsService.getSecretValues(secretName);
 
     assertEquals(2, secretValues.size());
-    assertEquals("value1", secretValues.get("key1"));
-    assertEquals("value2", secretValues.get("key2"));
+    assertEquals("bar", secretValues.get("foo"));
+    assertEquals("qux", secretValues.get("baz"));
   }
 
   @Test
   void testGetSecretValues_SecretRetrievalError() {
-    String secretName = "test-secret";
-
+    String secretName = "my-secret";
     when(secretsManager.getSecretValue(any(GetSecretValueRequest.class)))
         .thenThrow(new RuntimeException("Error retrieving secret"));
 
     assertThrows(RuntimeException.class, () -> {
-      localSecretsService.getSecretValues(secretName);
+      configurableSecretsService.getSecretValues(secretName);
     });
   }
 
   @Test
-  void testConstructor_ServiceEndpoint() {
-    assertEquals("local-", localSecretsService.prefix);
-    assertEquals(serviceEndpoint, "https://mock-secrets-endpoint");
+  void testConstructor_Prefix() {
+    assertEquals(prefix, configurableSecretsService.prefix);
   }
 }

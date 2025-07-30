@@ -6,7 +6,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -31,14 +30,14 @@ import org.jupytereverywhere.service.aws.secrets.SecretsService;
 
 @Log4j2
 @Service("s3StorageService")
-@Profile({ "development", "staging", "production" })
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "storage.type", havingValue = "s3")
 public class S3StorageService implements StorageService {
 
   private static final String ACCESS_KEY = "access_key";
   private static final String SECRET_KEY = "secret_key";
   private static final String BUCKET_URL = "url";
 
-  @Value("${aws.region}")
+  @Value("${aws.s3.region}")
   private String region;
 
   private final SecretsService secretsService;
@@ -47,7 +46,7 @@ public class S3StorageService implements StorageService {
   private String accessKey;
   private String secretKey;
 
-  
+
   public S3StorageService(SecretsService secretsService) {
     this.secretsService = secretsService;
   }
@@ -75,8 +74,13 @@ public class S3StorageService implements StorageService {
     log.info(initLog);
   }
 
+  @Value("${aws.s3.secret-name:jupyter-s3}")
+  private String s3SecretName = "jupyter-s3";
+
   private void loadSecretValues() {
-    final Map<String, String> secretValues = secretsService.getSecretValues("jupyter-s3");
+    // Defensive: ensure s3SecretName is never null
+    String effectiveSecretName = (s3SecretName != null) ? s3SecretName : "jupyter-s3";
+    final Map<String, String> secretValues = secretsService.getSecretValues(effectiveSecretName);
 
     this.accessKey = secretValues.getOrDefault(ACCESS_KEY, "defaultAccessKey");
     this.secretKey = secretValues.getOrDefault(SECRET_KEY, "defaultSecretKey");
@@ -84,6 +88,7 @@ public class S3StorageService implements StorageService {
 
     StringMapMessage secretLog = new StringMapMessage()
         .with("action", "loadSecretValues")
+        .with("secretName", effectiveSecretName)
         .with("accessKey", accessKey != null ? "****" : "N/A")
         .with("secretKey", secretKey != null ? "****" : "N/A")
         .with("bucketName", bucketName != null ? bucketName : "N/A");

@@ -41,11 +41,13 @@ ENV UV_LINK_MODE=copy
 
 # install Python and dependencies
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv venv --python 3.13 "${VIRTUAL_ENV}" && uv pip install nbformat
+    uv venv --python 3.13 "${VIRTUAL_ENV}" && \
+    uv pip install nbformat
 
 # Copy the built JAR from the build stage
+ENV PYTHON_SCRIPT_PATH=/app/scripts/validate_notebook.py
 COPY --from=build /app/build/libs/sharing-service-*.jar /app/sharing-service.jar
-COPY --chmod=0755 src/main/java/org/jupytereverywhere/script/validate_notebook.py /app/scripts/validate_notebook.py
+COPY --chmod=0755 src/main/java/org/jupytereverywhere/script/validate_notebook.py ${PYTHON_SCRIPT_PATH}
 
 EXPOSE 8080
 
