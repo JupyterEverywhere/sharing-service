@@ -29,7 +29,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @Testcontainers
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = Replace.NONE)
+
 class JupyterNotebookRepositoryTest {
+  static {
+    System.setProperty("DB_USERNAME", "test");
+    System.setProperty("DB_PASSWORD", "test");
+  }
 
   @SuppressWarnings("resource") // Testcontainers will manage the lifecycle of the container
   @Container
