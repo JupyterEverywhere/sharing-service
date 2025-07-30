@@ -17,6 +17,14 @@ public class DatabaseCredentialsEnvironmentPostProcessor implements EnvironmentP
         String dbUsername = System.getenv("DB_USERNAME");
         String dbPassword = System.getenv("DB_PASSWORD");
 
+        // Fallback to system properties if env vars are not set (for test environments)
+        if (dbUsername == null || dbUsername.isEmpty()) {
+            dbUsername = System.getProperty("DB_USERNAME");
+        }
+        if (dbPassword == null || dbPassword.isEmpty()) {
+            dbPassword = System.getProperty("DB_PASSWORD");
+        }
+
         Map<String, Object> propertyMap = new HashMap<>();
 
         boolean hasCredentialsJson = dbCredentialsJson != null && !dbCredentialsJson.isEmpty();
