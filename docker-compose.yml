@@ -55,7 +55,7 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: default
       SERVER_PORT: 8080
-      CORS_ENABLED: false
+      CORS_ENABLED: true
       JWT_SECRET_KEY: cIInmsR72JNIisdiQ+8U2bK3HGhQEYbtkwg/rwe/ssQ=
       JWT_EXPIRATION_MINUTES: 120
       DB_HOST: sharingservice-db
