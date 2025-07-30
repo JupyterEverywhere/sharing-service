@@ -1,1 +1,1 @@
-org.jupytereverywhere.config.DatabaseCredentialsEnvironmentPostProcessor
+org.springframework.boot.env.EnvironmentPostProcessor=org.jupytereverywhere.config.DatabaseCredentialsEnvironmentPostProcessor

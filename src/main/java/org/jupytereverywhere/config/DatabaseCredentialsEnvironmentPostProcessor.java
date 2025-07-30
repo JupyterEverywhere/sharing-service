@@ -6,6 +6,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.env.EnvironmentPostProcessor;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.MapPropertySource;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -18,7 +19,15 @@ public class DatabaseCredentialsEnvironmentPostProcessor implements EnvironmentP
 
         Map<String, Object> propertyMap = new HashMap<>();
 
-        if (dbCredentialsJson != null && !dbCredentialsJson.isEmpty()) {
+        boolean hasCredentialsJson = dbCredentialsJson != null && !dbCredentialsJson.isEmpty();
+        boolean hasUsername = dbUsername != null && !dbUsername.isEmpty();
+        boolean hasPassword = dbPassword != null && !dbPassword.isEmpty();
+
+        if (hasCredentialsJson && (hasUsername || hasPassword)) {
+            throw new IllegalStateException("Only one of DB_CREDENTIALS or (DB_USERNAME and DB_PASSWORD) may be set, not both.");
+        }
+
+        if (hasCredentialsJson) {
             try {
                 ObjectMapper mapper = new ObjectMapper();
                 JsonNode node = mapper.readTree(dbCredentialsJson);
@@ -36,8 +45,13 @@ public class DatabaseCredentialsEnvironmentPostProcessor implements EnvironmentP
                 System.err.println("[DatabaseCredentialsEnvironmentPostProcessor] Failed to parse DB_CREDENTIALS: " + e.getMessage());
                 throw new IllegalStateException("DB_CREDENTIALS is set but could not be parsed as valid JSON with 'username' and 'password' fields.", e);
             }
-        } else if ((dbUsername == null || dbUsername.isEmpty()) || (dbPassword == null || dbPassword.isEmpty())) {
+        } else if (!hasUsername || !hasPassword) {
             throw new IllegalStateException("Either DB_CREDENTIALS or both DB_USERNAME and DB_PASSWORD environment variables must be set.");
+        } else {
+            propertyMap.put("DB_USERNAME", dbUsername);
+            propertyMap.put("spring.datasource.username", dbUsername);
+            propertyMap.put("DB_PASSWORD", dbPassword);
+            propertyMap.put("spring.datasource.password", dbPassword);
         }
 
         if (!propertyMap.isEmpty()) {
