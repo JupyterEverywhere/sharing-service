@@ -24,9 +24,16 @@ public class SecretsConfig {
     @Value("${aws.secrets-manager.prefix:}")
     private String prefix;
 
+    @Value("${aws.s3.secret-name:}")
+    private String s3SecretName;
+
     @Bean(name = "secretsService")
-    @ConditionalOnProperty(name = "storage.type", havingValue = "s3")
+    @ConditionalOnProperty(name = "aws.s3.secret-name")
     public SecretsService secretsService() {
+        if (s3SecretName == null || s3SecretName.trim().isEmpty()) {
+            throw new IllegalStateException("aws.s3.secret-name must be set and non-empty to enable Secrets Manager integration");
+        }
+
         Regions awsRegion;
         try {
             awsRegion = Regions.fromName(region);

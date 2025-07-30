@@ -55,21 +55,25 @@ public class S3StorageService implements StorageService {
   void initializeS3Client() {
     loadSecretValues();
 
-    AwsBasicCredentials awsCreds = AwsBasicCredentials.create(
-        accessKey != null ? accessKey : "defaultAccessKey",
-        secretKey != null ? secretKey : "defaultSecretKey"
-    );
-
-    this.s3Client = S3Client.builder()
-        .region(Region.of(region))
-        .credentialsProvider(StaticCredentialsProvider.create(awsCreds))
-        .build();
+    if (accessKey != null && !accessKey.isEmpty() && secretKey != null && !secretKey.isEmpty()) {
+      AwsBasicCredentials awsCreds = AwsBasicCredentials.create(accessKey, secretKey);
+      this.s3Client = S3Client.builder()
+          .region(Region.of(region))
+          .credentialsProvider(StaticCredentialsProvider.create(awsCreds))
+          .build();
+      log.info("S3 client initialized with explicit credentials from Secrets Manager");
+    } else {
+      this.s3Client = S3Client.builder()
+          .region(Region.of(region))
+          .build();
+      log.info("S3 client initialized with default AWS credentials provider chain (IAM role, etc.)");
+    }
 
     StringMapMessage initLog = new StringMapMessage()
         .with("action", "initializeS3Client")
         .with("status", "success")
         .with("bucketName", bucketName != null ? bucketName : "N/A")
-        .with("region", Region.US_WEST_1.id());
+        .with("region", region);
 
     log.info(initLog);
   }
@@ -78,13 +82,18 @@ public class S3StorageService implements StorageService {
   private String s3SecretName = "jupyter-s3";
 
   private void loadSecretValues() {
-    // Defensive: ensure s3SecretName is never null
     String effectiveSecretName = (s3SecretName != null) ? s3SecretName : "jupyter-s3";
-    final Map<String, String> secretValues = secretsService.getSecretValues(effectiveSecretName);
+    Map<String, String> secretValues = null;
+    try {
+      secretValues = secretsService.getSecretValues(effectiveSecretName);
+    } catch (Exception e) {
+      log.info("No S3 credentials found in Secrets Manager, will use default AWS credentials provider chain");
+      secretValues = null;
+    }
 
-    this.accessKey = secretValues.getOrDefault(ACCESS_KEY, "defaultAccessKey");
-    this.secretKey = secretValues.getOrDefault(SECRET_KEY, "defaultSecretKey");
-    this.bucketName = secretValues.getOrDefault(BUCKET_URL, "defaultBucketName");
+    this.accessKey = secretValues != null ? secretValues.get(ACCESS_KEY) : null;
+    this.secretKey = secretValues != null ? secretValues.get(SECRET_KEY) : null;
+    this.bucketName = secretValues != null ? secretValues.get(BUCKET_URL) : null;
 
     StringMapMessage secretLog = new StringMapMessage()
         .with("action", "loadSecretValues")
