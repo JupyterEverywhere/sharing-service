@@ -28,11 +28,8 @@ public class SecretsConfig {
     private String s3SecretName;
 
     @Bean(name = "secretsService")
-    @ConditionalOnProperty(name = "aws.s3.secret-name")
+    @ConditionalOnProperty(name = "aws.s3.secret-name", matchIfMissing = false)
     public SecretsService secretsService() {
-        if (s3SecretName == null || s3SecretName.trim().isEmpty()) {
-            throw new IllegalStateException("aws.s3.secret-name must be set and non-empty to enable Secrets Manager integration");
-        }
 
         Regions awsRegion;
         try {
