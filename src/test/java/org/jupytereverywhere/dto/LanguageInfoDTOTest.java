@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.Map;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -16,6 +18,19 @@ class LanguageInfoDTOTest {
   @Test
   void testConstructorAndGetters() {
     CodemirrorModeDTO mode = new CodemirrorModeDTO("python", 3);
+    LanguageInfoDTO langInfo = new LanguageInfoDTO(mode, ".py", "text/x-python", "python", "python", "3.8.5");
+
+    assertEquals(mode, langInfo.getCodemirrorMode());
+    assertEquals(".py", langInfo.getFileExtension());
+    assertEquals("text/x-python", langInfo.getMimetype());
+    assertEquals("python", langInfo.getName());
+    assertEquals("python", langInfo.getNbconvertExporter());
+    assertEquals("3.8.5", langInfo.getVersion());
+  }
+
+  @Test
+  void testConstructorAndGettersWithStringMode() {
+    String mode = "python";
     LanguageInfoDTO langInfo = new LanguageInfoDTO(mode, ".py", "text/x-python", "python", "python", "3.8.5");
 
     assertEquals(mode, langInfo.getCodemirrorMode());
@@ -50,8 +65,28 @@ class LanguageInfoDTOTest {
     LanguageInfoDTO langInfo = objectMapper.readValue(json, LanguageInfoDTO.class);
 
     assertNotNull(langInfo.getCodemirrorMode());
-    assertEquals("python", langInfo.getCodemirrorMode().getName());
-    assertEquals(3, langInfo.getCodemirrorMode().getVersion());
+    assertTrue(langInfo.getCodemirrorMode() instanceof Map);
+    @SuppressWarnings("unchecked")
+    Map<String, Object> codemirrorMode = (Map<String, Object>) langInfo.getCodemirrorMode();
+    assertEquals("python", codemirrorMode.get("name"));
+    assertEquals(3, codemirrorMode.get("version"));
+    assertEquals(".py", langInfo.getFileExtension());
+    assertEquals("text/x-python", langInfo.getMimetype());
+    assertEquals("python", langInfo.getName());
+    assertEquals("python", langInfo.getNbconvertExporter());
+    assertEquals("3.8.5", langInfo.getVersion());
+  }
+
+  @Test
+  void testJsonDeserializationWithStringMode() throws JsonProcessingException {
+    String json = "{\"codemirror_mode\":\"python\",\"file_extension\":\".py\",\"mimetype\":\"text/x-python\",\"name\":\"python\",\"nbconvert_exporter\":\"python\",\"version\":\"3.8.5\"}";
+
+    ObjectMapper objectMapper = new ObjectMapper();
+    LanguageInfoDTO langInfo = objectMapper.readValue(json, LanguageInfoDTO.class);
+
+    assertNotNull(langInfo.getCodemirrorMode());
+    assertTrue(langInfo.getCodemirrorMode() instanceof String);
+    assertEquals("python", langInfo.getCodemirrorMode());
     assertEquals(".py", langInfo.getFileExtension());
     assertEquals("text/x-python", langInfo.getMimetype());
     assertEquals("python", langInfo.getName());

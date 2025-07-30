@@ -14,32 +14,37 @@ readonly CYAN='\033[0;36m'
 readonly WHITE='\033[1;37m'
 readonly NC='\033[0m' # No Color
 
+# Helper function to print to stderr
+eecho() {
+  echo "$@" >&2
+}
+
 # Logging functions
 log_info() {
-  echo -e "${BLUE}[INFO]${NC} $*"
+  eecho -e "${BLUE}[INFO]${NC} $*"
 }
 
 log_success() {
-  echo -e "${GREEN}[SUCCESS]${NC} $*"
+  eecho -e "${GREEN}[SUCCESS]${NC} $*"
 }
 
 log_warning() {
-  echo -e "${YELLOW}[WARNING]${NC} $*"
+  eecho -e "${YELLOW}[WARNING]${NC} $*"
 }
 
 log_error() {
-  echo -e "${RED}[ERROR]${NC} $*" >&2
+  eecho -e "${RED}[ERROR]${NC} $*"
 }
 
 log_step() {
-  echo -e "${PURPLE}[STEP]${NC} $*"
+  eecho -e "${PURPLE}[STEP]${NC} $*"
 }
 
 # Function to print colored headers
 print_header() {
-  echo -e "\n${CYAN}========================================${NC}"
-  echo -e "${WHITE}$1${NC}"
-  echo -e "${CYAN}========================================${NC}"
+  eecho -e "\n${CYAN}========================================${NC}"
+  eecho -e "${WHITE}$1${NC}"
+  eecho -e "${CYAN}========================================${NC}"
 }
 
 # Default configuration
@@ -49,8 +54,8 @@ print_header() {
 : "${API_URL:=${API_HOST}/${API_PATH}/${API_VERSION}}"
 
 # Global variables
-NOTEBOOK_ID=""
-NOTEBOOK_DOMAIN_ID=""
+PYTHON_NOTEBOOK_ID=""
+R_NOTEBOOK_ID=""
 API_TOKEN=""
 
 # Check required dependencies
@@ -81,15 +86,15 @@ while [[ $# -gt 0 ]]; do
     API_URL="$1"
     ;;
   --help)
-    echo -e "${WHITE}Usage:${NC} $0 [--api-url=API_URL]"
-    echo -e "${WHITE}Options:${NC}"
-    echo -e "  --api-url=URL    Set the API URL (default: ${API_URL})"
-    echo -e "  --help           Show this help message"
+    eecho -e "${WHITE}Usage:${NC} $0 [--api-url=API_URL]"
+    eecho -e "${WHITE}Options:${NC}"
+    eecho -e "  --api-url=URL    Set the API URL (default: ${API_URL})"
+    eecho -e "  --help           Show this help message"
     exit 0
     ;;
   *)
     log_error "Unknown option: $1"
-    echo -e "${WHITE}Use --help for usage information.${NC}"
+    eecho -e "${WHITE}Use --help for usage information.${NC}"
     exit 1
     ;;
   esac
@@ -141,120 +146,131 @@ issue_token() {
   fi
 }
 
-# Share a test notebook
+# Share a notebook (generic function)
 share_notebook() {
+  local notebook_type="$1"
+  local notebook_file="$2"
+
   if [[ -z "${API_TOKEN}" ]]; then
     log_error "API token is not set. Please run issue_token first."
     exit 1
   fi
 
-  log_step "Sharing test notebook..."
+  log_step "Sharing ${notebook_type} notebook..."
+
+  if [[ ! -f "${notebook_file}" ]]; then
+    log_error "${notebook_type} notebook file not found: ${notebook_file}"
+    exit 1
+  fi
 
   local notebook
-  notebook=$(
-    cat <<'EOF'
-{
-    "cells": [
-        {
-            "cell_type": "markdown",
-            "execution_count": null,
-            "id": "f99e9668",
-            "metadata": {},
-            "source": [
-                "# Notebook Example\n",
-                "This is an example of Markdown from the smoke test."
-            ]
-        },
-        {
-            "cell_type": "code",
-            "execution_count": 1,
-            "id": "b1c2d3e4",
-            "metadata": {},
-            "outputs": [],
-            "source": [
-                "print('Hello, world!')\n",
-                "print('This is a smoke test notebook.')"
-            ]
-        }
-    ],
-    "metadata": {
-        "kernelspec": {
-            "display_name": "Python 3",
-            "language": "python",
-            "name": "python3"
-        },
-        "language_info": {
-            "codemirror_mode": {
-                "name": "ipython",
-                "version": 3
-            },
-            "file_extension": ".py",
-            "mimetype": "text/x-python",
-            "name": "python",
-            "nbconvert_exporter": "python",
-            "version": "3.8.5"
-        }
-    },
-    "visibility": "public",
-    "nbformat": 4,
-    "nbformat_minor": 5
-}
-EOF
-  )
+  notebook=$(cat "${notebook_file}")
 
   local data
   data=$(jq -n --argjson notebook "${notebook}" '{password: "", notebook: $notebook}')
 
   local response
-  if response=$(curl -sf -X POST "${API_URL}/notebooks" \
+  local http_status
+
+  # Use a here-string to capture both response and status in one request
+  response=$(curl -s -w "HTTPSTATUS:%{http_code}" -X POST "${API_URL}/notebooks" \
     -H "Content-Type: application/json" \
     -H "Authorization: Bearer ${API_TOKEN}" \
-    -d "${data}" 2>/dev/null); then
+    -d "${data}" 2>/dev/null)
 
-    NOTEBOOK_ID=$(echo "${response}" | jq -r '.notebook.id' 2>/dev/null || echo "")
-    NOTEBOOK_DOMAIN_ID=$(echo "${response}" | jq -r '.notebook.domain_id' 2>/dev/null || echo "")
+  # Extract HTTP status and response body
+  http_status=$(echo "$response" | grep -o "HTTPSTATUS:[0-9]*" | cut -d: -f2)
+  response="${response//HTTPSTATUS:[0-9]*}"
+
+  if [[ "${http_status}" -ge 200 && "${http_status}" -lt 300 ]]; then
+    local notebook_id
+    local domain_id
     local readable_id
+    notebook_id=$(echo "${response}" | jq -r '.notebook.id' 2>/dev/null || echo "")
+    domain_id=$(echo "${response}" | jq -r '.notebook.domain_id' 2>/dev/null || echo "")
     readable_id=$(echo "${response}" | jq -r '.notebook.readable_id' 2>/dev/null || echo "")
 
-    if [[ -n "${NOTEBOOK_ID}" && "${NOTEBOOK_ID}" != "null" ]]; then
-      log_success "Notebook shared successfully"
-      log_info "Notebook ID: ${YELLOW}${NOTEBOOK_ID}${NC}"
-      log_info "Domain ID: ${YELLOW}${NOTEBOOK_DOMAIN_ID}${NC}"
-      log_info "Readable ID: ${YELLOW}${readable_id}${NC}"
+    if [[ -n "${notebook_id}" && "${notebook_id}" != "null" ]]; then
+      log_success "${notebook_type} notebook shared successfully"
+      log_info "${notebook_type} Notebook ID: ${YELLOW}${notebook_id}${NC}"
+      log_info "${notebook_type} Domain ID: ${YELLOW}${domain_id}${NC}"
+      log_info "${notebook_type} Readable ID: ${YELLOW}${readable_id}${NC}"
+
+      # Return the notebook ID
+      echo "${notebook_id}"
     else
-      log_error "Failed to parse notebook ID from response"
+      log_error "Failed to parse ${notebook_type} notebook ID from response"
       log_error "Response: ${response}"
       exit 1
     fi
   else
-    log_error "Failed to share notebook"
+    log_error "Failed to share ${notebook_type} notebook"
+    log_error "HTTP Status: ${http_status}"
+    if [[ -n "${response}" ]]; then
+      log_error "Server response: ${response}"
+    fi
     log_error "Please check the API endpoint and authentication"
     exit 1
   fi
 }
 
-# Retrieve the shared notebook
+# Share a Python notebook
+share_python_notebook() {
+  PYTHON_NOTEBOOK_ID=$(share_notebook "Python" "scripts/example-py.ipynb")
+}
+
+# Share an R notebook
+share_r_notebook() {
+  R_NOTEBOOK_ID=$(share_notebook "R" "scripts/example-r.ipynb")
+}
+
+# Retrieve a notebook (generic function)
 retrieve_notebook() {
-  if [[ -z "${NOTEBOOK_ID}" ]]; then
-    log_error "Notebook ID not set. Please run share_notebook first."
+  local notebook_type="$1"
+  local notebook_id="$2"
+
+  if [[ -z "${notebook_id}" ]]; then
+    log_error "${notebook_type} notebook ID not set. Please run share_${notebook_type,,}_notebook first."
     exit 1
   fi
 
-  log_step "Retrieving notebook..."
+  log_step "Retrieving ${notebook_type} notebook..."
   local response
-  if response=$(curl -sf -X GET "${API_URL}/notebooks/${NOTEBOOK_ID}" \
-    -H "Authorization: Bearer ${API_TOKEN}" 2>/dev/null); then
+  local http_status
 
-    log_success "Notebook retrieved successfully"
+  # Use a custom marker to capture both response and status in one request
+  response=$(curl -s -w "HTTPSTATUS:%{http_code}" -X GET "${API_URL}/notebooks/${notebook_id}" \
+    -H "Authorization: Bearer ${API_TOKEN}" 2>/dev/null)
 
-    # Show the full response content
-    echo -e "\n${CYAN}Response content:${NC}"
-    echo "${response}" | jq '.'
+  # Extract HTTP status and response body
+  http_status=$(echo "$response" | grep -o "HTTPSTATUS:[0-9]*" | cut -d: -f2)
+  response=$(echo "$response" | sed 's/HTTPSTATUS:[0-9]*$//')
+
+  if [[ "${http_status}" -ge 200 && "${http_status}" -lt 300 ]]; then
+    log_success "${notebook_type} notebook retrieved successfully"
+
+    # Uncomment to show the full response content
+    # eecho -e "\n${CYAN}${notebook_type} notebook response content:${NC}"
+    # echo "${response}" | jq '.'
   else
-    log_error "Failed to retrieve notebook"
+    log_error "Failed to retrieve ${notebook_type} notebook"
+    log_error "HTTP Status: ${http_status}"
+    if [[ -n "${response}" ]]; then
+      log_error "Server response: ${response}"
+    fi
     log_error "Please check the notebook ID and authentication"
     exit 1
   fi
+}
+
+# Retrieve the shared Python notebook
+retrieve_python_notebook() {
+  retrieve_notebook "Python" "${PYTHON_NOTEBOOK_ID}"
+}
+
+# Retrieve the shared R notebook
+retrieve_r_notebook() {
+  retrieve_notebook "R" "${R_NOTEBOOK_ID}"
 }
 
 # Main execution function
@@ -270,8 +286,10 @@ main() {
     "show_parameters"
     "health_check"
     "issue_token"
-    "share_notebook"
-    "retrieve_notebook"
+    "share_python_notebook"
+    "retrieve_python_notebook"
+    "share_r_notebook"
+    "retrieve_r_notebook"
   )
 
   local failed_tests=()
@@ -280,7 +298,7 @@ main() {
     if ! "$test"; then
       failed_tests+=("$test")
     fi
-    echo "" # Add spacing between tests
+    eecho "" # Add spacing between tests
   done
 
   # Summary
@@ -294,8 +312,11 @@ main() {
     log_success "All tests passed! ✅"
     log_info "Duration: ${duration}s"
     log_info "API URL: ${API_URL}"
-    if [[ -n "${NOTEBOOK_ID}" ]]; then
-      log_info "Created notebook: ${NOTEBOOK_ID}"
+    if [[ -n "${PYTHON_NOTEBOOK_ID}" ]]; then
+      log_info "Created Python notebook: ${PYTHON_NOTEBOOK_ID}"
+    fi
+    if [[ -n "${R_NOTEBOOK_ID}" ]]; then
+      log_info "Created R notebook: ${R_NOTEBOOK_ID}"
     fi
   else
     log_error "Some tests failed! ❌"

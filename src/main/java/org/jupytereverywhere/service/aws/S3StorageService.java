@@ -6,7 +6,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -31,15 +30,25 @@ import org.jupytereverywhere.service.aws.secrets.SecretsService;
 
 @Log4j2
 @Service("s3StorageService")
-@Profile({ "development", "staging", "production" })
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "storage.type", havingValue = "s3")
 public class S3StorageService implements StorageService {
-
   private static final String ACCESS_KEY = "access_key";
   private static final String SECRET_KEY = "secret_key";
   private static final String BUCKET_URL = "url";
 
-  @Value("${aws.region}")
+  @Value("${aws.s3.region}")
   private String region;
+
+  @Value("${aws.s3.bucket:}")
+  private String configuredBucketName;
+
+  // Optional: only used if present
+  @Value("${aws.s3.access-key:}")
+  private String configuredAccessKey;
+
+  // Optional: only used if present
+  @Value("${aws.s3.secret-key:}")
+  private String configuredSecretKey;
 
   private final SecretsService secretsService;
   private S3Client s3Client;
@@ -47,48 +56,84 @@ public class S3StorageService implements StorageService {
   private String accessKey;
   private String secretKey;
 
-  
+
   public S3StorageService(SecretsService secretsService) {
     this.secretsService = secretsService;
   }
 
   @PostConstruct
   void initializeS3Client() {
-    loadSecretValues();
+    boolean secretLoaded = loadSecretValues();
 
-    AwsBasicCredentials awsCreds = AwsBasicCredentials.create(
-        accessKey != null ? accessKey : "defaultAccessKey",
-        secretKey != null ? secretKey : "defaultSecretKey"
-    );
+    if (!secretLoaded) {
+      // Use env/properties for all values
+      this.accessKey = configuredAccessKey;
+      this.secretKey = configuredSecretKey;
+      this.bucketName = configuredBucketName;
+    }
 
-    this.s3Client = S3Client.builder()
-        .region(Region.of(region))
-        .credentialsProvider(StaticCredentialsProvider.create(awsCreds))
-        .build();
+    // Require bucket name and region
+    if (bucketName == null || bucketName.isEmpty()) {
+      throw new IllegalStateException("S3 bucket name must be provided via secret or aws.s3.bucket property/env var");
+    }
+    if (region == null || region.isEmpty()) {
+      throw new IllegalStateException("S3 region must be provided via aws.s3.region property/env var");
+    }
+
+    // Use explicit credentials if both are present, otherwise use default provider chain
+    if (accessKey != null && !accessKey.isEmpty() && secretKey != null && !secretKey.isEmpty()) {
+      AwsBasicCredentials awsCreds = AwsBasicCredentials.create(accessKey, secretKey);
+      this.s3Client = S3Client.builder()
+          .region(Region.of(region))
+          .credentialsProvider(StaticCredentialsProvider.create(awsCreds))
+          .build();
+      log.info("S3 client initialized with explicit credentials from Secrets Manager or properties");
+    } else {
+      this.s3Client = S3Client.builder()
+          .region(Region.of(region))
+          .build();
+      log.info("S3 client initialized with default AWS credentials provider chain (IAM role, EC2/ECS metadata, etc.)");
+    }
 
     StringMapMessage initLog = new StringMapMessage()
         .with("action", "initializeS3Client")
         .with("status", "success")
-        .with("bucketName", bucketName != null ? bucketName : "N/A")
-        .with("region", Region.US_WEST_1.id());
+        .with("bucketName", bucketName)
+        .with("region", region);
 
     log.info(initLog);
   }
 
-  private void loadSecretValues() {
-    final Map<String, String> secretValues = secretsService.getSecretValues("jupyter-s3");
+  @Value("${aws.s3.secret-name:jupyter-s3}")
+  private String s3SecretName = "jupyter-s3";
 
-    this.accessKey = secretValues.getOrDefault(ACCESS_KEY, "defaultAccessKey");
-    this.secretKey = secretValues.getOrDefault(SECRET_KEY, "defaultSecretKey");
-    this.bucketName = secretValues.getOrDefault(BUCKET_URL, "defaultBucketName");
+  /**
+   * Loads secret values if available. Returns true if secret was found and used, false otherwise.
+   */
+  private boolean loadSecretValues() {
+    String effectiveSecretName = (s3SecretName != null) ? s3SecretName : "jupyter-s3";
+    Map<String, String> secretValues = null;
+    try {
+      secretValues = secretsService.getSecretValues(effectiveSecretName);
+    } catch (Exception e) {
+      log.info("No S3 credentials found in Secrets Manager, will use env/properties for S3 config");
+      secretValues = null;
+    }
 
-    StringMapMessage secretLog = new StringMapMessage()
-        .with("action", "loadSecretValues")
-        .with("accessKey", accessKey != null ? "****" : "N/A")
-        .with("secretKey", secretKey != null ? "****" : "N/A")
-        .with("bucketName", bucketName != null ? bucketName : "N/A");
-
-    log.info(secretLog);
+    if (secretValues != null) {
+      this.accessKey = secretValues.get(ACCESS_KEY);
+      this.secretKey = secretValues.get(SECRET_KEY);
+      this.bucketName = secretValues.get(BUCKET_URL);
+      StringMapMessage secretLog = new StringMapMessage()
+          .with("action", "loadSecretValues")
+          .with("secretName", effectiveSecretName)
+          .with("accessKey", accessKey != null ? "****" : "N/A")
+          .with("secretKey", secretKey != null ? "****" : "N/A")
+          .with("bucketName", bucketName != null ? bucketName : "N/A");
+      log.info(secretLog);
+      return true;
+    }
+    return false;
   }
 
   @Override
@@ -97,6 +142,7 @@ public class S3StorageService implements StorageService {
       PutObjectRequest putObjectRequest = PutObjectRequest.builder()
           .bucket(bucketName)
           .key(fileName)
+          .serverSideEncryption("aws:kms")
           .build();
 
       s3Client.putObject(putObjectRequest, RequestBody.fromString(notebookJson));
