@@ -33,10 +33,8 @@ public class JupyterNotebookEntity {
   @Column(nullable = false)
   private String language;
 
-  @Column(nullable = false)
   private String languageVersion;
 
-  @Column(nullable = false)
   private String fileExtension;
 
   @Column(nullable = false)
