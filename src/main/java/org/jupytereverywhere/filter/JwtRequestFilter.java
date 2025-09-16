@@ -34,7 +34,7 @@ public class JwtRequestFilter extends OncePerRequestFilter {
   private final JwtExtractor jwtExtractor;
   private final JwtValidator jwtValidator;
 
-  
+
   public JwtRequestFilter(JwtTokenService jwtTokenService, JwtExtractor jwtExtractor, JwtValidator jwtValidator) {
     this.jwtTokenService = jwtTokenService;
     this.jwtExtractor = jwtExtractor;
@@ -44,6 +44,18 @@ public class JwtRequestFilter extends OncePerRequestFilter {
   @Override
   protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain chain)
       throws ServletException, IOException {
+
+    // Extra auth header logic: only enforce if both name and secret are set and header is present
+    boolean extraAuthConfigured = jwtExtractor.extraAuthHeaderName != null && !jwtExtractor.extraAuthHeaderName.trim().isEmpty()
+        && jwtExtractor.extraAuthHeaderSecret != null && !jwtExtractor.extraAuthHeaderSecret.trim().isEmpty();
+    if (extraAuthConfigured) {
+      if (!jwtExtractor.validateExtraAuthHeader(request)) {
+        handleInvalidExtraAuth(response);
+        return;
+      }
+    }
+
+    // EXISTING: JWT validation (unchanged)
     String jwt = jwtExtractor.extractJwtFromRequest(request);
 
     if (jwt != null) {
@@ -90,5 +102,10 @@ public class JwtRequestFilter extends OncePerRequestFilter {
     log.error(new StringMapMessage().with(MESSAGE_KEY, "Error during JWT Token processing").with(
         ERROR_MESSAGE_KEY, e.getMessage()), e);
     response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Error processing JWT token");
+  }
+
+  private void handleInvalidExtraAuth(HttpServletResponse response) throws IOException {
+    log.warn(new StringMapMessage().with(MESSAGE_KEY, "Invalid or missing extra authentication header"));
+    response.sendError(HttpServletResponse.SC_FORBIDDEN, "Invalid authentication header");
   }
 }

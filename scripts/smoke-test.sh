@@ -57,6 +57,8 @@ print_header() {
 PYTHON_NOTEBOOK_ID=""
 R_NOTEBOOK_ID=""
 API_TOKEN=""
+EXTRA_AUTH_HEADER_NAME="${EXTRA_AUTH_HEADER_NAME:-X-Extra-Auth}"
+EXTRA_AUTH_HEADER_SECRET="${EXTRA_AUTH_HEADER_SECRET:-secret}"
 
 # Check required dependencies
 check_dependencies() {
@@ -115,7 +117,8 @@ health_check() {
   log_step "Performing health check..."
 
   local response
-  if response=$(curl -sf "${API_URL}/health" 2>/dev/null); then
+  if response=$(curl -sf "${API_URL}/health" \
+    -H "${EXTRA_AUTH_HEADER_NAME}: ${EXTRA_AUTH_HEADER_SECRET}" 2>/dev/null); then
     log_success "Health check passed"
   else
     log_error "Health check failed"
@@ -129,7 +132,8 @@ issue_token() {
   log_step "Issuing authentication token..."
 
   local response
-  if response=$(curl -sf -X POST "${API_URL}/auth/issue" 2>/dev/null); then
+  if response=$(curl -sf -X POST "${API_URL}/auth/issue" \
+    -H "${EXTRA_AUTH_HEADER_NAME}: ${EXTRA_AUTH_HEADER_SECRET}" 2>/dev/null); then
     API_TOKEN=$(echo "${response}" | jq -r '.token' 2>/dev/null || echo "")
     if [[ -n "${API_TOKEN}" && "${API_TOKEN}" != "null" ]]; then
       log_success "Token issued successfully"
@@ -176,6 +180,7 @@ share_notebook() {
   response=$(curl -s -w "HTTPSTATUS:%{http_code}" -X POST "${API_URL}/notebooks" \
     -H "Content-Type: application/json" \
     -H "Authorization: Bearer ${API_TOKEN}" \
+    -H "${EXTRA_AUTH_HEADER_NAME}: ${EXTRA_AUTH_HEADER_SECRET}" \
     -d "${data}" 2>/dev/null)
 
   # Extract HTTP status and response body
@@ -240,7 +245,8 @@ retrieve_notebook() {
 
   # Use a custom marker to capture both response and status in one request
   response=$(curl -s -w "HTTPSTATUS:%{http_code}" -X GET "${API_URL}/notebooks/${notebook_id}" \
-    -H "Authorization: Bearer ${API_TOKEN}" 2>/dev/null)
+    -H "Authorization: Bearer ${API_TOKEN}" \
+    -H "${EXTRA_AUTH_HEADER_NAME}: ${EXTRA_AUTH_HEADER_SECRET}" 2>/dev/null)
 
   # Extract HTTP status and response body
   http_status=$(echo "$response" | grep -o "HTTPSTATUS:[0-9]*" | cut -d: -f2)
