@@ -62,6 +62,8 @@ services:
       DB_PORT: 5432
       DB_NAME: sharingservice
       DB_CREDENTIALS: '{"username":"jupytereverywhere","password":"jupytereverywhere"}'
+      EXTRA_AUTH_HEADER_NAME: X-Extra-Auth
+      EXTRA_AUTH_HEADER_SECRET: secret
     networks:
       - sharingservice-network
     restart: unless-stopped
