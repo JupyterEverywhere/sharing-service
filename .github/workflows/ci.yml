@@ -3,10 +3,10 @@ name: CI/CD
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-    branches: [main, develop]
+    branches: [main]
 
   push:
-    branches: [main, develop]
+    branches: [main]
     tags:
       - "v[0-9]+.[0-9]+.[0-9]+"
       - "v[0-9]+.[0-9]+.[0-9]+-*"

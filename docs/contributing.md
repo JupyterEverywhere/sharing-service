@@ -6,13 +6,45 @@ The JupyterEverywhere Sharing Service is designed to provide a secure and effici
 
 ## Development and Branching Strategy
 
-This project follows git flow branching strategy. The main branches are:
+This project follows **GitHub Flow**, a lightweight, trunk-based development strategy that emphasizes continuous delivery.
 
-- `main`: This is the main branch where the stable code resides. All production-ready code should be merged into this branch.
-- `develop`: This is the development branch where all the new features and bug fixes are merged before they are released to production. This branch should always be in a deployable state.
-- `feature/*`: These branches are used for developing new features. They should be branched off from `develop` and merged back into `develop` when the feature is complete.
-- `hotfix/*`: These branches are used for fixing critical bugs in production. They should be branched off from `main` and merged back into both `main` and `develop` when the bug is fixed.
-- `support/*`: These branches are used for supporting older versions of the code. They should be branched off from `main` and merged back into `main` when the support is no longer needed.
+### The Workflow
+
+1. **The `main` branch** is always deployable and contains production-ready code
+2. **Feature branches** are created from `main` for all new work (features, bug fixes, etc.)
+3. **Pull Requests** are opened when work is ready for review
+4. **CI/CD automatically validates** all PRs with tests and security scans
+5. **Merge to `main`** after PR approval and passing checks
+6. **Tag releases** when ready to deploy (e.g., `v0.3.4`)
+7. **Deploy** by manually promoting tagged images through staging → production
+
+### Branch Naming Conventions
+
+Use descriptive branch names that clearly indicate the purpose:
+
+- `feature/add-notebook-validation`
+- `fix/authentication-bug`
+- `docs/update-api-documentation`
+- `refactor/simplify-storage-service`
+
+### Release Process
+
+Releases are controlled via Git tags, not branches:
+
+- Tag with semantic versions (e.g., `v0.3.4`)
+- All tags automatically trigger CI/CD pipeline that builds, scans, and pushes to ECR
+- Manually promote ECR images to staging/production environments
+
+### Hotfixes
+
+For critical production bugs:
+
+1. Create a hotfix branch from `main`: `git checkout -b fix/critical-security-issue`
+2. Fix the issue and open a PR
+3. CI/CD runs security scans and tests
+4. Merge to `main` after approval
+5. Tag immediately for deployment: `git tag v0.3.5`
+6. Deploy the hotfix image to production
 
 ## Prerequisites
 
