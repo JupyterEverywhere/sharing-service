@@ -26,6 +26,9 @@ RUN ./gradlew clean bootJar --no-daemon --console=plain
 # -----------------------------------------------------------------------------
 FROM eclipse-temurin:17-jre-ubi9-minimal
 
+# Update base image packages to patch security vulnerabilities
+RUN microdnf update -y --refresh --best --nodocs --noplugins --setopt=install_weak_deps=0
+
 # Set the location for the Python Virtual Environment
 ENV VIRTUAL_ENV=/opt/venv/sharing-service
 ENV PYTHON_INTERPRETER_PATH="${VIRTUAL_ENV}/bin/python3"
