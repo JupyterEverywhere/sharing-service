@@ -1,10 +1,11 @@
 plugins {
 	id 'java'
 	id 'jacoco'
-	id 'org.springframework.boot' version '3.3.3'
+	id 'org.springframework.boot' version '3.5.6'
 	id 'io.spring.dependency-management' version '1.1.6'
 	id("org.springdoc.openapi-gradle-plugin") version "1.9.0"
 	id 'org.openapi.generator' version '6.4.0'
+	id 'com.github.ben-manes.versions' version '0.53.0'
 }
 
 group = 'org.jupytereverywhere'
@@ -17,12 +18,12 @@ java {
 }
 
 ext {
-	lombokVersion = '1.18.24'
+	lombokVersion = '1.18.42'
 	jjwtVersion = '0.11.5'
 	awsSdkVersion = '1.12.311'
-	awsSdkBomVersion = '2.20.1'
-	springdocVersion = '1.7.0'
-	postgresVersion = '42.7.2'
+	awsSdkBomVersion = '2.35.0'
+	springdocVersion = '1.8.0'
+	postgresVersion = '42.7.8'
 	classgraphVersion = '4.8.69'
 	webjarsVersion = '0.47'
 	persistenceApiVersion = '2.2'
@@ -82,8 +83,8 @@ dependencies {
 	testImplementation 'org.springframework.security:spring-security-test'
 
 	// Test containers in-memory database for testing
-	testImplementation 'org.testcontainers:junit-jupiter:1.18.3'
-	testImplementation 'org.testcontainers:postgresql:1.18.3'
+	testImplementation 'org.testcontainers:junit-jupiter:1.21.3'
+	testImplementation 'org.testcontainers:postgresql:1.21.3'
 
 	// Dev tools
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
