@@ -1,0 +1,240 @@
+name: CI/CD
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+
+  push:
+    branches: [main]
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: "temurin"
+          java-version: "17"
+          cache: "gradle"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v5
+        with:
+          gradle-version: "8.10"
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: false
+
+      - name: Install Python dependencies
+        run: uv pip install --system nbformat
+
+      - name: Run tests with coverage
+        run: ./gradlew test jacocoTestReport
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: build/test-results/test/
+          retention-days: 30
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: build/reports/jacoco/test/html/
+          retention-days: 30
+
+  build-scan:
+    name: Build and Scan
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract metadata
+        id: meta
+        run: |
+          echo "BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
+          echo "COMMIT_SHA=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+
+      - name: Build Docker image (local)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          load: true
+          tags: sharing-service:scan-${{ steps.meta.outputs.COMMIT_SHA }}
+          labels: |
+            org.opencontainers.image.created=${{ steps.meta.outputs.BUILD_DATE }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # find all vulnerabilities for GitHub Security, but don't fail the job
+      - name: Run Trivy vulnerability scanner (SARIF)
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: sharing-service:scan-${{ steps.meta.outputs.COMMIT_SHA }}
+          format: "sarif"
+          output: "trivy-results.sarif"
+          trivyignores: ".trivyignore"
+          hide-progress: "true"
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: "trivy-results.sarif"
+
+      # fail the job if CRITICAL/HIGH vulnerabilities are found
+      # do this in JSON so that it is easier for a human to read in the logs
+      - name: Run Trivy vulnerability scanner (JSON)
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: sharing-service:scan-${{ steps.meta.outputs.COMMIT_SHA }}
+          format: "json"
+          severity: "CRITICAL,HIGH"
+          trivyignores: ".trivyignore"
+          hide-progress: "true"
+          exit-code: "1"
+
+      - name: Generate SBOM
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: sharing-service:scan-${{ steps.meta.outputs.COMMIT_SHA }}
+          format: "cyclonedx"
+          output: "sbom.json"
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ steps.meta.outputs.COMMIT_SHA }}
+          path: sbom.json
+          retention-days: 30
+
+      - name: Save image for release
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          docker save sharing-service:scan-${{ steps.meta.outputs.COMMIT_SHA }} -o sharing-service-image.tar
+
+      - name: Upload image artifact
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: sharing-service-image.tar
+          retention-days: 1
+
+      - name: Security scan passed
+        run: |
+          echo "✅ Security scan passed - no CRITICAL/HIGH vulnerabilities found"
+          echo "📋 SBOM generated and uploaded as artifact"
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "🔒 Image saved for ECR push"
+          else
+            echo "🔒 Image is ready for release tagging"
+          fi
+
+  push-to-ecr:
+    name: Push to ECR
+    runs-on: ubuntu-latest
+    needs: [test, build-scan]
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Extract metadata
+        id: meta
+        run: |
+          echo "BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
+          echo "COMMIT_SHA=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+
+      - name: Load Docker image
+        run: docker load -i sharing-service-image.tar
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ secrets.CI_BUILD_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Tag and push to ECR
+        id: push
+        run: |
+          # Tag the scanned image for ECR
+          docker tag sharing-service:scan-${{ steps.meta.outputs.COMMIT_SHA }} \
+            ${{ steps.login-ecr.outputs.registry }}/${{ vars.ECR_REPO_DEV }}:${{ steps.version.outputs.VERSION }}
+          docker tag sharing-service:scan-${{ steps.meta.outputs.COMMIT_SHA }} \
+            ${{ steps.login-ecr.outputs.registry }}/${{ vars.ECR_REPO_DEV }}:latest
+
+          # Push to ECR
+          docker push ${{ steps.login-ecr.outputs.registry }}/${{ vars.ECR_REPO_DEV }}:${{ steps.version.outputs.VERSION }}
+          docker push ${{ steps.login-ecr.outputs.registry }}/${{ vars.ECR_REPO_DEV }}:latest
+
+          # Get digest
+          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' \
+            ${{ steps.login-ecr.outputs.registry }}/${{ vars.ECR_REPO_DEV }}:${{ steps.version.outputs.VERSION }} | cut -d'@' -f2)
+          echo "digest=$DIGEST" >> $GITHUB_OUTPUT
+
+      - name: Output image details
+        run: |
+          echo "✅ Image pushed: ${{ steps.login-ecr.outputs.registry }}/${{ vars.ECR_REPO_DEV }}:${{ steps.version.outputs.VERSION }}"
+          echo "📦 Image digest: ${{ steps.push.outputs.digest }}"
+          echo "🔖 Latest tag updated: ${{ steps.login-ecr.outputs.registry }}/${{ vars.ECR_REPO_DEV }}:latest"
+          echo "🛡️ Security scan passed - no vulnerable images in ECR"

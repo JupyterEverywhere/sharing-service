@@ -2,9 +2,9 @@ package org.jupytereverywhere.service.aws.secrets;
 
 import java.util.Map;
 
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,7 +22,7 @@ import static org.mockito.Mockito.when;
 public class SecretsServiceImplTest {
 
   @Mock
-  private AWSSecretsManager secretsManager;
+  private SecretsManagerClient secretsManager;
 
   @InjectMocks
   private SecretsServiceImpl secretsServiceImpl = new SecretsServiceImpl() {
@@ -43,8 +43,10 @@ public class SecretsServiceImplTest {
     String secretName = "test-secret";
     String secretString = "{\"key1\":\"value1\", \"key2\":\"value2\"}";
 
-    GetSecretValueResult secretValueResult = new GetSecretValueResult().withSecretString(secretString);
-    when(secretsManager.getSecretValue(any(GetSecretValueRequest.class))).thenReturn(secretValueResult);
+    GetSecretValueResponse secretValueResponse = GetSecretValueResponse.builder()
+        .secretString(secretString)
+        .build();
+    when(secretsManager.getSecretValue(any(GetSecretValueRequest.class))).thenReturn(secretValueResponse);
 
     Map<String, String> secretValues = secretsServiceImpl.fetchSecretValues(secretName);
 
@@ -58,8 +60,10 @@ public class SecretsServiceImplTest {
     String secretNameWithoutPrefix = "my-secret";
     String secretNameWithPrefix = "test-my-secret";
 
-    GetSecretValueResult secretValueResult = new GetSecretValueResult().withSecretString("{\"key1\":\"value1\"}");
-    when(secretsManager.getSecretValue(any(GetSecretValueRequest.class))).thenReturn(secretValueResult);
+    GetSecretValueResponse secretValueResponse = GetSecretValueResponse.builder()
+        .secretString("{\"key1\":\"value1\"}")
+        .build();
+    when(secretsManager.getSecretValue(any(GetSecretValueRequest.class))).thenReturn(secretValueResponse);
 
     assertDoesNotThrow(() -> {
       Map<String, String> secretValues = secretsServiceImpl.fetchSecretValues(secretNameWithoutPrefix);

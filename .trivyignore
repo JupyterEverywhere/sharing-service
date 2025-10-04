@@ -1,0 +1,10 @@
+# Trivy Ignore File
+#
+# This file contains CVEs that are false positives or not applicable to this application.
+# Each entry should include a comment explaining why it's ignored.
+
+# CVE-2024-38821: Spring Security WebFlux Authorization Bypass
+# This vulnerability only affects applications using Spring Security with WebFlux (reactive).
+# This application uses Spring MVC (servlet-based), not WebFlux, so this CVE does not apply.
+# Reference: https://spring.io/security/cve-2024-38821
+CVE-2024-38821

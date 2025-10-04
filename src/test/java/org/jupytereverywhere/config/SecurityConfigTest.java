@@ -3,7 +3,7 @@ package org.jupytereverywhere.config;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 
@@ -21,7 +21,7 @@ import static org.mockito.Mockito.doNothing;
 @AutoConfigureMockMvc
 class SecurityConfigTest {
 
-  @MockBean
+  @MockitoBean
   private JwtRequestFilter jwtRequestFilter;
 
   @Autowired
