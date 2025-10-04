@@ -5,7 +5,7 @@ FROM eclipse-temurin:17-jdk-ubi9-minimal AS build
 
 # Install required build utilities
 RUN microdnf update -y --refresh --best --nodocs --noplugins --setopt=install_weak_deps=0 \
- && microdnf install -y findutils which
+ && microdnf install -y --quiet findutils which
 
 WORKDIR /app
 
@@ -18,7 +18,7 @@ RUN chmod +x ./gradlew
 COPY src/ /app/src/
 
 # Build the application
-RUN ./gradlew clean bootJar --no-daemon
+RUN ./gradlew clean bootJar --no-daemon --console=plain
 
 
 # -----------------------------------------------------------------------------
