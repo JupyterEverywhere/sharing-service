@@ -196,7 +196,7 @@ jobs:
           echo "COMMIT_SHA=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
 
       - name: Download image artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: sharing-service-image-${{ steps.meta.outputs.COMMIT_SHA }}
 
