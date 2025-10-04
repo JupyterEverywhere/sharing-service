@@ -75,7 +75,7 @@ jobs:
           retention-days: 30
 
   build-scan:
-    name: Build and Scan (Security Gate)
+    name: Build and Scan
     runs-on: ubuntu-latest
     needs: test
     if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v')
@@ -117,6 +117,7 @@ jobs:
           format: "sarif"
           output: "trivy-results.sarif"
           severity: "CRITICAL,HIGH"
+          trivyignores: ".trivyignore"
           hide-progress: "true"
           exit-code: "1"
 
