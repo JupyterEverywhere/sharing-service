@@ -8,8 +8,8 @@ on:
   push:
     branches: [main]
     tags:
-      - "v[0-9]+.[0-9]+.[0-9]+"
-      - "v[0-9]+.[0-9]+.[0-9]+-*"
+      - "[0-9]+.[0-9]+.[0-9]+"
+      - "[0-9]+.[0-9]+.[0-9]+-*"
 
 permissions:
   contents: read
@@ -77,7 +77,6 @@ jobs:
   build-scan:
     name: Build and Scan
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: read
       security-events: write
@@ -151,12 +150,12 @@ jobs:
           retention-days: 30
 
       - name: Save image for release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/')
         run: |
           docker save sharing-service:scan-${{ steps.meta.outputs.COMMIT_SHA }} -o sharing-service-image.tar
 
       - name: Upload image artifact
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/')
         uses: actions/upload-artifact@v4
         with:
           name: sharing-service-image-${{ steps.meta.outputs.COMMIT_SHA }}
@@ -167,7 +166,7 @@ jobs:
         run: |
           echo "✅ Security scan passed - no CRITICAL/HIGH vulnerabilities found"
           echo "📋 SBOM generated and uploaded as artifact"
-          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
             echo "🔒 Image saved for ECR push"
           else
             echo "🔒 Image is ready for release tagging"
@@ -177,7 +176,7 @@ jobs:
     name: Push to ECR
     runs-on: ubuntu-latest
     needs: [test, build-scan]
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/')
     permissions:
       id-token: write
       contents: read
@@ -188,7 +187,7 @@ jobs:
 
       - name: Extract version from tag
         id: version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
       - name: Extract metadata
         id: meta
