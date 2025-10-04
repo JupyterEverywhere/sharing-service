@@ -2,15 +2,15 @@ package org.jupytereverywhere.config;
 
 import org.jupytereverywhere.service.aws.secrets.SecretsService;
 import org.jupytereverywhere.service.aws.secrets.ConfigurableSecretsServiceImpl;
-import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
-import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
-import com.amazonaws.regions.Regions;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClientBuilder;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+
+import java.net.URI;
 
 @Configuration
 public class SecretsConfig {
@@ -31,22 +31,21 @@ public class SecretsConfig {
     @ConditionalOnProperty(name = "aws.s3.secret-name", matchIfMissing = false)
     public SecretsService secretsService() {
 
-        Regions awsRegion;
+        Region awsRegion;
         try {
-            awsRegion = Regions.fromName(region);
+            awsRegion = Region.of(region);
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Invalid AWS region for secrets manager: '" + region + "'", e);
         }
 
-        AWSSecretsManagerClientBuilder builder = AWSSecretsManagerClientBuilder.standard()
-            .withCredentials(new DefaultAWSCredentialsProviderChain());
+        SecretsManagerClientBuilder builder = SecretsManagerClient.builder()
+            .region(awsRegion);
+
         if (serviceEndpoint != null && !serviceEndpoint.isEmpty()) {
-            builder.withEndpointConfiguration(new EndpointConfiguration(serviceEndpoint, awsRegion.getName()));
-        } else {
-            builder.withRegion(awsRegion);
+            builder.endpointOverride(URI.create(serviceEndpoint));
         }
 
-        AWSSecretsManager secretsManager = builder.build();
+        SecretsManagerClient secretsManager = builder.build();
         return new ConfigurableSecretsServiceImpl(secretsManager, prefix);
     }
 }

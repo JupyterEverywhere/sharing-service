@@ -2,9 +2,9 @@ package org.jupytereverywhere.service.aws.secrets;
 
 import java.util.Map;
 
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,7 +22,7 @@ import static org.mockito.Mockito.when;
 class ConfigurableSecretsServiceImplTest {
 
   @Mock
-  private AWSSecretsManager secretsManager;
+  private SecretsManagerClient secretsManager;
 
   private ConfigurableSecretsServiceImpl configurableSecretsService;
 
@@ -38,8 +38,10 @@ class ConfigurableSecretsServiceImplTest {
     String secretName = "my-secret";
     String secretJson = "{\"foo\":\"bar\", \"baz\":\"qux\"}";
 
-    GetSecretValueResult result = new GetSecretValueResult().withSecretString(secretJson);
-    when(secretsManager.getSecretValue(any(GetSecretValueRequest.class))).thenReturn(result);
+    GetSecretValueResponse response = GetSecretValueResponse.builder()
+        .secretString(secretJson)
+        .build();
+    when(secretsManager.getSecretValue(any(GetSecretValueRequest.class))).thenReturn(response);
 
     Map<String, String> secretValues = configurableSecretsService.getSecretValues(secretName);
 

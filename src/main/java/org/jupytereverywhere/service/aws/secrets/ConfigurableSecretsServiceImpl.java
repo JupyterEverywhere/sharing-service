@@ -2,10 +2,10 @@ package org.jupytereverywhere.service.aws.secrets;
 
 import java.util.Map;
 
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
 public class ConfigurableSecretsServiceImpl extends SecretsServiceImpl {
-    public ConfigurableSecretsServiceImpl(AWSSecretsManager secretsManager, String prefix) {
+    public ConfigurableSecretsServiceImpl(SecretsManagerClient secretsManager, String prefix) {
         this.secretsManager = secretsManager;
         this.prefix = prefix;
     }
