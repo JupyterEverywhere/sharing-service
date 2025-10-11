@@ -22,6 +22,7 @@ import org.jupytereverywhere.dto.JupyterNotebookDTO;
 import org.jupytereverywhere.exception.InvalidNotebookException;
 import org.jupytereverywhere.exception.InvalidNotebookPasswordException;
 import org.jupytereverywhere.exception.NotebookNotFoundException;
+import org.jupytereverywhere.exception.NotebookTooLargeException;
 import org.jupytereverywhere.exception.SessionMismatchException;
 import org.jupytereverywhere.model.request.JupyterNotebookRequest;
 import org.jupytereverywhere.model.response.JupyterNotebookErrorResponse;
@@ -96,6 +97,9 @@ public class JupyterNotebookController {
       var response = new JupyterNotebookSavedResponse(
           "Notebook uploaded, validated, and metadata stored successfully", notebookSaved);
       return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    } catch (NotebookTooLargeException e) {
+      return handleException(HttpStatus.PAYLOAD_TOO_LARGE, "Notebook size exceeds limit", e,
+          sessionId);
     } catch (InvalidNotebookException e) {
       return handleException(HttpStatus.UNPROCESSABLE_ENTITY, "Invalid notebook format", e,
           sessionId);
@@ -127,6 +131,8 @@ public class JupyterNotebookController {
 
       var response = new JupyterNotebookSavedResponse("Notebook updated successfully", notebookUpdated);
       return ResponseEntity.ok(response);
+    } catch (NotebookTooLargeException e) {
+      return handleException(HttpStatus.PAYLOAD_TOO_LARGE, "Notebook size exceeds limit", e, uuid, sessionId);
     } catch (InvalidNotebookPasswordException e) {
       return handleException(HttpStatus.UNAUTHORIZED, "Invalid password", e, uuid, sessionId);
     } catch (SessionMismatchException e) {
@@ -157,6 +163,9 @@ public class JupyterNotebookController {
       var response = new JupyterNotebookSavedResponse("Notebook updated successfully",
           notebookUpdated);
       return ResponseEntity.ok(response);
+    } catch (NotebookTooLargeException e) {
+      return handleException(HttpStatus.PAYLOAD_TOO_LARGE, "Notebook size exceeds limit", e, readableId,
+          sessionId);
     } catch (InvalidNotebookException e) {
       return handleException(HttpStatus.BAD_REQUEST, "Invalid notebook format", e, readableId,
           sessionId);

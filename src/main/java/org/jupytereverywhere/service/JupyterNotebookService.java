@@ -6,6 +6,7 @@ import java.util.Date;
 import java.util.Map;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -21,6 +22,7 @@ import org.jupytereverywhere.dto.MetadataDTO;
 import org.jupytereverywhere.exception.InvalidNotebookException;
 import org.jupytereverywhere.exception.NotebookNotFoundException;
 import org.jupytereverywhere.exception.NotebookStorageException;
+import org.jupytereverywhere.exception.NotebookTooLargeException;
 import org.jupytereverywhere.exception.UnauthorizedNotebookAccessException;
 import org.jupytereverywhere.model.JupyterNotebookEntity;
 import org.jupytereverywhere.model.request.JupyterNotebookRequest;
@@ -51,6 +53,8 @@ public class JupyterNotebookService {
   private final JwtTokenService jwtTokenService;
   private final PasswordEncoder passwordEncoder;
 
+  @Value("${notebook.max-size-bytes}")
+  private long maxNotebookSizeBytes;
 
   public JupyterNotebookService(
       StorageService storageService,
@@ -115,6 +119,12 @@ public class JupyterNotebookService {
       JupyterNotebookEntity notebookEntity = validateAndStoreNotebook(notebookDto, sessionId, domain, password);
 
       return new JupyterNotebookSaved(notebookEntity.getId(), notebookEntity.getDomain(), notebookEntity.getReadableId());
+    } catch (NotebookTooLargeException e) {
+      log.error(new StringMapMessage()
+          .with(MESSAGE_KEY, "Notebook size exceeds limit")
+          .with(SESSION_ID_MESSAGE_KEY, sessionId.toString())
+          .with(DOMAIN_MESSAGE_KEY, domain), e);
+      throw e;
     } catch (InvalidNotebookException e) {
       log.error(new StringMapMessage()
           .with(MESSAGE_KEY, NOTEBOOK_VALIDATION_FAILED_MESSAGE)
@@ -139,6 +149,8 @@ public class JupyterNotebookService {
     validateNotebookMetadata(notebookDto);
 
     String notebookJsonString = objectMapper.writeValueAsString(notebookDto);
+
+    validateNotebookSize(notebookJsonString, sessionId);
 
     if (!jupyterNotebookValidator.validateNotebook(notebookJsonString)) {
       log.error(new StringMapMessage()
@@ -200,6 +212,9 @@ public class JupyterNotebookService {
     validateNotebookMetadata(notebookDto);
 
     String notebookJsonString = objectMapper.writeValueAsString(notebookDto);
+
+    validateNotebookSize(notebookJsonString, sessionId);
+
     if (!jupyterNotebookValidator.validateNotebook(notebookJsonString)) {
       throw new InvalidNotebookException(NOTEBOOK_VALIDATION_FAILED_MESSAGE);
     }
@@ -211,6 +226,24 @@ public class JupyterNotebookService {
 
     return new JupyterNotebookSaved(
         storedNotebook.getId(), storedNotebook.getDomain(), storedNotebook.getReadableId());
+  }
+
+  void validateNotebookSize(String notebookJsonString, UUID sessionId) {
+    long notebookSizeBytes = notebookJsonString.getBytes(java.nio.charset.StandardCharsets.UTF_8).length;
+
+    if (notebookSizeBytes > maxNotebookSizeBytes) {
+      long maxSizeMB = maxNotebookSizeBytes / (1024 * 1024);
+      String errorMessage = String.format("Notebook size (%d bytes) exceeds maximum allowed size of %d MB",
+          notebookSizeBytes, maxSizeMB);
+
+      log.error(new StringMapMessage()
+          .with(MESSAGE_KEY, errorMessage)
+          .with(SESSION_ID_MESSAGE_KEY, sessionId.toString())
+          .with("NotebookSizeBytes", String.valueOf(notebookSizeBytes))
+          .with("MaxSizeBytes", String.valueOf(maxNotebookSizeBytes)));
+
+      throw new NotebookTooLargeException(errorMessage);
+    }
   }
 
   void validateNotebookMetadata(JupyterNotebookDTO notebookDto)

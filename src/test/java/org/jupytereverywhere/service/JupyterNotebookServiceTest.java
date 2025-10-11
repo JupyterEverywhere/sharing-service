@@ -15,6 +15,7 @@ import org.jupytereverywhere.dto.MetadataDTO;
 import org.jupytereverywhere.exception.InvalidNotebookException;
 import org.jupytereverywhere.exception.NotebookNotFoundException;
 import org.jupytereverywhere.exception.NotebookStorageException;
+import org.jupytereverywhere.exception.NotebookTooLargeException;
 import org.jupytereverywhere.exception.UnauthorizedNotebookAccessException;
 import org.jupytereverywhere.model.JupyterNotebookEntity;
 import org.jupytereverywhere.model.request.JupyterNotebookRequest;
@@ -31,6 +32,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -81,6 +83,9 @@ class JupyterNotebookServiceTest {
     domain = "example.com";
     readableId = "readable-id";
     token = "jwt-token";
+
+    // Set the maxNotebookSizeBytes field to 10MB (same as application.properties default)
+    ReflectionTestUtils.setField(notebookService, "maxNotebookSizeBytes", 10485760L);
   }
 
   private JupyterNotebookDTO createSampleNotebookDTO() {
@@ -472,5 +477,83 @@ class JupyterNotebookServiceTest {
     assertEquals("original-readable-id", result.getReadableId());
     assertEquals(notebookId, result.getId());
     assertEquals(domain, result.getDomain());
+  }
+
+  @Test
+  void testValidateNotebookSize_ExceedsLimit() throws Exception {
+    // Create a large notebook that exceeds 10MB
+    StringBuilder largeContent = new StringBuilder();
+    // Create content larger than 10MB (10485760 bytes)
+    int targetSize = 11 * 1024 * 1024; // 11MB
+    for (int i = 0; i < targetSize; i++) {
+      largeContent.append("a");
+    }
+
+    String largeNotebookJson = largeContent.toString();
+
+    NotebookTooLargeException exception = assertThrows(NotebookTooLargeException.class, () -> {
+      notebookService.validateNotebookSize(largeNotebookJson, sessionId);
+    });
+
+    assertNotNull(exception);
+    assertNotNull(exception.getMessage());
+  }
+
+  @Test
+  void testValidateNotebookSize_WithinLimit() throws Exception {
+    // Create a small notebook well within the 10MB limit
+    String smallNotebookJson = "{\"nbformat\":4,\"cells\":[]}";
+
+    // Should not throw any exception
+    notebookService.validateNotebookSize(smallNotebookJson, sessionId);
+  }
+
+  @Test
+  void testUploadNotebook_TooLarge() throws Exception {
+    // Create a notebook that will exceed the size limit when serialized
+    JupyterNotebookDTO largeNotebookDto = createSampleNotebookDTO();
+    JupyterNotebookRequest notebookRequest = new JupyterNotebookRequest();
+    notebookRequest.setNotebook(largeNotebookDto);
+
+    // Mock the serialization to return a large JSON string
+    StringBuilder largeContent = new StringBuilder();
+    int targetSize = 11 * 1024 * 1024; // 11MB
+    for (int i = 0; i < targetSize; i++) {
+      largeContent.append("a");
+    }
+    String largeJson = largeContent.toString();
+
+    when(objectMapper.writeValueAsString(any())).thenReturn(largeJson);
+
+    NotebookTooLargeException exception = assertThrows(NotebookTooLargeException.class, () -> {
+      notebookService.uploadNotebook(notebookRequest, sessionId, domain);
+    });
+
+    assertNotNull(exception);
+    assertNotNull(exception.getMessage());
+  }
+
+  @Test
+  void testUpdateNotebook_TooLarge() throws Exception {
+    JupyterNotebookDTO largeNotebookDto = createSampleNotebookDTO();
+    JupyterNotebookEntity notebookEntity = createSampleNotebookEntity();
+
+    // Mock the serialization to return a large JSON string
+    StringBuilder largeContent = new StringBuilder();
+    int targetSize = 11 * 1024 * 1024; // 11MB
+    for (int i = 0; i < targetSize; i++) {
+      largeContent.append("a");
+    }
+    String largeJson = largeContent.toString();
+
+    when(notebookRepository.findById(notebookId)).thenReturn(Optional.of(notebookEntity));
+    when(objectMapper.writeValueAsString(any())).thenReturn(largeJson);
+
+    NotebookTooLargeException exception = assertThrows(NotebookTooLargeException.class, () -> {
+      notebookService.updateNotebook(notebookId, largeNotebookDto, sessionId, token);
+    });
+
+    assertNotNull(exception);
+    assertNotNull(exception.getMessage());
   }
 }
