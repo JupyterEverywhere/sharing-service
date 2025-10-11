@@ -20,4 +20,9 @@ public class GlobalExceptionHandler {
   public ResponseEntity<String> handleInvalidNotebookException(InvalidNotebookException ex) {
     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(INVALID_NOTEBOOK_MESSAGE + ex.getMessage());
   }
+
+  @ExceptionHandler(NotebookTooLargeException.class)
+  public ResponseEntity<String> handleNotebookTooLargeException(NotebookTooLargeException ex) {
+    return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(ex.getMessage());
+  }
 }

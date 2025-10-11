@@ -13,6 +13,7 @@ import org.jupytereverywhere.dto.JupyterNotebookDTO;
 import org.jupytereverywhere.exception.InvalidNotebookException;
 import org.jupytereverywhere.exception.InvalidNotebookPasswordException;
 import org.jupytereverywhere.exception.NotebookNotFoundException;
+import org.jupytereverywhere.exception.NotebookTooLargeException;
 import org.jupytereverywhere.exception.SessionMismatchException;
 import org.jupytereverywhere.model.request.JupyterNotebookRequest;
 import org.jupytereverywhere.model.response.JupyterNotebookErrorResponse;
@@ -409,6 +410,67 @@ class JupyterNotebookControllerTest {
     assertNotNull(errorResponse);
     assertEquals("Error updating notebook", errorResponse.getMessage());
     assertEquals(HttpStatus.INTERNAL_SERVER_ERROR.name(), errorResponse.getErrorCode());
+  }
+
+  @Test
+  void testUploadNotebook_TooLarge() {
+    JupyterNotebookRequest notebookRequest = new JupyterNotebookRequest();
+    UUID sessionId = UUID.randomUUID();
+
+    when(authentication.getPrincipal()).thenReturn(sessionId);
+    mockDomainExtraction();
+    when(notebookService.uploadNotebook(notebookRequest, sessionId, domain))
+        .thenThrow(new NotebookTooLargeException("Notebook size (11534336 bytes) exceeds maximum allowed size of 10 MB"));
+
+    ResponseEntity<JupyterNotebookResponse> response = controller.uploadNotebook(notebookRequest, authentication, request);
+
+    assertEquals(HttpStatus.PAYLOAD_TOO_LARGE, response.getStatusCode());
+    JupyterNotebookErrorResponse errorResponse = (JupyterNotebookErrorResponse) response.getBody();
+    assertNotNull(errorResponse);
+    assertEquals("Notebook size exceeds limit", errorResponse.getMessage());
+    assertEquals(HttpStatus.PAYLOAD_TOO_LARGE.name(), errorResponse.getErrorCode());
+  }
+
+  @Test
+  void testUpdateNotebookById_TooLarge() throws JsonProcessingException {
+    UUID notebookId = UUID.randomUUID();
+    JupyterNotebookDTO notebookDto = new JupyterNotebookDTO();
+    UUID sessionId = UUID.randomUUID();
+    String token = "valid-token";
+
+    when(authentication.getPrincipal()).thenReturn(sessionId);
+    mockTokenExtraction(token);
+    when(notebookService.updateNotebook(notebookId, notebookDto, sessionId, token))
+        .thenThrow(new NotebookTooLargeException("Notebook size (11534336 bytes) exceeds maximum allowed size of 10 MB"));
+
+    ResponseEntity<JupyterNotebookResponse> response = controller.updateNotebook(notebookId, notebookDto, authentication, request);
+
+    assertEquals(HttpStatus.PAYLOAD_TOO_LARGE, response.getStatusCode());
+    JupyterNotebookErrorResponse errorResponse = (JupyterNotebookErrorResponse) response.getBody();
+    assertNotNull(errorResponse);
+    assertEquals("Notebook size exceeds limit", errorResponse.getMessage());
+    assertEquals(HttpStatus.PAYLOAD_TOO_LARGE.name(), errorResponse.getErrorCode());
+  }
+
+  @Test
+  void testUpdateNotebookByReadableId_TooLarge() throws JsonProcessingException {
+    JupyterNotebookDTO notebookDto = new JupyterNotebookDTO();
+    UUID sessionId = UUID.randomUUID();
+    String token = "valid-token";
+
+    when(authentication.getPrincipal()).thenReturn(sessionId);
+    mockTokenExtraction(token);
+    when(notebookService.updateNotebook(readableId, notebookDto, sessionId, token))
+        .thenThrow(new NotebookTooLargeException("Notebook size (11534336 bytes) exceeds maximum allowed size of 10 MB"));
+
+    ResponseEntity<JupyterNotebookResponse> response = controller.updateNotebook(
+        readableId, notebookDto, authentication, request);
+
+    assertEquals(HttpStatus.PAYLOAD_TOO_LARGE, response.getStatusCode());
+    JupyterNotebookErrorResponse errorResponse = (JupyterNotebookErrorResponse) response.getBody();
+    assertNotNull(errorResponse);
+    assertEquals("Notebook size exceeds limit", errorResponse.getMessage());
+    assertEquals(HttpStatus.PAYLOAD_TOO_LARGE.name(), errorResponse.getErrorCode());
   }
 
 }
