@@ -1,6 +1,7 @@
 services:
   db:
     image: postgres:15-alpine
+    platform: linux/amd64
     environment:
       POSTGRES_USER: jupytereverywhere
       POSTGRES_PASSWORD: jupytereverywhere
