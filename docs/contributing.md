@@ -52,7 +52,7 @@ Note that there are two ways to get set up to contribute to this project. You ca
 
 In both cases, you will need to have the following prerequisites installed on your machine:
 
-- **Java 17+**
+- **Java 21+**
 - **Gradle**
 - [**uv**](https://docs.astral.sh/uv/#installation)
 - [**Docker and Docker Compose**](https://docs.docker.com/get-docker/)
