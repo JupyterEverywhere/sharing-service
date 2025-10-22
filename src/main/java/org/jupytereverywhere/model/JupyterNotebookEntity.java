@@ -24,13 +24,10 @@ public class JupyterNotebookEntity {
   @Column(nullable = false)
   private UUID sessionId;
 
-  @Column(nullable = false)
   private String kernelName;
 
-  @Column(nullable = false)
   private String kernelDisplayName;
 
-  @Column(nullable = false)
   private String language;
 
   private String languageVersion;
