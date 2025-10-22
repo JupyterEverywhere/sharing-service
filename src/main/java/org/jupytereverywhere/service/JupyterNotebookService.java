@@ -182,6 +182,7 @@ public class JupyterNotebookService {
     return notebookEntity;
   }
 
+  @Transactional
   public JupyterNotebookSaved updateNotebook(UUID notebookId, JupyterNotebookDTO notebookDto, UUID sessionId, String token)
       throws UnauthorizedNotebookAccessException, InvalidNotebookException, JsonProcessingException {
 
