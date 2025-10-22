@@ -98,8 +98,7 @@ public class JupyterNotebookController {
           "Notebook uploaded, validated, and metadata stored successfully", notebookSaved);
       return ResponseEntity.status(HttpStatus.CREATED).body(response);
     } catch (NotebookTooLargeException e) {
-      return handleException(HttpStatus.PAYLOAD_TOO_LARGE, "Notebook size exceeds limit", e,
-          sessionId);
+      return handleSizeLimitException(e, sessionId);
     } catch (InvalidNotebookException e) {
       return handleException(HttpStatus.UNPROCESSABLE_ENTITY, "Invalid notebook format", e,
           sessionId);
@@ -132,7 +131,7 @@ public class JupyterNotebookController {
       var response = new JupyterNotebookSavedResponse("Notebook updated successfully", notebookUpdated);
       return ResponseEntity.ok(response);
     } catch (NotebookTooLargeException e) {
-      return handleException(HttpStatus.PAYLOAD_TOO_LARGE, "Notebook size exceeds limit", e, uuid, sessionId);
+      return handleSizeLimitException(e, NOTEBOOK_ID_MESSAGE_KEY, uuid, SESSION_ID_MESSAGE_KEY, sessionId);
     } catch (InvalidNotebookPasswordException e) {
       return handleException(HttpStatus.UNAUTHORIZED, "Invalid password", e, uuid, sessionId);
     } catch (SessionMismatchException e) {
@@ -164,8 +163,7 @@ public class JupyterNotebookController {
           notebookUpdated);
       return ResponseEntity.ok(response);
     } catch (NotebookTooLargeException e) {
-      return handleException(HttpStatus.PAYLOAD_TOO_LARGE, "Notebook size exceeds limit", e, readableId,
-          sessionId);
+      return handleSizeLimitException(e, READABLE_ID_MESSAGE_KEY, readableId, SESSION_ID_MESSAGE_KEY, sessionId);
     } catch (InvalidNotebookException e) {
       return handleException(HttpStatus.BAD_REQUEST, "Invalid notebook format", e, readableId,
           sessionId);
@@ -200,6 +198,35 @@ public class JupyterNotebookController {
 
     var response = new JupyterNotebookErrorResponse(status.name(), message);
     return ResponseEntity.status(status).body(response);
+  }
+
+  private ResponseEntity<JupyterNotebookResponse> handleSizeLimitException(
+      NotebookTooLargeException e, Object... params) {
+    StringMapMessage logMessage = new StringMapMessage().with(MESSAGE_KEY, "Notebook size exceeds limit");
+    for (int i = 0; i < params.length; i += 2) {
+      if (i + 1 < params.length) {
+        logMessage.with(params[i].toString(), params[i + 1].toString());
+      }
+    }
+    log.error(logMessage, e);
+
+    var response = new JupyterNotebookErrorResponse(
+        HttpStatus.PAYLOAD_TOO_LARGE.name(),
+        "Notebook size exceeds limit");
+
+    // Add structured size information if available
+    if (e.getMaxSizeBytes() > 0) {
+      long maxSizeMB = e.getMaxSizeBytes() / (1024 * 1024);
+      response.addDetail("maxSizeBytes", e.getMaxSizeBytes());
+      response.addDetail("maxSizeMB", maxSizeMB);
+    }
+    if (e.getNotebookSizeBytes() > 0) {
+      long notebookSizeMB = e.getNotebookSizeBytes() / (1024 * 1024);
+      response.addDetail("notebookSizeBytes", e.getNotebookSizeBytes());
+      response.addDetail("notebookSizeMB", notebookSizeMB);
+    }
+
+    return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(response);
   }
 
 }

@@ -16,12 +16,14 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import org.jupytereverywhere.filter.JwtRequestFilter;
+import org.jupytereverywhere.filter.RequestSizeLimitFilter;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
   private final JwtRequestFilter jwtRequestFilter;
+  private final RequestSizeLimitFilter requestSizeLimitFilter;
 
   @Value("${cors.enabled:false}")
   private boolean corsEnabled;
@@ -44,8 +46,9 @@ public class SecurityConfig {
   @Value("${cors.max-age:3600}")
   private long maxAge;
 
-  public SecurityConfig(JwtRequestFilter jwtRequestFilter) {
+  public SecurityConfig(JwtRequestFilter jwtRequestFilter, RequestSizeLimitFilter requestSizeLimitFilter) {
     this.jwtRequestFilter = jwtRequestFilter;
+    this.requestSizeLimitFilter = requestSizeLimitFilter;
   }
 
   @Bean
@@ -105,6 +108,7 @@ public class SecurityConfig {
         .sessionManagement(session -> session
             .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
         )
+        .addFilterBefore(requestSizeLimitFilter, UsernamePasswordAuthenticationFilter.class)
         .addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
 
     return http.build();

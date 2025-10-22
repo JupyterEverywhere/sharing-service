@@ -11,6 +11,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityManager;
 
 import org.jupytereverywhere.dto.JupyterNotebookDTO;
+import org.jupytereverywhere.dto.KernelspecDTO;
+import org.jupytereverywhere.dto.LanguageInfoDTO;
 import org.jupytereverywhere.dto.MetadataDTO;
 import org.jupytereverywhere.exception.InvalidNotebookException;
 import org.jupytereverywhere.exception.NotebookNotFoundException;
@@ -36,6 +38,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -555,5 +558,132 @@ class JupyterNotebookServiceTest {
 
     assertNotNull(exception);
     assertNotNull(exception.getMessage());
+  }
+
+  @Test
+  void testSetNotebookEntityMetadata_WithCompleteMetadata() {
+    JupyterNotebookEntity entity = new JupyterNotebookEntity();
+    MetadataDTO metadata = new MetadataDTO();
+
+    LanguageInfoDTO languageInfo = new LanguageInfoDTO();
+    languageInfo.setName("python");
+    languageInfo.setVersion("3.9.7");
+    languageInfo.setFileExtension(".py");
+    metadata.setLanguageInfo(languageInfo);
+
+    KernelspecDTO kernelspec = new KernelspecDTO();
+    kernelspec.setName("python3");
+    kernelspec.setDisplayName("Python 3");
+    kernelspec.setLanguage("python");
+    metadata.setKernelspec(kernelspec);
+
+    ReflectionTestUtils.invokeMethod(notebookService, "setNotebookEntityMetadata", entity, metadata);
+
+    assertEquals("python", entity.getLanguage());
+    assertEquals("3.9.7", entity.getLanguageVersion());
+    assertEquals(".py", entity.getFileExtension());
+    assertEquals("python3", entity.getKernelName());
+    assertEquals("Python 3", entity.getKernelDisplayName());
+  }
+
+  @Test
+  void testSetNotebookEntityMetadata_WithNullLanguageInfo() {
+    JupyterNotebookEntity entity = new JupyterNotebookEntity();
+    MetadataDTO metadata = new MetadataDTO();
+
+    // languageInfo is null - fields should remain NULL
+    KernelspecDTO kernelspec = new KernelspecDTO();
+    kernelspec.setName("python3");
+    kernelspec.setDisplayName("Python 3");
+    metadata.setKernelspec(kernelspec);
+
+    ReflectionTestUtils.invokeMethod(notebookService, "setNotebookEntityMetadata", entity, metadata);
+
+    assertNull(entity.getLanguage());
+    assertNull(entity.getLanguageVersion());
+    assertNull(entity.getFileExtension());
+    assertEquals("python3", entity.getKernelName());
+    assertEquals("Python 3", entity.getKernelDisplayName());
+  }
+
+  @Test
+  void testSetNotebookEntityMetadata_WithNullKernelspec() {
+    JupyterNotebookEntity entity = new JupyterNotebookEntity();
+    MetadataDTO metadata = new MetadataDTO();
+
+    // kernelspec is null - fields should remain NULL
+    LanguageInfoDTO languageInfo = new LanguageInfoDTO();
+    languageInfo.setName("r");
+    languageInfo.setVersion("4.1.0");
+    metadata.setLanguageInfo(languageInfo);
+
+    ReflectionTestUtils.invokeMethod(notebookService, "setNotebookEntityMetadata", entity, metadata);
+
+    assertEquals("r", entity.getLanguage());
+    assertEquals("4.1.0", entity.getLanguageVersion());
+    assertNull(entity.getKernelName());
+    assertNull(entity.getKernelDisplayName());
+  }
+
+  @Test
+  void testSetNotebookEntityMetadata_WithBothMetadataFieldsNull() {
+    JupyterNotebookEntity entity = new JupyterNotebookEntity();
+    MetadataDTO metadata = new MetadataDTO();
+    // Both kernelspec and languageInfo are null
+
+    ReflectionTestUtils.invokeMethod(notebookService, "setNotebookEntityMetadata", entity, metadata);
+
+    // All metadata fields should remain NULL, which is valid per Jupyter spec
+    assertNull(entity.getLanguage());
+    assertNull(entity.getLanguageVersion());
+    assertNull(entity.getFileExtension());
+    assertNull(entity.getKernelName());
+    assertNull(entity.getKernelDisplayName());
+  }
+
+  @Test
+  void testSetNotebookEntityMetadata_WithNullFieldsInKernelspec() {
+    JupyterNotebookEntity entity = new JupyterNotebookEntity();
+    MetadataDTO metadata = new MetadataDTO();
+
+    // kernelspec exists but individual fields are null
+    KernelspecDTO kernelspec = new KernelspecDTO();
+    // All fields remain null
+    metadata.setKernelspec(kernelspec);
+
+    LanguageInfoDTO languageInfo = new LanguageInfoDTO();
+    languageInfo.setName("julia");
+    metadata.setLanguageInfo(languageInfo);
+
+    ReflectionTestUtils.invokeMethod(notebookService, "setNotebookEntityMetadata", entity, metadata);
+
+    assertEquals("julia", entity.getLanguage());
+    assertNull(entity.getKernelName());
+    assertNull(entity.getKernelDisplayName());
+  }
+
+  @Test
+  void testSetNotebookEntityMetadata_WithNullLanguageInfoName() {
+    JupyterNotebookEntity entity = new JupyterNotebookEntity();
+    MetadataDTO metadata = new MetadataDTO();
+
+    // languageInfo exists but name is null
+    LanguageInfoDTO languageInfo = new LanguageInfoDTO();
+    languageInfo.setVersion("1.0.0");
+    // name is null
+    metadata.setLanguageInfo(languageInfo);
+
+    KernelspecDTO kernelspec = new KernelspecDTO();
+    kernelspec.setName("custom");
+    kernelspec.setDisplayName("Custom Kernel");
+    metadata.setKernelspec(kernelspec);
+
+    ReflectionTestUtils.invokeMethod(notebookService, "setNotebookEntityMetadata", entity, metadata);
+
+    // Language should be null since languageInfo.name is null
+    assertNull(entity.getLanguage());
+    assertEquals("1.0.0", entity.getLanguageVersion());
+    assertEquals("custom", entity.getKernelName());
+    assertEquals("Custom Kernel", entity.getKernelDisplayName());
   }
 }
