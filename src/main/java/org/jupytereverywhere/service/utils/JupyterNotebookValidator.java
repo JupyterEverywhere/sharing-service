@@ -1,148 +1,91 @@
 package org.jupytereverywhere.service.utils;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.List;
-import java.util.function.Function;
+import java.io.InputStream;
+import java.util.Set;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.networknt.schema.JsonSchema;
+import com.networknt.schema.JsonSchemaFactory;
+import com.networknt.schema.SpecVersion;
+import com.networknt.schema.ValidationMessage;
 
 import lombok.extern.log4j.Log4j2;
 import org.apache.logging.log4j.message.StringMapMessage;
 
+/**
+ * Native Java validator for Jupyter Notebook JSON using the nbformat JSON Schema.
+ * This replaces the Python subprocess-based validation for improved performance.
+ */
 @Log4j2
 @Component
 public class JupyterNotebookValidator {
 
   public static final String MESSAGE = "Message";
+  private static final String SCHEMA_PATH = "/schemas/nbformat.v4.schema.json";
 
-  @Value("${python.interpreter.path}")
-  private String pythonInterpreterPath;
+  private final JsonSchema schema;
+  private final ObjectMapper objectMapper;
 
-  @Value("${python.script.path}")
-  private String pythonScriptPath;
+  public JupyterNotebookValidator(ObjectMapper objectMapper) {
+    this.objectMapper = objectMapper;
+    this.schema = loadSchema();
 
-  private final Function<List<String>, ProcessBuilder> processBuilderFactory;
-
-  public JupyterNotebookValidator() {
-    this.processBuilderFactory = ProcessBuilder::new;
+    log.info(new StringMapMessage()
+        .with(MESSAGE, "JupyterNotebookValidator initialized")
+        .with("SchemaPath", SCHEMA_PATH));
   }
 
-  public JupyterNotebookValidator(Function<List<String>, ProcessBuilder> processBuilderFactory) {
-    this.processBuilderFactory = processBuilderFactory;
+  private JsonSchema loadSchema() {
+    try {
+      JsonSchemaFactory factory = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V4);
+      InputStream schemaStream = getClass().getResourceAsStream(SCHEMA_PATH);
+
+      if (schemaStream == null) {
+        throw new IllegalStateException("Could not load JSON schema from " + SCHEMA_PATH);
+      }
+
+      return factory.getSchema(schemaStream);
+    } catch (Exception e) {
+      log.error(new StringMapMessage()
+          .with(MESSAGE, "Failed to load JSON schema")
+          .with("SchemaPath", SCHEMA_PATH)
+          .with("ExceptionType", e.getClass().getSimpleName())
+          .with("ExceptionMessage", e.getMessage()), e);
+      throw new IllegalStateException("Failed to initialize notebook validator", e);
+    }
   }
 
+  /**
+   * Validates a Jupyter Notebook JSON string against the nbformat v4 schema.
+   *
+   * @param notebookJson The notebook JSON string to validate
+   * @return true if the notebook is valid, false otherwise
+   */
   public boolean validateNotebook(String notebookJson) {
     try {
-      Process process = startValidationProcess();
-      writeNotebookToProcess(process, notebookJson);
-      boolean isValid = readValidationResult(process);
-      process.waitFor();
-      return isValid;
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
+      JsonNode jsonNode = objectMapper.readTree(notebookJson);
+      Set<ValidationMessage> errors = schema.validate(jsonNode);
 
-      log.error(
-          new StringMapMessage()
-              .with(MESSAGE, "Thread was interrupted during notebook validation")
-              .with("ExceptionType", e.getClass().getSimpleName())
-              .with("ExceptionMessage", e.getMessage()),
-          e
-      );
-
-      return false;
-    } catch (IOException e) {
-
-      log.error(
-          new StringMapMessage()
-              .with(MESSAGE, "IOException occurred during notebook validation")
-              .with("ExceptionType", e.getClass().getSimpleName())
-              .with("ExceptionMessage", e.getMessage()),
-          e
-      );
-
-      return false;
-    } catch (Exception e) {
-
-      log.error(
-          new StringMapMessage()
-              .with(MESSAGE, "An error occurred during notebook validation")
-              .with("ExceptionType", e.getClass().getSimpleName())
-              .with("ExceptionMessage", e.getMessage()),
-          e
-      );
-
-      return false;
-    }
-  }
-
-  private Process startValidationProcess() throws IOException {
-    log.info(
-        new StringMapMessage()
-            .with(MESSAGE, "Starting notebook validation process")
-            .with("InterpreterPath", pythonInterpreterPath)
-            .with("ScriptPath", pythonScriptPath)
-    );
-
-    String interpreter = pythonInterpreterPath;
-    List<String> command = Arrays.asList(interpreter, pythonScriptPath);
-
-    log.info(
-        new StringMapMessage()
-            .with(MESSAGE, "Executing command")
-            .with("Command", String.join(" ", command))
-    );
-
-    ProcessBuilder processBuilder = processBuilderFactory.apply(command);
-    processBuilder.redirectErrorStream(true);
-    return processBuilder.start();
-  }
-
-  private void writeNotebookToProcess(Process process, String notebookJson) throws IOException {
-    try (OutputStream stdin = process.getOutputStream()) {
-      stdin.write(notebookJson.getBytes(StandardCharsets.UTF_8));
-      stdin.flush();
-    }
-  }
-
-  private boolean readValidationResult(Process process) throws IOException {
-    StringBuilder output = new StringBuilder();
-    try (BufferedReader reader = new BufferedReader(
-        new InputStreamReader(process.getInputStream()))) {
-      String line;
-      while ((line = reader.readLine()) != null) {
-        output.append(line).append("\n");
-        String trimmedLine = line.trim();
-
-        if ("valid".equals(trimmedLine)) {
-          log.info(
-              new StringMapMessage()
-                  .with(MESSAGE, "Notebook is valid")
-                  .with("Output", trimmedLine)
-          );
-          return true;
-        } else if ("invalid".equals(trimmedLine)) {
-          log.info(
-              new StringMapMessage()
-                  .with(MESSAGE, "Notebook is invalid")
-                  .with("Output", trimmedLine)
-          );
-          return false;
-        }
+      if (errors.isEmpty()) {
+        log.debug(new StringMapMessage()
+            .with(MESSAGE, "Notebook validation passed"));
+        return true;
+      } else {
+        log.warn(new StringMapMessage()
+            .with(MESSAGE, "Notebook validation failed")
+            .with("ErrorCount", String.valueOf(errors.size()))
+            .with("Errors", errors.toString()));
+        return false;
       }
+    } catch (Exception e) {
+      log.error(new StringMapMessage()
+          .with(MESSAGE, "Exception during notebook validation")
+          .with("ExceptionType", e.getClass().getSimpleName())
+          .with("ExceptionMessage", e.getMessage()), e);
+      return false;
     }
-
-    log.error(
-        new StringMapMessage()
-            .with(MESSAGE, "Validation script did not produce expected output")
-            .with("FullOutput", output.toString())
-    );
-
-    return false;
   }
 }

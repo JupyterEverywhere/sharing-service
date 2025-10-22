@@ -1,203 +1,364 @@
 package org.jupytereverywhere.service.utils;
 
-
-import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.function.Function;
-
-import org.springframework.test.util.ReflectionTestUtils;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
-import org.mockito.Mock;
-import org.mockito.MockedConstruction;
-import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
-import org.mockito.junit.jupiter.MockitoExtension;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
-@ExtendWith(MockitoExtension.class)
 class JupyterNotebookValidatorTest {
 
-  private JupyterNotebookValidator notebookValidator;
-
-  @Mock
-  private ProcessBuilder processBuilder;
-
-  @Mock
-  private Process process;
+  private JupyterNotebookValidator validator;
+  private ObjectMapper objectMapper;
 
   @BeforeEach
-  public void setUp() {
-    MockitoAnnotations.openMocks(this);
-
-    Function<List<String>, ProcessBuilder> processBuilderFactory = args -> {
-      assertEquals("/usr/local/bin/python", args.get(0));
-      assertEquals("/path/to/validate_notebook.py", args.get(1));
-      return processBuilder;
-    };
-
-    notebookValidator = new JupyterNotebookValidator(processBuilderFactory);
-
-    ReflectionTestUtils.setField(notebookValidator, "pythonInterpreterPath", "/usr/local/bin/python");
-    ReflectionTestUtils.setField(notebookValidator, "pythonScriptPath", "/path/to/validate_notebook.py");
+  void setUp() {
+    objectMapper = new ObjectMapper();
+    validator = new JupyterNotebookValidator(objectMapper);
   }
 
   @Test
-  void testValidateNotebook_Valid() throws Exception {
-    when(processBuilder.redirectErrorStream(true)).thenReturn(processBuilder);
-    when(processBuilder.start()).thenReturn(process);
-
-    String simulatedOutput = "valid";
-    InputStream inputStream = new ByteArrayInputStream(simulatedOutput.getBytes(StandardCharsets.UTF_8));
-    when(process.getInputStream()).thenReturn(inputStream);
-
-    OutputStream outputStream = mock(OutputStream.class);
-    when(process.getOutputStream()).thenReturn(outputStream);
-
-    when(process.waitFor()).thenReturn(0);
-
-    boolean result = notebookValidator.validateNotebook("notebook content");
-    assertTrue(result);
+  void testValidatorInitialization() {
+    assertNotNull(validator);
   }
 
   @Test
-  void testValidateNotebook_Invalid() throws Exception {
-    when(processBuilder.redirectErrorStream(true)).thenReturn(processBuilder);
-    when(processBuilder.start()).thenReturn(process);
+  void testValidateNotebook_ValidMinimalNotebook() {
+    String validNotebook = """
+        {
+          "cells": [
+            {
+              "cell_type": "code",
+              "execution_count": null,
+              "id": "cell-1",
+              "metadata": {},
+              "outputs": [],
+              "source": []
+            }
+          ],
+          "metadata": {
+            "kernelspec": {
+              "display_name": "Python 3",
+              "name": "python3"
+            },
+            "language_info": {
+              "name": "python"
+            }
+          },
+          "nbformat": 4,
+          "nbformat_minor": 5
+        }
+        """;
 
-    String simulatedOutput = "invalid";
-    InputStream inputStream = new ByteArrayInputStream(simulatedOutput.getBytes(StandardCharsets.UTF_8));
-    when(process.getInputStream()).thenReturn(inputStream);
-
-    OutputStream outputStream = mock(OutputStream.class);
-    when(process.getOutputStream()).thenReturn(outputStream);
-
-    when(process.waitFor()).thenReturn(1);
-
-    boolean result = notebookValidator.validateNotebook("notebook content");
-    assertFalse(result);
+    boolean result = validator.validateNotebook(validNotebook);
+    assertTrue(result, "Minimal valid notebook should pass validation");
   }
 
   @Test
-  void testValidateNotebook_WriteIOException() throws Exception {
-    when(processBuilder.redirectErrorStream(true)).thenReturn(processBuilder);
-    when(processBuilder.start()).thenReturn(process);
+  void testValidateNotebook_ValidNotebookWithContent() {
+    String validNotebook = """
+        {
+          "cells": [
+            {
+              "cell_type": "markdown",
+              "id": "cell-1",
+              "metadata": {},
+              "source": ["# Example Notebook"]
+            },
+            {
+              "cell_type": "code",
+              "execution_count": 1,
+              "id": "cell-2",
+              "metadata": {},
+              "outputs": [
+                {
+                  "output_type": "stream",
+                  "name": "stdout",
+                  "text": ["Hello, World!\\n"]
+                }
+              ],
+              "source": ["print('Hello, World!')"]
+            }
+          ],
+          "metadata": {
+            "kernelspec": {
+              "display_name": "Python 3",
+              "name": "python3"
+            },
+            "language_info": {
+              "name": "python",
+              "version": "3.9.0"
+            }
+          },
+          "nbformat": 4,
+          "nbformat_minor": 5
+        }
+        """;
 
-    OutputStream outputStream = mock(OutputStream.class);
-    when(process.getOutputStream()).thenReturn(outputStream);
-
-    doThrow(new IOException("Test IOException")).when(outputStream).write(any(byte[].class), anyInt(), anyInt());
-
-    boolean result = notebookValidator.validateNotebook("notebook content");
-    assertFalse(result);
+    boolean result = validator.validateNotebook(validNotebook);
+    assertTrue(result, "Valid notebook with content should pass validation");
   }
 
   @Test
-  void testValidateNotebook_ReadIOException() throws Exception {
-    when(processBuilder.redirectErrorStream(true)).thenReturn(processBuilder);
-    when(processBuilder.start()).thenReturn(process);
+  void testValidateNotebook_MissingRequiredField_cells() {
+    String invalidNotebook = """
+        {
+          "metadata": {
+            "kernelspec": {
+              "display_name": "Python 3",
+              "name": "python3"
+            },
+            "language_info": {
+              "name": "python"
+            }
+          },
+          "nbformat": 4,
+          "nbformat_minor": 5
+        }
+        """;
 
-    when(process.getOutputStream()).thenReturn(mock(OutputStream.class));
-
-    InputStream inputStream = mock(InputStream.class);
-    when(process.getInputStream()).thenReturn(inputStream);
-
-    when(inputStream.read(any(byte[].class), anyInt(), anyInt())).thenThrow(new IOException("Test IOException"));
-
-    boolean result = notebookValidator.validateNotebook("notebook content");
-    assertFalse(result);
+    boolean result = validator.validateNotebook(invalidNotebook);
+    assertFalse(result, "Notebook missing 'cells' field should fail validation");
   }
 
   @Test
-  void testValidateNotebook_InterruptedException() throws Exception {
-    when(processBuilder.redirectErrorStream(true)).thenReturn(processBuilder);
-    when(processBuilder.start()).thenReturn(process);
+  void testValidateNotebook_MissingRequiredField_metadata() {
+    String invalidNotebook = """
+        {
+          "cells": [],
+          "nbformat": 4,
+          "nbformat_minor": 5
+        }
+        """;
 
-    when(process.getOutputStream()).thenReturn(new ByteArrayOutputStream());
-    when(process.getInputStream()).thenReturn(new ByteArrayInputStream("".getBytes()));
-
-    when(process.waitFor()).thenThrow(new InterruptedException("Test InterruptedException"));
-
-    boolean result = notebookValidator.validateNotebook("notebook content");
-    assertFalse(result);
+    boolean result = validator.validateNotebook(invalidNotebook);
+    assertFalse(result, "Notebook missing 'metadata' field should fail validation");
   }
 
   @Test
-  void testValidateNotebook_GeneralException() throws Exception {
-    when(processBuilder.redirectErrorStream(true)).thenReturn(processBuilder);
-    when(processBuilder.start()).thenReturn(process);
+  void testValidateNotebook_MissingRequiredField_nbformat() {
+    String invalidNotebook = """
+        {
+          "cells": [],
+          "metadata": {
+            "kernelspec": {
+              "display_name": "Python 3",
+              "name": "python3"
+            },
+            "language_info": {
+              "name": "python"
+            }
+          },
+          "nbformat_minor": 5
+        }
+        """;
 
-    when(process.getOutputStream()).thenThrow(new RuntimeException("Test RuntimeException"));
-
-    boolean result = notebookValidator.validateNotebook("notebook content");
-    assertFalse(result);
+    boolean result = validator.validateNotebook(invalidNotebook);
+    assertFalse(result, "Notebook missing 'nbformat' field should fail validation");
   }
 
   @Test
-  void testValidateNotebook_NoValidOrInvalidOutput() throws Exception {
-    when(processBuilder.redirectErrorStream(true)).thenReturn(processBuilder);
-    when(processBuilder.start()).thenReturn(process);
+  void testValidateNotebook_MissingRequiredField_nbformat_minor() {
+    String invalidNotebook = """
+        {
+          "cells": [],
+          "metadata": {
+            "kernelspec": {
+              "display_name": "Python 3",
+              "name": "python3"
+            },
+            "language_info": {
+              "name": "python"
+            }
+          },
+          "nbformat": 4
+        }
+        """;
 
-    String simulatedOutput = "some other output";
-    InputStream inputStream = new ByteArrayInputStream(simulatedOutput.getBytes(StandardCharsets.UTF_8));
-    when(process.getInputStream()).thenReturn(inputStream);
-
-    when(process.getOutputStream()).thenReturn(mock(OutputStream.class));
-
-    when(process.waitFor()).thenReturn(0);
-
-    boolean result = notebookValidator.validateNotebook("notebook content");
-    assertFalse(result);
+    boolean result = validator.validateNotebook(invalidNotebook);
+    assertFalse(result, "Notebook missing 'nbformat_minor' field should fail validation");
   }
 
   @Test
-  void testValidateNotebook_ReadLineIOException() throws Exception {
-    when(processBuilder.redirectErrorStream(true)).thenReturn(processBuilder);
-    when(processBuilder.start()).thenReturn(process);
+  void testValidateNotebook_InvalidCellType() {
+    String invalidNotebook = """
+        {
+          "cells": [
+            {
+              "cell_type": "invalid_type",
+              "metadata": {},
+              "source": []
+            }
+          ],
+          "metadata": {
+            "kernelspec": {
+              "display_name": "Python 3",
+              "name": "python3"
+            },
+            "language_info": {
+              "name": "python"
+            }
+          },
+          "nbformat": 4,
+          "nbformat_minor": 5
+        }
+        """;
 
-    when(process.getOutputStream()).thenReturn(mock(OutputStream.class));
-
-    InputStream inputStream = mock(InputStream.class);
-    when(process.getInputStream()).thenReturn(inputStream);
-
-    try (MockedConstruction<BufferedReader> mocked = Mockito.mockConstruction(BufferedReader.class, (mock, context) -> {
-      when(mock.readLine()).thenThrow(new IOException("Test IOException"));
-    })) {
-      boolean result = notebookValidator.validateNotebook("notebook content");
-      assertFalse(result);
-    }
+    boolean result = validator.validateNotebook(invalidNotebook);
+    assertFalse(result, "Notebook with invalid cell type should fail validation");
   }
 
   @Test
-  void testValidateNotebook_NoOutput_NonZeroExitCode() throws Exception {
-    when(processBuilder.redirectErrorStream(true)).thenReturn(processBuilder);
-    when(processBuilder.start()).thenReturn(process);
+  void testValidateNotebook_WrongNbformatVersion() {
+    String invalidNotebook = """
+        {
+          "cells": [],
+          "metadata": {
+            "kernelspec": {
+              "display_name": "Python 3",
+              "name": "python3"
+            },
+            "language_info": {
+              "name": "python"
+            }
+          },
+          "nbformat": 3,
+          "nbformat_minor": 0
+        }
+        """;
 
-    InputStream inputStream = new ByteArrayInputStream("".getBytes(StandardCharsets.UTF_8));
-    when(process.getInputStream()).thenReturn(inputStream);
+    boolean result = validator.validateNotebook(invalidNotebook);
+    assertFalse(result, "Notebook with wrong nbformat version should fail validation");
+  }
 
-    when(process.getOutputStream()).thenReturn(mock(OutputStream.class));
+  @Test
+  void testValidateNotebook_InvalidJSON() {
+    String invalidJson = "{ this is not valid json }";
 
-    when(process.waitFor()).thenReturn(1);
+    boolean result = validator.validateNotebook(invalidJson);
+    assertFalse(result, "Invalid JSON should fail validation");
+  }
 
-    boolean result = notebookValidator.validateNotebook("notebook content");
-    assertFalse(result);
+  @Test
+  void testValidateNotebook_EmptyString() {
+    String emptyString = "";
+
+    boolean result = validator.validateNotebook(emptyString);
+    assertFalse(result, "Empty string should fail validation");
+  }
+
+  @Test
+  void testValidateNotebook_NullValue() {
+    String nullString = "null";
+
+    boolean result = validator.validateNotebook(nullString);
+    assertFalse(result, "Null value should fail validation");
+  }
+
+  @Test
+  void testValidateNotebook_ValidRawCell() {
+    String validNotebook = """
+        {
+          "cells": [
+            {
+              "cell_type": "raw",
+              "id": "cell-1",
+              "metadata": {},
+              "source": ["Raw text content"]
+            }
+          ],
+          "metadata": {
+            "kernelspec": {
+              "display_name": "Python 3",
+              "name": "python3"
+            },
+            "language_info": {
+              "name": "python"
+            }
+          },
+          "nbformat": 4,
+          "nbformat_minor": 5
+        }
+        """;
+
+    boolean result = validator.validateNotebook(validNotebook);
+    assertTrue(result, "Valid notebook with raw cell should pass validation");
+  }
+
+  @Test
+  void testValidateNotebook_CodeCellMissingRequiredFields() {
+    String invalidNotebook = """
+        {
+          "cells": [
+            {
+              "cell_type": "code",
+              "source": ["print('test')"]
+            }
+          ],
+          "metadata": {
+            "kernelspec": {
+              "display_name": "Python 3",
+              "name": "python3"
+            },
+            "language_info": {
+              "name": "python"
+            }
+          },
+          "nbformat": 4,
+          "nbformat_minor": 5
+        }
+        """;
+
+    boolean result = validator.validateNotebook(invalidNotebook);
+    assertFalse(result, "Code cell missing required fields should fail validation");
+  }
+
+  @Test
+  void testValidateNotebook_ValidMultipleCells() {
+    String validNotebook = """
+        {
+          "cells": [
+            {
+              "cell_type": "markdown",
+              "id": "cell-1",
+              "metadata": {},
+              "source": ["# Title"]
+            },
+            {
+              "cell_type": "code",
+              "execution_count": null,
+              "id": "cell-2",
+              "metadata": {},
+              "outputs": [],
+              "source": ["import numpy as np"]
+            },
+            {
+              "cell_type": "code",
+              "execution_count": null,
+              "id": "cell-3",
+              "metadata": {},
+              "outputs": [],
+              "source": ["x = np.array([1, 2, 3])"]
+            }
+          ],
+          "metadata": {
+            "kernelspec": {
+              "display_name": "Python 3",
+              "name": "python3"
+            },
+            "language_info": {
+              "name": "python"
+            }
+          },
+          "nbformat": 4,
+          "nbformat_minor": 5
+        }
+        """;
+
+    boolean result = validator.validateNotebook(validNotebook);
+    assertTrue(result, "Valid notebook with multiple cells should pass validation");
   }
 }

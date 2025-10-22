@@ -76,6 +76,9 @@ dependencies {
 	// ClassGraph for classpath scanning
 	implementation "io.github.classgraph:classgraph:${classgraphVersion}"
 
+	// JSON Schema validation for Jupyter notebooks
+	implementation 'com.networknt:json-schema-validator:1.5.3'
+
 	// Security Testing
 	testImplementation 'org.springframework.security:spring-security-test'
 
