@@ -55,4 +55,17 @@ COPY --chmod=0755 src/main/java/org/jupytereverywhere/script/validate_notebook.p
 
 EXPOSE 8080
 
-ENTRYPOINT ["java", "-jar", "/app/sharing-service.jar"]
+# JVM memory configuration to prevent OutOfMemoryError with large notebooks
+# Heap: 1280MB max (leaves 768MB for off-heap: metaspace, direct buffers, thread stacks)
+# Optimized for 2GB App Runner instances processing notebooks up to 10MB
+# For 4GB instances: -Xmx2560m -Xms768m -XX:MaxMetaspaceSize=384m
+ENTRYPOINT ["java", \
+    "-Xmx1280m", \
+    "-Xms512m", \
+    "-XX:MaxMetaspaceSize=256m", \
+    "-XX:NativeMemoryTracking=summary", \
+    "-XX:+UseG1GC", \
+    "-XX:MaxGCPauseMillis=200", \
+    "-XX:G1HeapRegionSize=4m", \
+    "-XX:+UseStringDeduplication", \
+    "-jar", "/app/sharing-service.jar"]
