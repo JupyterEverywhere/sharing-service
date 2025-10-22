@@ -156,6 +156,7 @@ public class JupyterNotebookService {
 
     validateNotebookMetadata(notebookDto);
 
+    // Serialize once and reuse for validation, size check, and storage
     String notebookJsonString = objectMapper.writeValueAsString(notebookDto);
 
     validateNotebookSize(notebookJsonString, sessionId);
@@ -172,7 +173,8 @@ public class JupyterNotebookService {
 
     String fileName = notebookEntity.getId().toString() + ".ipynb";
 
-    String storageUrl = storeNotebook(notebookDto, fileName);
+    // Pass the already-serialized string instead of re-serializing
+    String storageUrl = storeNotebook(notebookJsonString, fileName);
 
     notebookEntity.setStorageUrl(storageUrl);
     notebookRepository.save(notebookEntity);
@@ -219,6 +221,7 @@ public class JupyterNotebookService {
 
     validateNotebookMetadata(notebookDto);
 
+    // Serialize once and reuse for validation, size check, and storage
     String notebookJsonString = objectMapper.writeValueAsString(notebookDto);
 
     validateNotebookSize(notebookJsonString, sessionId);
@@ -228,7 +231,8 @@ public class JupyterNotebookService {
     }
 
     String fileName = storedNotebook.getId().toString() + ".ipynb";
-    storeNotebook(notebookDto, fileName);
+    // Pass the already-serialized string instead of re-serializing
+    storeNotebook(notebookJsonString, fileName);
 
     updateNotebookMetadata(storedNotebook, notebookDto, sessionId);
 
@@ -276,8 +280,7 @@ public class JupyterNotebookService {
     notebookDto.setMetadata(metadata);
   }
 
-  String storeNotebook(JupyterNotebookDTO notebookDto, String fileName) throws JsonProcessingException {
-    String notebookJsonString = objectMapper.writeValueAsString(notebookDto);
+  String storeNotebook(String notebookJsonString, String fileName) {
     return storageService.uploadNotebook(notebookJsonString, fileName);
   }
 

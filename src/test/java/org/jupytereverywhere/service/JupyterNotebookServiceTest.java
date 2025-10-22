@@ -364,26 +364,13 @@ class JupyterNotebookServiceTest {
 
   @Test
   void testStoreNotebook_Success() throws Exception {
-    JupyterNotebookDTO notebookDto = createSampleNotebookDTO();
+    String notebookJsonString = "{\"cells\":[],\"metadata\":{},\"nbformat\":4,\"nbformat_minor\":5}";
 
     when(storageService.uploadNotebook(anyString(), anyString())).thenReturn("storage-url");
 
-    String result = notebookService.storeNotebook(notebookDto, "filename.ipynb");
+    String result = notebookService.storeNotebook(notebookJsonString, "filename.ipynb");
 
     assertEquals("storage-url", result);
-  }
-
-  @Test
-  void testStoreNotebook_JsonProcessingException() throws Exception {
-    JupyterNotebookDTO notebookDto = createSampleNotebookDTO();
-
-    doThrow(JsonProcessingException.class).when(objectMapper).writeValueAsString(notebookDto);
-
-    JsonProcessingException exception = assertThrows(JsonProcessingException.class, () -> {
-      notebookService.storeNotebook(notebookDto, "filename.ipynb");
-    });
-
-    assertNotNull(exception);
   }
 
   @Test
