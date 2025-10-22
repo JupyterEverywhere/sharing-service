@@ -107,6 +107,14 @@ public class JupyterNotebookService {
       throws InvalidNotebookException {
 
     JupyterNotebookDTO notebookDto = jupyterNotebookRequest.getNotebook();
+    if (notebookDto == null) {
+      log.error(new StringMapMessage()
+          .with(MESSAGE_KEY, "Notebook DTO is null")
+          .with(SESSION_ID_MESSAGE_KEY, sessionId.toString())
+          .with(DOMAIN_MESSAGE_KEY, domain));
+      throw new InvalidNotebookException("Notebook field is required and cannot be null");
+    }
+
     String password = jupyterNotebookRequest.getPassword();
 
     log.info(new StringMapMessage()
