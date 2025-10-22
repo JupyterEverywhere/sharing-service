@@ -52,20 +52,11 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 ENV PYTHON_SCRIPT_PATH=/app/scripts/validate_notebook.py
 COPY --from=build /app/build/libs/sharing-service-*.jar /app/sharing-service.jar
 COPY --chmod=0755 src/main/java/org/jupytereverywhere/script/validate_notebook.py ${PYTHON_SCRIPT_PATH}
+COPY --chmod=0755 entrypoint.sh /app/entrypoint.sh
 
 EXPOSE 8080
 
 # JVM memory configuration to prevent OutOfMemoryError with large notebooks
-# Heap: 1280MB max (leaves 768MB for off-heap: metaspace, direct buffers, thread stacks)
-# Optimized for 2GB App Runner instances processing notebooks up to 10MB
-# For 4GB instances: -Xmx2560m -Xms768m -XX:MaxMetaspaceSize=384m
-ENTRYPOINT ["java", \
-    "-Xmx1280m", \
-    "-Xms512m", \
-    "-XX:MaxMetaspaceSize=256m", \
-    "-XX:NativeMemoryTracking=summary", \
-    "-XX:+UseG1GC", \
-    "-XX:MaxGCPauseMillis=200", \
-    "-XX:G1HeapRegionSize=4m", \
-    "-XX:+UseStringDeduplication", \
-    "-jar", "/app/sharing-service.jar"]
+# Configure via environment variables (see entrypoint.sh for available settings)
+# Defaults are optimized for 2GB App Runner instances processing notebooks up to 10MB
+ENTRYPOINT ["/app/entrypoint.sh"]
