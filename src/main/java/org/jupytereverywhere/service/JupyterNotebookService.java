@@ -242,7 +242,7 @@ public class JupyterNotebookService {
           .with("NotebookSizeBytes", String.valueOf(notebookSizeBytes))
           .with("MaxSizeBytes", String.valueOf(maxNotebookSizeBytes)));
 
-      throw new NotebookTooLargeException(errorMessage);
+      throw new NotebookTooLargeException(errorMessage, notebookSizeBytes, maxNotebookSizeBytes);
     }
   }
 
