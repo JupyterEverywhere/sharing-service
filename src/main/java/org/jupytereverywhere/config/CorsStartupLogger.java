@@ -17,22 +17,22 @@ public class CorsStartupLogger implements ApplicationListener<ApplicationReadyEv
 
     @Value("${cors.enabled:false}")
     private boolean corsEnabled;
-    
+
     @Value("${cors.allowed-origins:}")
     private String allowedOrigins;
-    
+
     @Value("${cors.allowed-methods:}")
     private String allowedMethods;
-    
+
   @Value("${cors.allowed-headers:}")
   private String allowedHeaders;
-  
+
   @Value("${cors.exposed-headers:}")
   private String exposedHeaders;
-  
+
   @Value("${cors.allow-credentials:true}")
   private boolean allowCredentials;
-    
+
     @Value("${cors.max-age:3600}")
     private long maxAge;
 
@@ -59,7 +59,7 @@ public class CorsStartupLogger implements ApplicationListener<ApplicationReadyEv
         }
 
         log.info(corsConfigLog);
-        
+
         // Also log a human-readable summary
         if (corsEnabled) {
             log.info("🌐 CORS Configuration Active:");
@@ -78,12 +78,12 @@ public class CorsStartupLogger implements ApplicationListener<ApplicationReadyEv
         if (value == null || value.trim().isEmpty()) {
             return defaultValue;
         }
-        
+
         // If it's a comma-separated list, format it nicely
         if (value.contains(",")) {
             return Arrays.toString(value.split(",")).replaceAll("[\\[\\]]", "");
         }
-        
+
         return value;
     }
 }

@@ -255,4 +255,3 @@ class JwtExtractorTest {
     assertTrue(result, "Should match exact secret including whitespace");
   }
 }
-

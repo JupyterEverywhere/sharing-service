@@ -45,7 +45,7 @@ public class JupyterNotebookController {
 
   private final JupyterNotebookService notebookService;
 
-  
+
   public JupyterNotebookController(JupyterNotebookService notebookService) {
     this.notebookService = notebookService;
   }

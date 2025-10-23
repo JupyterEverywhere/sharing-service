@@ -28,4 +28,3 @@ public class JupyterNotebookDTO {
   @NotNull(message = "Cells array is required")
   private List<Map<String, Object>> cells;
 }
-

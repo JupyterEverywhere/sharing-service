@@ -31,14 +31,14 @@ public class HealthController {
     @GetMapping
     public ResponseEntity<Map<String, Object>> health() {
         log.info("Health check endpoint accessed");
-        
+
         Map<String, Object> response = new HashMap<>();
         response.put("status", "OK");
         response.put("message", "Sharing Service API is running");
         response.put("timestamp", Instant.now().toString());
         response.put("service", applicationInfoService.getName());
         response.put("version", applicationInfoService.getVersion());
-        
+
         return ResponseEntity.ok(response);
     }
 }

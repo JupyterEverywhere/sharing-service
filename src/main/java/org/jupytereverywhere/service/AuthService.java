@@ -24,7 +24,7 @@ public class AuthService {
     private final JupyterNotebookService notebookService;
     private final PasswordEncoder passwordEncoder;
 
-    
+
     public AuthService(
         JwtTokenService jwtTokenService,
         TokenStore tokenStore,

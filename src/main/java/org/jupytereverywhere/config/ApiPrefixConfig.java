@@ -14,4 +14,3 @@ public class ApiPrefixConfig implements WebMvcConfigurer {
     configurer.addPathPrefix(ApiConstants.API_BASE_URL, c -> c.isAnnotationPresent(RestController.class));
   }
 }
-

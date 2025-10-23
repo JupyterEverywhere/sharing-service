@@ -22,7 +22,7 @@ public class ApplicationInfoService {
     /**
      * Gets the application version from build properties.
      * Falls back to a default if build properties are not available.
-     * 
+     *
      * @return the application version
      */
     public String getVersion() {
@@ -36,7 +36,7 @@ public class ApplicationInfoService {
     /**
      * Gets the application name from build properties.
      * Falls back to a default if build properties are not available.
-     * 
+     *
      * @return the application name
      */
     public String getName() {
@@ -49,7 +49,7 @@ public class ApplicationInfoService {
     /**
      * Gets the application group from build properties.
      * Falls back to a default if build properties are not available.
-     * 
+     *
      * @return the application group
      */
     public String getGroup() {

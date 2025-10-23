@@ -10,4 +10,3 @@ public interface StorageService {
   JupyterNotebookDTO downloadNotebook(String fileName);
   void deleteNotebook(String fileName);
 }
-

@@ -21,4 +21,3 @@ class SecretRetrievalExceptionTest {
     assertEquals(cause, exception.getCause());
   }
 }
-

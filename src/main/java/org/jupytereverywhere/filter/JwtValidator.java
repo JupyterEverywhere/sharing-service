@@ -8,7 +8,7 @@ import org.jupytereverywhere.service.JwtTokenService;
 public class JwtValidator {
   private final JwtTokenService jwtTokenService;
 
-  
+
   public JwtValidator(JwtTokenService jwtTokenService) {
     this.jwtTokenService = jwtTokenService;
   }
@@ -17,4 +17,3 @@ public class JwtValidator {
     return jwtTokenService.validateToken(jwt);
   }
 }
-
