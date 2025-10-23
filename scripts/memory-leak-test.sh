@@ -104,7 +104,7 @@ PADDING=$(dd if=/dev/zero bs=1 count="$PADDING_BYTES" 2>/dev/null | tr '\000' 'X
 NOTEBOOK_JSON=$(cat <<EOF
 {
   "nbformat": 4,
-  "nbformat_minor": 4,
+  "nbformat_minor": 5,
   "metadata": {
     "kernelspec": {
       "display_name": "Python 3",
@@ -113,11 +113,18 @@ NOTEBOOK_JSON=$(cat <<EOF
     },
     "language_info": {
       "name": "python",
-      "version": "3.9.0"
+      "version": "3.9.0",
+      "codemirror_mode": {
+        "name": "ipython",
+        "version": 3
+      },
+      "file_extension": ".py",
+      "mimetype": "text/x-python"
     }
   },
   "cells": [
     {
+      "id": "test-cell-001",
       "cell_type": "code",
       "source": ["print('Memory leak test notebook')"],
       "metadata": {},
@@ -125,6 +132,7 @@ NOTEBOOK_JSON=$(cat <<EOF
       "execution_count": null
     },
     {
+      "id": "test-cell-002",
       "cell_type": "markdown",
       "source": ["Padding: ${PADDING}"],
       "metadata": {}
@@ -252,6 +260,52 @@ echo "Total iterations: $ITERATIONS"
 echo "Successful:       $success_count"
 echo "Failed:           $fail_count"
 echo ""
+
+# Idle monitoring to check if GC cleans up memory
+IDLE_DURATION="${IDLE_DURATION:-120}"  # Default 2 minutes
+if [ "$IDLE_DURATION" -gt 0 ]; then
+    echo "=== Idle Memory Monitoring ==="
+    echo "Waiting ${IDLE_DURATION}s to observe GC behavior..."
+    echo ""
+
+    idle_start_mem=$(docker stats --no-stream --format "{{.MemUsage}}" "$CONTAINER_ID" | awk '{print $1}')
+    idle_start_mb="${idle_start_mem%MiB}"
+
+    declare -a idle_samples_mb
+    idle_samples_mb+=("$idle_start_mb")
+
+    # Sample every 30 seconds during idle period
+    sample_count=$((IDLE_DURATION / 30))
+    for i in $(seq 1 "$sample_count"); do
+        sleep 30
+        idle_mem=$(docker stats --no-stream --format "{{.MemUsage}}" "$CONTAINER_ID" | awk '{print $1}')
+        idle_mem_mb="${idle_mem%MiB}"
+        idle_samples_mb+=("$idle_mem_mb")
+
+        elapsed=$((i * 30))
+        echo "Idle ${elapsed}s: ${idle_mem}"
+    done
+
+    echo ""
+    echo "=== GC Behavior Analysis ==="
+    idle_end_index=$((${#idle_samples_mb[@]} - 1))
+    idle_end_mb=${idle_samples_mb[$idle_end_index]}
+    idle_change=$(echo "scale=2; $idle_end_mb - $idle_start_mb" | bc)
+
+    echo "Memory at idle start: ${idle_start_mb}MiB"
+    echo "Memory at idle end:   ${idle_end_mb}MiB"
+    echo "Change during idle:   ${idle_change}MiB"
+    echo ""
+
+    if (( $(echo "$idle_change < -10" | bc -l) )); then
+        echo "SUCCESS: Memory decreased during idle (GC working properly)"
+    elif (( $(echo "$idle_change > 10" | bc -l) )); then
+        echo "WARNING: Memory increased during idle period"
+    else
+        echo "INFO: Memory remained stable (may indicate leak if elevated)"
+    fi
+    echo ""
+fi
 
 if [ "$success_count" -eq "$ITERATIONS" ]; then
     echo "SUCCESS: MEMORY LEAK TEST PASSED"
