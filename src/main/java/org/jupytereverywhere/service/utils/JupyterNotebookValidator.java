@@ -3,6 +3,7 @@ package org.jupytereverywhere.service.utils;
 import java.io.InputStream;
 import java.util.Set;
 
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -21,6 +22,7 @@ import org.apache.logging.log4j.message.StringMapMessage;
  */
 @Log4j2
 @Component
+@Primary
 public class JupyterNotebookValidator {
 
   public static final String MESSAGE = "Message";
