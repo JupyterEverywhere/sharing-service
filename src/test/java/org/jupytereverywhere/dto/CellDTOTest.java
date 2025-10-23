@@ -1,20 +1,20 @@
 package org.jupytereverywhere.dto;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import org.junit.jupiter.api.Test;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.junit.jupiter.api.Test;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 class CellDTOTest {
 
@@ -70,7 +70,8 @@ class CellDTOTest {
 
   @Test
   void testJsonDeserialization() throws JsonProcessingException {
-    String json = "{\"cell_type\":\"code\",\"metadata\":{\"author\":\"John Doe\"},\"source\":[\"print('Hello World')\"],\"execution_count\":1,\"outputs\":[{\"name\":\"stdout\",\"text\":[\"Hello World\\n\"]}]}";
+    String json =
+        "{\"cell_type\":\"code\",\"metadata\":{\"author\":\"John Doe\"},\"source\":[\"print('Hello World')\"],\"execution_count\":1,\"outputs\":[{\"name\":\"stdout\",\"text\":[\"Hello World\\n\"]}]}";
 
     ObjectMapper objectMapper = new ObjectMapper();
     CellDTO cell = objectMapper.readValue(json, CellDTO.class);

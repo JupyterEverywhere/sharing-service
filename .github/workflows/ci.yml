@@ -54,6 +54,9 @@ jobs:
       - name: Install Python dependencies
         run: uv pip install --system nbformat
 
+      - name: Check code formatting
+        run: ./gradlew spotlessCheck
+
       - name: Run tests with coverage
         run: ./gradlew test jacocoTestReport
 

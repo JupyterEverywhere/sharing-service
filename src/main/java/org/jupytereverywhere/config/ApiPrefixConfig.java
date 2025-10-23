@@ -11,6 +11,7 @@ public class ApiPrefixConfig implements WebMvcConfigurer {
 
   @Override
   public void configurePathMatch(@NonNull PathMatchConfigurer configurer) {
-    configurer.addPathPrefix(ApiConstants.API_BASE_URL, c -> c.isAnnotationPresent(RestController.class));
+    configurer.addPathPrefix(
+        ApiConstants.API_BASE_URL, c -> c.isAnnotationPresent(RestController.class));
   }
 }

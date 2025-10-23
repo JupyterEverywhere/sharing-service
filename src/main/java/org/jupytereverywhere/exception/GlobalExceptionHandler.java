@@ -12,13 +12,16 @@ public class GlobalExceptionHandler {
   public static final String INVALID_NOTEBOOK_MESSAGE = "Invalid notebook: ";
 
   @ExceptionHandler(HttpMessageNotReadableException.class)
-  public ResponseEntity<String> handleHttpMessageNotReadableException(HttpMessageNotReadableException ex) {
-    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(INVALID_NOTEBOOK_MESSAGE + ex.getMessage());
+  public ResponseEntity<String> handleHttpMessageNotReadableException(
+      HttpMessageNotReadableException ex) {
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+        .body(INVALID_NOTEBOOK_MESSAGE + ex.getMessage());
   }
 
   @ExceptionHandler(InvalidNotebookException.class)
   public ResponseEntity<String> handleInvalidNotebookException(InvalidNotebookException ex) {
-    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(INVALID_NOTEBOOK_MESSAGE + ex.getMessage());
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+        .body(INVALID_NOTEBOOK_MESSAGE + ex.getMessage());
   }
 
   @ExceptionHandler(NotebookTooLargeException.class)

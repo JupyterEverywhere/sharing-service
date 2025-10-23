@@ -3,6 +3,7 @@ package org.jupytereverywhere.service.utils;
 import java.io.InputStream;
 import java.util.Set;
 
+import org.apache.logging.log4j.message.StringMapMessage;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
@@ -14,11 +15,10 @@ import com.networknt.schema.SpecVersion;
 import com.networknt.schema.ValidationMessage;
 
 import lombok.extern.log4j.Log4j2;
-import org.apache.logging.log4j.message.StringMapMessage;
 
 /**
- * Native Java validator for Jupyter Notebook JSON using the nbformat JSON Schema.
- * This replaces the Python subprocess-based validation for improved performance.
+ * Native Java validator for Jupyter Notebook JSON using the nbformat JSON Schema. This replaces the
+ * Python subprocess-based validation for improved performance.
  */
 @Log4j2
 @Component
@@ -35,9 +35,10 @@ public class JupyterNotebookValidator {
     this.objectMapper = objectMapper;
     this.schema = loadSchema();
 
-    log.info(new StringMapMessage()
-        .with(MESSAGE, "JupyterNotebookValidator initialized")
-        .with("SchemaPath", SCHEMA_PATH));
+    log.info(
+        new StringMapMessage()
+            .with(MESSAGE, "JupyterNotebookValidator initialized")
+            .with("SchemaPath", SCHEMA_PATH));
   }
 
   private JsonSchema loadSchema() {
@@ -51,11 +52,13 @@ public class JupyterNotebookValidator {
 
       return factory.getSchema(schemaStream);
     } catch (Exception e) {
-      log.error(new StringMapMessage()
-          .with(MESSAGE, "Failed to load JSON schema")
-          .with("SchemaPath", SCHEMA_PATH)
-          .with("ExceptionType", e.getClass().getSimpleName())
-          .with("ExceptionMessage", e.getMessage()), e);
+      log.error(
+          new StringMapMessage()
+              .with(MESSAGE, "Failed to load JSON schema")
+              .with("SchemaPath", SCHEMA_PATH)
+              .with("ExceptionType", e.getClass().getSimpleName())
+              .with("ExceptionMessage", e.getMessage()),
+          e);
       throw new IllegalStateException("Failed to initialize notebook validator", e);
     }
   }
@@ -72,21 +75,23 @@ public class JupyterNotebookValidator {
       Set<ValidationMessage> errors = schema.validate(jsonNode);
 
       if (errors.isEmpty()) {
-        log.debug(new StringMapMessage()
-            .with(MESSAGE, "Notebook validation passed"));
+        log.debug(new StringMapMessage().with(MESSAGE, "Notebook validation passed"));
         return true;
       } else {
-        log.warn(new StringMapMessage()
-            .with(MESSAGE, "Notebook validation failed")
-            .with("ErrorCount", String.valueOf(errors.size()))
-            .with("Errors", errors.toString()));
+        log.warn(
+            new StringMapMessage()
+                .with(MESSAGE, "Notebook validation failed")
+                .with("ErrorCount", String.valueOf(errors.size()))
+                .with("Errors", errors.toString()));
         return false;
       }
     } catch (Exception e) {
-      log.error(new StringMapMessage()
-          .with(MESSAGE, "Exception during notebook validation")
-          .with("ExceptionType", e.getClass().getSimpleName())
-          .with("ExceptionMessage", e.getMessage()), e);
+      log.error(
+          new StringMapMessage()
+              .with(MESSAGE, "Exception during notebook validation")
+              .with("ExceptionType", e.getClass().getSimpleName())
+              .with("ExceptionMessage", e.getMessage()),
+          e);
       return false;
     }
   }

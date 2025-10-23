@@ -2,6 +2,8 @@ package org.jupytereverywhere.config;
 
 import java.util.Arrays;
 
+import org.jupytereverywhere.filter.JwtRequestFilter;
+import org.jupytereverywhere.filter.RequestSizeLimitFilter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -14,9 +16,6 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-
-import org.jupytereverywhere.filter.JwtRequestFilter;
-import org.jupytereverywhere.filter.RequestSizeLimitFilter;
 
 @Configuration
 @EnableWebSecurity
@@ -46,7 +45,8 @@ public class SecurityConfig {
   @Value("${cors.max-age:3600}")
   private long maxAge;
 
-  public SecurityConfig(JwtRequestFilter jwtRequestFilter, RequestSizeLimitFilter requestSizeLimitFilter) {
+  public SecurityConfig(
+      JwtRequestFilter jwtRequestFilter, RequestSizeLimitFilter requestSizeLimitFilter) {
     this.jwtRequestFilter = jwtRequestFilter;
     this.requestSizeLimitFilter = requestSizeLimitFilter;
   }
@@ -99,15 +99,15 @@ public class SecurityConfig {
     } else {
       http.cors(AbstractHttpConfigurer::disable);
     }
-    http
-        .csrf(AbstractHttpConfigurer::disable)
-        .authorizeHttpRequests(auth -> auth
-            .requestMatchers(SecurityConstants.PUBLIC_URLS).permitAll()
-            .anyRequest().authenticated()
-        )
-        .sessionManagement(session -> session
-            .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-        )
+    http.csrf(AbstractHttpConfigurer::disable)
+        .authorizeHttpRequests(
+            auth ->
+                auth.requestMatchers(SecurityConstants.PUBLIC_URLS)
+                    .permitAll()
+                    .anyRequest()
+                    .authenticated())
+        .sessionManagement(
+            session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .addFilterBefore(requestSizeLimitFilter, UsernamePasswordAuthenticationFilter.class)
         .addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
 

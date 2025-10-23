@@ -1,15 +1,5 @@
 package org.jupytereverywhere.filter;
 
-import org.springframework.mock.web.MockHttpServletRequest;
-import org.springframework.test.util.ReflectionTestUtils;
-
-import jakarta.servlet.http.HttpServletRequest;
-
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-
-import org.mockito.junit.jupiter.MockitoExtension;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -17,6 +7,14 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.test.util.ReflectionTestUtils;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 @ExtendWith(MockitoExtension.class)
 class JwtExtractorTest {
@@ -187,16 +185,17 @@ class JwtExtractorTest {
 
   @Test
   void testValidateExtraAuthHeader_WhenHeaderMissing_ShouldFail() {
-  JwtExtractor extractor = new JwtExtractor();
-  ReflectionTestUtils.setField(extractor, "extraAuthHeaderName", "x-origin-auth");
-  ReflectionTestUtils.setField(extractor, "extraAuthHeaderSecret", "secret123");
+    JwtExtractor extractor = new JwtExtractor();
+    ReflectionTestUtils.setField(extractor, "extraAuthHeaderName", "x-origin-auth");
+    ReflectionTestUtils.setField(extractor, "extraAuthHeaderSecret", "secret123");
 
-  MockHttpServletRequest request = new MockHttpServletRequest();
-  // No header added
+    MockHttpServletRequest request = new MockHttpServletRequest();
+    // No header added
 
-  boolean result = extractor.validateExtraAuthHeader(request);
+    boolean result = extractor.validateExtraAuthHeader(request);
 
-  assertFalse(result, "Should fail when extra auth header is missing and extra auth is configured");
+    assertFalse(
+        result, "Should fail when extra auth header is missing and extra auth is configured");
   }
 
   @Test

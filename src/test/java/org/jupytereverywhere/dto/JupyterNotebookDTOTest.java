@@ -1,21 +1,21 @@
 package org.jupytereverywhere.dto;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 class JupyterNotebookDTOTest {
 
@@ -26,7 +26,14 @@ class JupyterNotebookDTOTest {
     notebook.setNbformatMinor(2);
 
     KernelspecDTO kernelspec = new KernelspecDTO("python3", "Python 3", "python");
-    LanguageInfoDTO languageInfo = new LanguageInfoDTO(new CodemirrorModeDTO("python", 3), ".py", "text/x-python", "python", "python", "3.8.5");
+    LanguageInfoDTO languageInfo =
+        new LanguageInfoDTO(
+            new CodemirrorModeDTO("python", 3),
+            ".py",
+            "text/x-python",
+            "python",
+            "python",
+            "3.8.5");
     MetadataDTO metadata = new MetadataDTO(kernelspec, languageInfo);
     notebook.setMetadata(metadata);
 
@@ -49,7 +56,14 @@ class JupyterNotebookDTOTest {
     notebook.setNbformatMinor(2);
 
     KernelspecDTO kernelspec = new KernelspecDTO("python3", "Python 3", "python");
-    LanguageInfoDTO languageInfo = new LanguageInfoDTO(new CodemirrorModeDTO("python", 3), ".py", "text/x-python", "python", "python", "3.8.5");
+    LanguageInfoDTO languageInfo =
+        new LanguageInfoDTO(
+            new CodemirrorModeDTO("python", 3),
+            ".py",
+            "text/x-python",
+            "python",
+            "python",
+            "3.8.5");
     MetadataDTO metadata = new MetadataDTO(kernelspec, languageInfo);
     notebook.setMetadata(metadata);
 
@@ -69,7 +83,8 @@ class JupyterNotebookDTOTest {
 
   @Test
   void testJsonDeserialization() throws JsonProcessingException {
-    String json = "{\"nbformat\":4,\"nbformat_minor\":2,\"metadata\":{\"kernelspec\":{\"display_name\":\"Python 3\",\"name\":\"python3\"},\"language_info\":{\"name\":\"python\",\"version\":\"3.8.5\",\"file_extension\":\".py\"}},\"cells\":[{\"cell_type\":\"code\",\"source\":[\"print('Hello World')\"]}]}";
+    String json =
+        "{\"nbformat\":4,\"nbformat_minor\":2,\"metadata\":{\"kernelspec\":{\"display_name\":\"Python 3\",\"name\":\"python3\"},\"language_info\":{\"name\":\"python\",\"version\":\"3.8.5\",\"file_extension\":\".py\"}},\"cells\":[{\"cell_type\":\"code\",\"source\":[\"print('Hello World')\"]}]}";
 
     ObjectMapper objectMapper = new ObjectMapper();
     JupyterNotebookDTO notebook = objectMapper.readValue(json, JupyterNotebookDTO.class);
@@ -195,13 +210,16 @@ class JupyterNotebookDTOTest {
 
   @Test
   void testFullConstructor() {
-    MetadataDTO metadata = new MetadataDTO(
-        new KernelspecDTO("python3", "Python 3", "python"),
-        new LanguageInfoDTO(
-            new CodemirrorModeDTO("python", 3),
-            ".py", "text/x-python", "python", "python", "3.8.5"
-        )
-    );
+    MetadataDTO metadata =
+        new MetadataDTO(
+            new KernelspecDTO("python3", "Python 3", "python"),
+            new LanguageInfoDTO(
+                new CodemirrorModeDTO("python", 3),
+                ".py",
+                "text/x-python",
+                "python",
+                "python",
+                "3.8.5"));
 
     Map<String, Object> cell = new HashMap<>();
     cell.put("cell_type", "code");
@@ -238,7 +256,8 @@ class JupyterNotebookDTOTest {
     JupyterNotebookDTO notebook1 = new JupyterNotebookDTO();
     notebook1.setNbformat(4);
     notebook1.setNbformatMinor(2);
-    notebook1.setCells(List.of(Map.of("cell_type", "code", "source", List.of("print('Hello World')"))));
+    notebook1.setCells(
+        List.of(Map.of("cell_type", "code", "source", List.of("print('Hello World')"))));
 
     JupyterNotebookDTO notebook2 = new JupyterNotebookDTO();
     notebook2.setNbformat(4);

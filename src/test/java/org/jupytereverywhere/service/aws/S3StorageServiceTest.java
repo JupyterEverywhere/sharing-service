@@ -1,11 +1,27 @@
 package org.jupytereverywhere.service.aws;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
+
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.jupytereverywhere.dto.JupyterNotebookDTO;
+import org.jupytereverywhere.exception.S3DownloadException;
+import org.jupytereverywhere.service.aws.secrets.SecretsService;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import software.amazon.awssdk.core.ResponseInputStream;
@@ -15,36 +31,14 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 
-import org.jupytereverywhere.dto.JupyterNotebookDTO;
-import org.jupytereverywhere.exception.S3DownloadException;
-import org.jupytereverywhere.service.aws.secrets.SecretsService;
-
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
-
 @ExtendWith(MockitoExtension.class)
 class S3StorageServiceTest {
 
-  @Mock
-  private SecretsService secretsService;
+  @Mock private SecretsService secretsService;
 
-  @Mock
-  private S3Client s3Client;
+  @Mock private S3Client s3Client;
 
-  @InjectMocks
-  private S3StorageService s3StorageService;
+  @InjectMocks private S3StorageService s3StorageService;
 
   private Map<String, String> secretValues;
   private String notebookJson;
@@ -69,19 +63,20 @@ class S3StorageServiceTest {
     when(secretsService.getSecretValues("jupyter-s3")).thenReturn(secretValues);
     s3StorageService.initializeS3Client();
     try {
-      java.lang.reflect.Field s3ClientField = s3StorageService.getClass().getDeclaredField("s3Client");
+      java.lang.reflect.Field s3ClientField =
+          s3StorageService.getClass().getDeclaredField("s3Client");
       s3ClientField.setAccessible(true);
       s3ClientField.set(s3StorageService, s3Client);
     } catch (NoSuchFieldException | IllegalAccessException e) {
       throw new RuntimeException(e);
     }
-    notebookJson = "{\"nbformat\":4,\"nbformat_minor\":2,\"metadata\":{\"kernelspec\":{\"name\":\"python3\",\"display_name\":\"Python 3\"},\"language_info\":{\"name\":\"python\",\"version\":\"3.8.5\"}},\"cells\":[]}";
-    InputStream inputStream = new ByteArrayInputStream(notebookJson.getBytes(StandardCharsets.UTF_8));
+    notebookJson =
+        "{\"nbformat\":4,\"nbformat_minor\":2,\"metadata\":{\"kernelspec\":{\"name\":\"python3\",\"display_name\":\"Python 3\"},\"language_info\":{\"name\":\"python\",\"version\":\"3.8.5\"}},\"cells\":[]}";
+    InputStream inputStream =
+        new ByteArrayInputStream(notebookJson.getBytes(StandardCharsets.UTF_8));
     GetObjectResponse getObjectResponse = GetObjectResponse.builder().build();
-    ResponseInputStream<GetObjectResponse> responseInputStream = new ResponseInputStream<>(
-        getObjectResponse,
-        AbortableInputStream.create(inputStream)
-    );
+    ResponseInputStream<GetObjectResponse> responseInputStream =
+        new ResponseInputStream<>(getObjectResponse, AbortableInputStream.create(inputStream));
     when(s3Client.getObject(any(GetObjectRequest.class))).thenReturn(responseInputStream);
     JupyterNotebookDTO result = s3StorageService.downloadNotebook(fileName);
     assertNotNull(result);
@@ -103,19 +98,20 @@ class S3StorageServiceTest {
     ReflectionTestUtils.setField(s3StorageService, "s3SecretName", "custom-secret-name");
     s3StorageService.initializeS3Client();
     try {
-      java.lang.reflect.Field s3ClientField = s3StorageService.getClass().getDeclaredField("s3Client");
+      java.lang.reflect.Field s3ClientField =
+          s3StorageService.getClass().getDeclaredField("s3Client");
       s3ClientField.setAccessible(true);
       s3ClientField.set(s3StorageService, s3Client);
     } catch (NoSuchFieldException | IllegalAccessException e) {
       throw new RuntimeException(e);
     }
-    notebookJson = "{\"nbformat\":4,\"nbformat_minor\":2,\"metadata\":{\"kernelspec\":{\"name\":\"python3\",\"display_name\":\"Python 3\"},\"language_info\":{\"name\":\"python\",\"version\":\"3.8.5\"}},\"cells\":[]}";
-    InputStream inputStream = new ByteArrayInputStream(notebookJson.getBytes(StandardCharsets.UTF_8));
+    notebookJson =
+        "{\"nbformat\":4,\"nbformat_minor\":2,\"metadata\":{\"kernelspec\":{\"name\":\"python3\",\"display_name\":\"Python 3\"},\"language_info\":{\"name\":\"python\",\"version\":\"3.8.5\"}},\"cells\":[]}";
+    InputStream inputStream =
+        new ByteArrayInputStream(notebookJson.getBytes(StandardCharsets.UTF_8));
     GetObjectResponse getObjectResponse = GetObjectResponse.builder().build();
-    ResponseInputStream<GetObjectResponse> responseInputStream = new ResponseInputStream<>(
-        getObjectResponse,
-        AbortableInputStream.create(inputStream)
-    );
+    ResponseInputStream<GetObjectResponse> responseInputStream =
+        new ResponseInputStream<>(getObjectResponse, AbortableInputStream.create(inputStream));
     when(s3Client.getObject(any(GetObjectRequest.class))).thenReturn(responseInputStream);
     JupyterNotebookDTO result = s3StorageService.downloadNotebook(fileName);
     assertNotNull(result);
@@ -139,7 +135,8 @@ class S3StorageServiceTest {
     when(secretsService.getSecretValues("jupyter-s3")).thenReturn(secretValues);
     s3StorageService.initializeS3Client();
     try {
-      java.lang.reflect.Field s3ClientField = s3StorageService.getClass().getDeclaredField("s3Client");
+      java.lang.reflect.Field s3ClientField =
+          s3StorageService.getClass().getDeclaredField("s3Client");
       s3ClientField.setAccessible(true);
       s3ClientField.set(s3StorageService, s3Client);
     } catch (NoSuchFieldException | IllegalAccessException e) {
@@ -147,9 +144,12 @@ class S3StorageServiceTest {
     }
     when(s3Client.getObject(any(GetObjectRequest.class)))
         .thenThrow(NoSuchKeyException.builder().message("File not found").build());
-    Exception exception = assertThrows(S3DownloadException.class, () -> {
-      s3StorageService.downloadNotebook(fileName);
-    });
+    Exception exception =
+        assertThrows(
+            S3DownloadException.class,
+            () -> {
+              s3StorageService.downloadNotebook(fileName);
+            });
     String expectedMessage = "Error downloading notebook from S3";
     String actualMessage = exception.getMessage();
     assertTrue(actualMessage.contains(expectedMessage));

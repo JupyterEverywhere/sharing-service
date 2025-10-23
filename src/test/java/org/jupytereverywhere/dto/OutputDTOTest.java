@@ -1,20 +1,20 @@
 package org.jupytereverywhere.dto;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import org.junit.jupiter.api.Test;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+
+import org.junit.jupiter.api.Test;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 class OutputDTOTest {
 
@@ -35,7 +35,8 @@ class OutputDTOTest {
 
     output.setEname("NameError");
     output.setEvalue("name 'x' is not defined");
-    output.setTraceback(Arrays.asList("Traceback (most recent call last):", "NameError: name 'x' is not defined"));
+    output.setTraceback(
+        Arrays.asList("Traceback (most recent call last):", "NameError: name 'x' is not defined"));
 
     assertEquals("stream", output.getOutputType());
     assertEquals(Arrays.asList("Hello World\n"), output.getText());
@@ -44,7 +45,9 @@ class OutputDTOTest {
     assertEquals(metadata, output.getMetadata());
     assertEquals("NameError", output.getEname());
     assertEquals("name 'x' is not defined", output.getEvalue());
-    assertEquals(Arrays.asList("Traceback (most recent call last):", "NameError: name 'x' is not defined"), output.getTraceback());
+    assertEquals(
+        Arrays.asList("Traceback (most recent call last):", "NameError: name 'x' is not defined"),
+        output.getTraceback());
   }
 
   @Test
@@ -179,7 +182,8 @@ class OutputDTOTest {
 
     OutputDTO output2 = new OutputDTO();
 
-    assertFalse(output1.equals(output2), "Objects with different values in outputType should not be equal");
+    assertFalse(
+        output1.equals(output2), "Objects with different values in outputType should not be equal");
   }
 
   @Test
@@ -191,7 +195,8 @@ class OutputDTOTest {
     OutputDTO output2 = new OutputDTO();
     output2.setOutputType("stream");
 
-    assertFalse(output1.equals(output2), "Objects with different values in name should not be equal");
+    assertFalse(
+        output1.equals(output2), "Objects with different values in name should not be equal");
   }
 
   @Test
@@ -204,7 +209,8 @@ class OutputDTOTest {
     output1.setName("stdout");
     output1.setEname("NameError");
     output1.setEvalue("name 'x' is not defined");
-    output1.setTraceback(Arrays.asList("Traceback (most recent call last):", "NameError: name 'x' is not defined"));
+    output1.setTraceback(
+        Arrays.asList("Traceback (most recent call last):", "NameError: name 'x' is not defined"));
 
     OutputDTO output2 = new OutputDTO();
     output2.setOutputType("error");
@@ -214,7 +220,9 @@ class OutputDTOTest {
     output2.setName("stderr");
     output2.setEname("TypeError");
     output2.setEvalue("unsupported operand type(s)");
-    output2.setTraceback(Arrays.asList("Traceback (most recent call last):", "TypeError: unsupported operand type(s)"));
+    output2.setTraceback(
+        Arrays.asList(
+            "Traceback (most recent call last):", "TypeError: unsupported operand type(s)"));
 
     assertFalse(output1.equals(output2), "Objects with all fields different should not be equal");
   }
@@ -229,7 +237,8 @@ class OutputDTOTest {
     output2.setOutputType("stream");
     output2.setName("stderr");
 
-    assertFalse(output1.equals(output2), "Objects with different values in name should not be equal");
+    assertFalse(
+        output1.equals(output2), "Objects with different values in name should not be equal");
   }
 
   @Test
@@ -259,7 +268,10 @@ class OutputDTOTest {
     OutputDTO output1 = new OutputDTO();
     OutputDTO output2 = new OutputDTO();
 
-    assertEquals(output1.hashCode(), output2.hashCode(), "Objects with all fields null should have the same hashCode");
+    assertEquals(
+        output1.hashCode(),
+        output2.hashCode(),
+        "Objects with all fields null should have the same hashCode");
   }
 
   @Test
@@ -269,7 +281,10 @@ class OutputDTOTest {
 
     OutputDTO output2 = new OutputDTO();
 
-    assertNotEquals(output1.hashCode(), output2.hashCode(), "Objects with different values in outputType should have different hashCodes");
+    assertNotEquals(
+        output1.hashCode(),
+        output2.hashCode(),
+        "Objects with different values in outputType should have different hashCodes");
   }
 
   @Test
@@ -281,6 +296,9 @@ class OutputDTOTest {
     OutputDTO output2 = new OutputDTO();
     output2.setOutputType("stream");
 
-    assertNotEquals(output1.hashCode(), output2.hashCode(), "Objects with different values in name should have different hashCodes");
+    assertNotEquals(
+        output1.hashCode(),
+        output2.hashCode(),
+        "Objects with different values in name should have different hashCodes");
   }
 }
