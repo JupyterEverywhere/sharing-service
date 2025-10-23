@@ -103,7 +103,7 @@ fi
 # Sequential uploads
 start_time=$(date +%s)
 
-for i in $(seq 1 "$COUNT"); do
+for _ in $(seq 1 "$COUNT"); do
     temp_request=$(mktemp)
     echo "$NOTEBOOK_JSON" | jq -s '{password: "", notebook: .[0]}' > "$temp_request"
 
