@@ -1,11 +1,11 @@
 package org.jupytereverywhere.filter;
 
+import org.apache.logging.log4j.message.StringMapMessage;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.log4j.Log4j2;
-import org.apache.logging.log4j.message.StringMapMessage;
 
 @Log4j2
 @Component
@@ -41,8 +41,10 @@ public class JwtExtractor {
 
   public boolean validateExtraAuthHeader(HttpServletRequest request) {
     // Only enforce extra auth if both name and secret are set and not empty
-    if (extraAuthHeaderName == null || extraAuthHeaderName.trim().isEmpty() ||
-        extraAuthHeaderSecret == null || extraAuthHeaderSecret.trim().isEmpty()) {
+    if (extraAuthHeaderName == null
+        || extraAuthHeaderName.trim().isEmpty()
+        || extraAuthHeaderSecret == null
+        || extraAuthHeaderSecret.trim().isEmpty()) {
       return true; // Not configured, always pass
     }
 
@@ -56,7 +58,8 @@ public class JwtExtractor {
     }
     boolean isValid = extraAuthHeaderSecret.equals(headerValue);
     if (isValid) {
-      log.debug(new StringMapMessage().with(MESSAGE_KEY, "Extra auth header validation successful"));
+      log.debug(
+          new StringMapMessage().with(MESSAGE_KEY, "Extra auth header validation successful"));
     } else {
       log.debug(new StringMapMessage().with(MESSAGE_KEY, "Extra auth header validation failed"));
     }

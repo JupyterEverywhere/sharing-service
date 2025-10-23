@@ -1,12 +1,12 @@
 package org.jupytereverywhere.model.request;
 
+import org.jupytereverywhere.dto.JupyterNotebookDTO;
+
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import org.jupytereverywhere.dto.JupyterNotebookDTO;
 
 @Data
 @AllArgsConstructor

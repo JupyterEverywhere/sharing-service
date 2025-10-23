@@ -86,7 +86,8 @@ main() {
   mv "$TEMP_FILE" "$OUTPUT_FILE"
 
   # Create attribution file
-  local download_date=$(date +"%Y-%m-%d")
+  local download_date
+  download_date=$(date +"%Y-%m-%d")
   local attribution_file="${OUTPUT_DIR}/nbformat-schema-LICENSE.txt"
 
   cat > "$attribution_file" <<EOF
@@ -152,7 +153,8 @@ EOF
   log_info "Date: ${download_date}"
 
   # Show file size
-  local file_size=$(du -h "$OUTPUT_FILE" | awk '{print $1}')
+  local file_size
+  file_size=$(du -h "$OUTPUT_FILE" | awk '{print $1}')
   log_info "File size: ${file_size}"
 
   # Verify with Java that it's still a valid JSON Schema

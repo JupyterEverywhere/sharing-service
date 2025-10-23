@@ -9,7 +9,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class JupyterNotebookSavedResponse implements JupyterNotebookResponse {
 
-    private String message;
-    private JupyterNotebookSaved notebook;
-
+  private String message;
+  private JupyterNotebookSaved notebook;
 }

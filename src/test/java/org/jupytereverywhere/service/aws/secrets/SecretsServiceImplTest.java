@@ -1,36 +1,35 @@
 package org.jupytereverywhere.service.aws.secrets;
 
-import java.util.Map;
-
-import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
-import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
-import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
-
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import java.util.Map;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
+
 public class SecretsServiceImplTest {
 
-  @Mock
-  private SecretsManagerClient secretsManager;
+  @Mock private SecretsManagerClient secretsManager;
 
   @InjectMocks
-  private SecretsServiceImpl secretsServiceImpl = new SecretsServiceImpl() {
-    @Override
-    public Map<String, String> getSecretValues(String secretName) {
-      return Map.of();
-    }
-  };
+  private SecretsServiceImpl secretsServiceImpl =
+      new SecretsServiceImpl() {
+        @Override
+        public Map<String, String> getSecretValues(String secretName) {
+          return Map.of();
+        }
+      };
 
   @BeforeEach
   public void setup() {
@@ -43,10 +42,10 @@ public class SecretsServiceImplTest {
     String secretName = "test-secret";
     String secretString = "{\"key1\":\"value1\", \"key2\":\"value2\"}";
 
-    GetSecretValueResponse secretValueResponse = GetSecretValueResponse.builder()
-        .secretString(secretString)
-        .build();
-    when(secretsManager.getSecretValue(any(GetSecretValueRequest.class))).thenReturn(secretValueResponse);
+    GetSecretValueResponse secretValueResponse =
+        GetSecretValueResponse.builder().secretString(secretString).build();
+    when(secretsManager.getSecretValue(any(GetSecretValueRequest.class)))
+        .thenReturn(secretValueResponse);
 
     Map<String, String> secretValues = secretsServiceImpl.fetchSecretValues(secretName);
 
@@ -60,21 +59,25 @@ public class SecretsServiceImplTest {
     String secretNameWithoutPrefix = "my-secret";
     String secretNameWithPrefix = "test-my-secret";
 
-    GetSecretValueResponse secretValueResponse = GetSecretValueResponse.builder()
-        .secretString("{\"key1\":\"value1\"}")
-        .build();
-    when(secretsManager.getSecretValue(any(GetSecretValueRequest.class))).thenReturn(secretValueResponse);
+    GetSecretValueResponse secretValueResponse =
+        GetSecretValueResponse.builder().secretString("{\"key1\":\"value1\"}").build();
+    when(secretsManager.getSecretValue(any(GetSecretValueRequest.class)))
+        .thenReturn(secretValueResponse);
 
-    assertDoesNotThrow(() -> {
-      Map<String, String> secretValues = secretsServiceImpl.fetchSecretValues(secretNameWithoutPrefix);
-      assertNotNull(secretValues);
-      assertEquals("value1", secretValues.get("key1"));
-    });
+    assertDoesNotThrow(
+        () -> {
+          Map<String, String> secretValues =
+              secretsServiceImpl.fetchSecretValues(secretNameWithoutPrefix);
+          assertNotNull(secretValues);
+          assertEquals("value1", secretValues.get("key1"));
+        });
 
-    assertDoesNotThrow(() -> {
-      Map<String, String> secretValues = secretsServiceImpl.fetchSecretValues(secretNameWithPrefix);
-      assertNotNull(secretValues);
-      assertEquals("value1", secretValues.get("key1"));
-    });
+    assertDoesNotThrow(
+        () -> {
+          Map<String, String> secretValues =
+              secretsServiceImpl.fetchSecretValues(secretNameWithPrefix);
+          assertNotNull(secretValues);
+          assertEquals("value1", secretValues.get("key1"));
+        });
   }
 }

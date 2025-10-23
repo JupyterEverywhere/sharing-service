@@ -8,9 +8,7 @@ set -eou pipefail
 # Color definitions
 readonly RED='\033[0;31m'
 readonly GREEN='\033[0;32m'
-readonly YELLOW='\033[1;33m'
 readonly BLUE='\033[0;34m'
-readonly PURPLE='\033[0;35m'
 readonly CYAN='\033[0;36m'
 readonly WHITE='\033[1;37m'
 readonly NC='\033[0m' # No Color
@@ -57,7 +55,8 @@ main() {
   log_info "Generating ${NOTEBOOK_SIZE_KB}KB test notebook..."
   ./scripts/generate-test-notebook.sh "$NOTEBOOK_SIZE_KB" "$NOTEBOOK_PATH"
 
-  local notebook_size=$(du -h "$NOTEBOOK_PATH" | awk '{print $1}')
+  local notebook_size
+  notebook_size=$(du -h "$NOTEBOOK_PATH" | awk '{print $1}')
   log_info "Using notebook: $NOTEBOOK_PATH ($notebook_size)"
 
   # Start services
@@ -79,7 +78,8 @@ main() {
 
   # Issue auth token
   log_info "Issuing auth token..."
-  local token=$(curl -s -X POST "$SERVICE_URL/auth/issue" | jq -r .token)
+  local token
+  token=$(curl -s -X POST "$SERVICE_URL/auth/issue" | jq -r .token)
   if [[ -z "$token" || "$token" == "null" ]]; then
     log_error "Failed to issue auth token"
     exit 1
@@ -87,7 +87,8 @@ main() {
   log_success "Auth token obtained"
 
   # Read notebook content
-  local notebook_json=$(cat "$NOTEBOOK_PATH")
+  local notebook_json
+  notebook_json=$(cat "$NOTEBOOK_PATH")
 
   # Array to store upload times
   declare -a upload_times
@@ -95,28 +96,33 @@ main() {
   # Run upload iterations
   print_header "Running $ITERATIONS upload iterations"
 
-  for ((i=1; i<=$ITERATIONS; i++)); do
+  for ((i=1; i<=ITERATIONS; i++)); do
     log_info "Upload $i/$ITERATIONS..."
 
-    local start_time=$(date +%s.%N)
+    local start_time
+    start_time=$(date +%s.%N)
 
-    local response=$(curl -s -w "\n%{http_code}" \
+    local response
+    response=$(curl -s -w "\n%{http_code}" \
       -X POST "$SERVICE_URL/notebooks" \
       -H "Authorization: Bearer $token" \
       -H "Content-Type: application/json" \
       -d "{\"notebook\": $notebook_json}" \
       --max-time $TIMEOUT)
 
-    local end_time=$(date +%s.%N)
-    local http_code=$(echo "$response" | tail -n 1)
+    local end_time
+    end_time=$(date +%s.%N)
+    local http_code
+    http_code=$(echo "$response" | tail -n 1)
 
     if [[ "$http_code" != "201" ]]; then
       log_error "Upload $i failed with HTTP $http_code"
       continue
     fi
 
-    local upload_time=$(echo "$end_time - $start_time" | bc)
-    upload_times+=($upload_time)
+    local upload_time
+    upload_time=$(echo "$end_time - $start_time" | bc)
+    upload_times+=("$upload_time")
 
     log_success "Upload $i completed in ${upload_time}s"
   done
@@ -143,7 +149,8 @@ main() {
     fi
   done
 
-  local avg=$(echo "scale=2; $total / ${#upload_times[@]}" | bc)
+  local avg
+  avg=$(echo "scale=2; $total / ${#upload_times[@]}" | bc)
 
   echo -e "${WHITE}Iterations:${NC} ${#upload_times[@]}/$ITERATIONS successful"
   echo -e "${WHITE}Notebook Size:${NC} $notebook_size"

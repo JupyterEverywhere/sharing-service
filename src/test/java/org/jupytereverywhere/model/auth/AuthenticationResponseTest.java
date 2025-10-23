@@ -1,13 +1,13 @@
 package org.jupytereverywhere.model.auth;
 
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 class AuthenticationResponseTest {
 
@@ -45,7 +45,8 @@ class AuthenticationResponseTest {
 
   @Test
   void testEquals_SameObject() {
-    assertEquals(authenticationResponse, authenticationResponse, "An object should be equal to itself");
+    assertEquals(
+        authenticationResponse, authenticationResponse, "An object should be equal to itself");
   }
 
   @Test
@@ -64,7 +65,8 @@ class AuthenticationResponseTest {
   @Test
   void testEquals_DifferentType() {
     AuthenticationResponse response1 = new AuthenticationResponse("sampleToken");
-    assertNotEquals("Some String", response1, "An object should not be equal to an object of a different type");
+    assertNotEquals(
+        "Some String", response1, "An object should not be equal to an object of a different type");
   }
 
   @Test
@@ -78,25 +80,35 @@ class AuthenticationResponseTest {
   void testHashCode_SameValues() {
     AuthenticationResponse response1 = new AuthenticationResponse("sampleToken");
     AuthenticationResponse response2 = new AuthenticationResponse("sampleToken");
-    assertEquals(response1.hashCode(), response2.hashCode(), "HashCode should be the same for objects with the same values");
+    assertEquals(
+        response1.hashCode(),
+        response2.hashCode(),
+        "HashCode should be the same for objects with the same values");
   }
 
   @Test
   void testHashCode_DifferentValues() {
     AuthenticationResponse response1 = new AuthenticationResponse("sampleToken");
     AuthenticationResponse response2 = new AuthenticationResponse("differentToken");
-    assertNotEquals(response1.hashCode(), response2.hashCode(), "HashCode should be different for objects with different values");
+    assertNotEquals(
+        response1.hashCode(),
+        response2.hashCode(),
+        "HashCode should be different for objects with different values");
   }
 
   @Test
   void testCanEqual() {
     AuthenticationResponse response1 = new AuthenticationResponse();
-    assertTrue(response1.canEqual(new AuthenticationResponse()), "canEqual should return true for objects of the same type");
+    assertTrue(
+        response1.canEqual(new AuthenticationResponse()),
+        "canEqual should return true for objects of the same type");
   }
 
   @Test
   void testCanEqual_DifferentType() {
     AuthenticationResponse response = new AuthenticationResponse();
-    assertFalse(response.canEqual("Some String"), "canEqual should return false for objects of different types");
+    assertFalse(
+        response.canEqual("Some String"),
+        "canEqual should return false for objects of different types");
   }
 }

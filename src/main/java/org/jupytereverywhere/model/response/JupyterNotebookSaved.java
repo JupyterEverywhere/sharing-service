@@ -3,6 +3,7 @@ package org.jupytereverywhere.model.response;
 import java.util.UUID;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -12,12 +13,11 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class JupyterNotebookSaved {
 
-    private UUID id;
+  private UUID id;
 
-    @JsonProperty("domain_id")
-    private String domain;
+  @JsonProperty("domain_id")
+  private String domain;
 
-    @JsonProperty("readable_id")
-    private String readableId;
-
+  @JsonProperty("readable_id")
+  private String readableId;
 }

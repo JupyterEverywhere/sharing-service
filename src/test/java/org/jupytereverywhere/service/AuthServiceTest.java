@@ -1,21 +1,5 @@
 package org.jupytereverywhere.service;
 
-import java.util.UUID;
-
-import org.jupytereverywhere.exception.TokenRefreshException;
-import org.jupytereverywhere.model.TokenStore;
-import org.jupytereverywhere.model.auth.AuthenticationRequest;
-import org.jupytereverywhere.model.auth.AuthenticationResponse;
-
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -26,25 +10,37 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.UUID;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.jupytereverywhere.exception.TokenRefreshException;
+import org.jupytereverywhere.model.TokenStore;
+import org.jupytereverywhere.model.auth.AuthenticationRequest;
+import org.jupytereverywhere.model.auth.AuthenticationResponse;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
+
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class AuthServiceTest {
 
-  @Mock
-  private JwtTokenService jwtTokenService;
+  @Mock private JwtTokenService jwtTokenService;
 
-  @Mock
-  private TokenStore tokenStore;
+  @Mock private TokenStore tokenStore;
 
-  @InjectMocks
-  private AuthService authService;
+  @InjectMocks private AuthService authService;
 
   @Test
   void testGenerateInitialTokenResponse_Success() {
     String expectedToken = "some-jwt-token";
     when(jwtTokenService.generateToken(anyString())).thenReturn(expectedToken);
 
-    AuthenticationResponse response = authService.generateInitialTokenResponse(new AuthenticationRequest());
+    AuthenticationResponse response =
+        authService.generateInitialTokenResponse(new AuthenticationRequest());
 
     assertNotNull(response);
     assertEquals(expectedToken, response.getToken());
@@ -68,7 +64,8 @@ class AuthServiceTest {
     AuthenticationResponse response = authService.refreshTokenResponse(oldToken);
 
     assertNotNull(response, "AuthenticationResponse should not be null");
-    assertEquals(expectedToken, response.getToken(), "The new token should match the expected value");
+    assertEquals(
+        expectedToken, response.getToken(), "The new token should match the expected value");
 
     verify(jwtTokenService).extractSessionIdFromToken(oldToken);
     verify(jwtTokenService).extractNotebookIdFromToken(oldToken);

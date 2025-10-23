@@ -1,20 +1,19 @@
 package org.jupytereverywhere.config;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 /**
- * Jackson configuration for stricter JSON deserialization.
- * Configures Jackson to fail on:
- * - Null values for primitive types (int, boolean, etc.)
- * - Trailing tokens after valid JSON
- * - Null values passed to constructor parameters
+ * Jackson configuration for stricter JSON deserialization. Configures Jackson to fail on: - Null
+ * values for primitive types (int, boolean, etc.) - Trailing tokens after valid JSON - Null values
+ * passed to constructor parameters
  *
- * Note: This does not prevent null values for missing object fields.
- * Use @NotNull with Bean Validation to enforce required fields.
+ * <p>Note: This does not prevent null values for missing object fields. Use @NotNull with Bean
+ * Validation to enforce required fields.
  */
 @Configuration
 public class JacksonConfig {

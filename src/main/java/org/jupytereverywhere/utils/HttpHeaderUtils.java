@@ -3,11 +3,11 @@ package org.jupytereverywhere.utils;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
+import org.apache.logging.log4j.message.StringMapMessage;
 import org.springframework.http.HttpHeaders;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.log4j.Log4j2;
-import org.apache.logging.log4j.message.StringMapMessage;
 
 @Log4j2
 public class HttpHeaderUtils {
@@ -70,7 +70,9 @@ public class HttpHeaderUtils {
       InetAddress inetAddress = InetAddress.getByName(ip);
       // Check if it's a valid IP by verifying the hostname is an IP address format
       String hostAddress = inetAddress.getHostAddress();
-      return hostAddress.equals(ip) || ip.matches("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$|^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$");
+      return hostAddress.equals(ip)
+          || ip.matches(
+              "^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$|^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$");
     } catch (UnknownHostException e) {
       return false;
     }
@@ -96,7 +98,10 @@ public class HttpHeaderUtils {
   }
 
   private static void logError(String value, Exception e) {
-    log.error(new StringMapMessage().with(MESSAGE_KEY, "Failed to resolve host name")
-        .with(CLIENT_IP_KEY, value), e);
+    log.error(
+        new StringMapMessage()
+            .with(MESSAGE_KEY, "Failed to resolve host name")
+            .with(CLIENT_IP_KEY, value),
+        e);
   }
 }

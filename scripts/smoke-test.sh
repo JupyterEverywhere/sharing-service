@@ -250,7 +250,7 @@ retrieve_notebook() {
 
   # Extract HTTP status and response body
   http_status=$(echo "$response" | grep -o "HTTPSTATUS:[0-9]*" | cut -d: -f2)
-  response=$(echo "$response" | sed 's/HTTPSTATUS:[0-9]*$//')
+  response="${response//HTTPSTATUS:[0-9]*/}"
 
   if [[ "${http_status}" -ge 200 && "${http_status}" -lt 300 ]]; then
     log_success "${notebook_type} notebook retrieved successfully"

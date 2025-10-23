@@ -5,7 +5,8 @@ FROM eclipse-temurin:21-jdk-ubi10-minimal AS build
 
 # Install required build utilities
 RUN microdnf update -y --refresh --best --nodocs --noplugins --setopt=install_weak_deps=0 \
- && microdnf install -y findutils which
+ && microdnf install -y findutils which \
+ && microdnf clean all
 
 WORKDIR /app
 

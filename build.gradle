@@ -6,6 +6,7 @@ plugins {
 	id("org.springdoc.openapi-gradle-plugin") version "1.9.0"
 	id 'org.openapi.generator' version '6.4.0'
 	id 'com.github.ben-manes.versions' version '0.53.0'
+	id 'com.diffplug.spotless' version '6.25.0'
 }
 
 group = 'org.jupytereverywhere'
@@ -139,4 +140,15 @@ springBoot {
 
 tasks.named('test') {
 	useJUnitPlatform()
+}
+
+spotless {
+	java {
+		target 'src/**/*.java'
+		googleJavaFormat('1.30.0')
+		removeUnusedImports()
+		trimTrailingWhitespace()
+		endWithNewline()
+		importOrder('java', 'javax', 'org', 'com', '')
+	}
 }

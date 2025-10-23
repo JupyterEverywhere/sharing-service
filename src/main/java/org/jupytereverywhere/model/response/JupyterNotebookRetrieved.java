@@ -2,27 +2,27 @@ package org.jupytereverywhere.model.response;
 
 import java.util.UUID;
 
+import org.jupytereverywhere.dto.JupyterNotebookDTO;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import org.jupytereverywhere.dto.JupyterNotebookDTO;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class JupyterNotebookRetrieved implements JupyterNotebookResponse {
 
-    private UUID id;
+  private UUID id;
 
-    @JsonProperty("domain_id")
-    private String domain;
+  @JsonProperty("domain_id")
+  private String domain;
 
-    @JsonProperty("readable_id")
-    private String readableId;
+  @JsonProperty("readable_id")
+  private String readableId;
 
-    @JsonProperty("content")
-    private JupyterNotebookDTO notebookDTO;
-
+  @JsonProperty("content")
+  private JupyterNotebookDTO notebookDTO;
 }

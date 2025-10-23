@@ -1,14 +1,14 @@
 package org.jupytereverywhere.model;
 
-import java.util.UUID;
-
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+
+import java.util.UUID;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 class TokenStoreImplTest {
 
@@ -64,6 +64,8 @@ class TokenStoreImplTest {
   void testRemoveToken_WhenTokenDoesNotExist() {
     UUID sessionId = UUID.randomUUID();
 
-    assertDoesNotThrow(() -> tokenStore.removeToken(sessionId), "Removing a non-existent token should not throw an exception");
+    assertDoesNotThrow(
+        () -> tokenStore.removeToken(sessionId),
+        "Removing a non-existent token should not throw an exception");
   }
 }

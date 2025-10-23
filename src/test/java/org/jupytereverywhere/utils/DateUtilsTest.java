@@ -1,16 +1,16 @@
 package org.jupytereverywhere.utils;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.TimeZone;
 
 import org.junit.jupiter.api.Test;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DateUtilsTest {
 
@@ -60,8 +60,11 @@ class DateUtilsTest {
     long allowedDifference = 1000; // Tolerancia permitida en milisegundos
     long difference = Math.abs(result.getTime() - currentDate.getTime());
 
-    assertTrue(difference <= allowedDifference,
-        "Timestamp difference should be within the allowed tolerance. Difference: " + difference + "ms.");
+    assertTrue(
+        difference <= allowedDifference,
+        "Timestamp difference should be within the allowed tolerance. Difference: "
+            + difference
+            + "ms.");
   }
 
   @Test

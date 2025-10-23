@@ -1,25 +1,5 @@
 package org.jupytereverywhere.filter;
 
-import java.io.IOException;
-import java.util.UUID;
-
-import org.springframework.mock.web.MockHttpServletRequest;
-import org.springframework.mock.web.MockHttpServletResponse;
-
-import io.jsonwebtoken.ExpiredJwtException;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletResponse;
-
-import org.jupytereverywhere.service.JwtTokenService;
-
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -28,20 +8,33 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.io.IOException;
+import java.util.UUID;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.jupytereverywhere.service.JwtTokenService;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
+
+import io.jsonwebtoken.ExpiredJwtException;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletResponse;
+
 @ExtendWith(MockitoExtension.class)
 class JwtRequestFilterTest {
 
-  @InjectMocks
-  private JwtRequestFilter jwtRequestFilter;
+  @InjectMocks private JwtRequestFilter jwtRequestFilter;
 
-  @Mock
-  private JwtTokenService jwtTokenService;
+  @Mock private JwtTokenService jwtTokenService;
 
-  @Mock
-  private JwtExtractor jwtExtractor;
+  @Mock private JwtExtractor jwtExtractor;
 
-  @Mock
-  private JwtValidator jwtValidator;
+  @Mock private JwtValidator jwtValidator;
 
   @Test
   void testDoFilterInternal_InvalidToken() throws ServletException, IOException {
@@ -51,8 +44,7 @@ class JwtRequestFilterTest {
     MockHttpServletResponse response = new MockHttpServletResponse();
     FilterChain filterChain = mock(FilterChain.class);
 
-
-  // Legacy test: do not stub validateExtraAuthHeader, extra auth not configured
+    // Legacy test: do not stub validateExtraAuthHeader, extra auth not configured
     when(jwtExtractor.extractJwtFromRequest(request)).thenReturn(invalidToken);
     when(jwtValidator.isValid(invalidToken)).thenReturn(false);
 
@@ -72,8 +64,7 @@ class JwtRequestFilterTest {
     MockHttpServletResponse response = new MockHttpServletResponse();
     FilterChain filterChain = mock(FilterChain.class);
 
-
-  // Legacy test: do not stub validateExtraAuthHeader, extra auth not configured
+    // Legacy test: do not stub validateExtraAuthHeader, extra auth not configured
     when(jwtExtractor.extractJwtFromRequest(request)).thenReturn(expiredToken);
     when(jwtValidator.isValid(expiredToken)).thenReturn(false);
 
@@ -95,8 +86,7 @@ class JwtRequestFilterTest {
     MockHttpServletResponse response = new MockHttpServletResponse();
     FilterChain filterChain = mock(FilterChain.class);
 
-
-  // Legacy test: do not stub validateExtraAuthHeader, extra auth not configured
+    // Legacy test: do not stub validateExtraAuthHeader, extra auth not configured
     when(jwtExtractor.extractJwtFromRequest(request)).thenReturn(validToken);
     when(jwtValidator.isValid(validToken)).thenReturn(true);
     when(jwtTokenService.extractSessionIdFromToken(validToken)).thenReturn(sessionId);
@@ -115,8 +105,7 @@ class JwtRequestFilterTest {
     MockHttpServletResponse response = new MockHttpServletResponse();
     FilterChain filterChain = mock(FilterChain.class);
 
-
-  // Legacy test: do not stub validateExtraAuthHeader, extra auth not configured
+    // Legacy test: do not stub validateExtraAuthHeader, extra auth not configured
     when(jwtExtractor.extractJwtFromRequest(request)).thenReturn(null);
 
     jwtRequestFilter.doFilterInternal(request, response, filterChain);
@@ -170,7 +159,8 @@ class JwtRequestFilterTest {
     FilterChain filterChain = mock(FilterChain.class);
 
     when(jwtExtractor.extractJwtFromRequest(request)).thenReturn(expiredToken);
-    when(jwtValidator.isValid(expiredToken)).thenThrow(new ExpiredJwtException(null, null, "Token has expired"));
+    when(jwtValidator.isValid(expiredToken))
+        .thenThrow(new ExpiredJwtException(null, null, "Token has expired"));
 
     jwtRequestFilter.doFilterInternal(request, response, filterChain);
 
@@ -184,36 +174,40 @@ class JwtRequestFilterTest {
   // Extra Auth Header Tests
 
   @Test
-  void testDoFilterInternal_ExtraAuthValid_WithValidJWT_ShouldSucceed() throws ServletException, IOException {
-  org.springframework.test.util.ReflectionTestUtils.setField(jwtExtractor, "extraAuthHeaderName", "X-Extra-Auth");
-  org.springframework.test.util.ReflectionTestUtils.setField(jwtExtractor, "extraAuthHeaderSecret", "secret");
-  String validToken = "validTokenString";
-  UUID sessionId = UUID.randomUUID();
-  MockHttpServletRequest request = new MockHttpServletRequest();
-  request.addHeader("Authorization", "Bearer " + validToken);
-  request.addHeader("X-Extra-Auth", "secret");
-  when(jwtExtractor.validateExtraAuthHeader(request)).thenCallRealMethod();
-  MockHttpServletResponse response = new MockHttpServletResponse();
-  FilterChain filterChain = mock(FilterChain.class);
+  void testDoFilterInternal_ExtraAuthValid_WithValidJWT_ShouldSucceed()
+      throws ServletException, IOException {
+    org.springframework.test.util.ReflectionTestUtils.setField(
+        jwtExtractor, "extraAuthHeaderName", "X-Extra-Auth");
+    org.springframework.test.util.ReflectionTestUtils.setField(
+        jwtExtractor, "extraAuthHeaderSecret", "secret");
+    String validToken = "validTokenString";
+    UUID sessionId = UUID.randomUUID();
+    MockHttpServletRequest request = new MockHttpServletRequest();
+    request.addHeader("Authorization", "Bearer " + validToken);
+    request.addHeader("X-Extra-Auth", "secret");
+    when(jwtExtractor.validateExtraAuthHeader(request)).thenCallRealMethod();
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    FilterChain filterChain = mock(FilterChain.class);
 
-  when(jwtExtractor.extractJwtFromRequest(request)).thenReturn(validToken);
-  when(jwtValidator.isValid(validToken)).thenReturn(true);
-  when(jwtTokenService.extractSessionIdFromToken(validToken)).thenReturn(sessionId);
+    when(jwtExtractor.extractJwtFromRequest(request)).thenReturn(validToken);
+    when(jwtValidator.isValid(validToken)).thenReturn(true);
+    when(jwtTokenService.extractSessionIdFromToken(validToken)).thenReturn(sessionId);
 
-  jwtRequestFilter.doFilterInternal(request, response, filterChain);
+    jwtRequestFilter.doFilterInternal(request, response, filterChain);
 
-  assertTrue(jwtExtractor.validateExtraAuthHeader(request));
-  verify(jwtValidator).isValid(validToken);
-  verify(jwtTokenService).extractSessionIdFromToken(validToken);
-  verify(filterChain).doFilter(request, response);
-  assertEquals(200, response.getStatus());
+    assertTrue(jwtExtractor.validateExtraAuthHeader(request));
+    verify(jwtValidator).isValid(validToken);
+    verify(jwtTokenService).extractSessionIdFromToken(validToken);
+    verify(filterChain).doFilter(request, response);
+    assertEquals(200, response.getStatus());
   }
 
   @Test
-  void testDoFilterInternal_ExtraAuthInvalid_WithValidJWT_ShouldFailOnExtraAuth() throws ServletException, IOException {
-  jwtExtractor.extraAuthHeaderName = "X-Extra-Auth";
-  jwtExtractor.extraAuthHeaderSecret = "secret";
-  // Extra auth configured, should verify validateExtraAuthHeader
+  void testDoFilterInternal_ExtraAuthInvalid_WithValidJWT_ShouldFailOnExtraAuth()
+      throws ServletException, IOException {
+    jwtExtractor.extraAuthHeaderName = "X-Extra-Auth";
+    jwtExtractor.extraAuthHeaderSecret = "secret";
+    // Extra auth configured, should verify validateExtraAuthHeader
     String validToken = "validTokenString";
     MockHttpServletRequest request = new MockHttpServletRequest();
     request.addHeader("Authorization", "Bearer " + validToken);
@@ -237,10 +231,11 @@ class JwtRequestFilterTest {
   }
 
   @Test
-  void testDoFilterInternal_ExtraAuthValid_WithInvalidJWT_ShouldFailOnJWT() throws ServletException, IOException {
-  jwtExtractor.extraAuthHeaderName = "X-Extra-Auth";
-  jwtExtractor.extraAuthHeaderSecret = "secret";
-  // Extra auth configured, should verify validateExtraAuthHeader
+  void testDoFilterInternal_ExtraAuthValid_WithInvalidJWT_ShouldFailOnJWT()
+      throws ServletException, IOException {
+    jwtExtractor.extraAuthHeaderName = "X-Extra-Auth";
+    jwtExtractor.extraAuthHeaderSecret = "secret";
+    // Extra auth configured, should verify validateExtraAuthHeader
     String invalidToken = "invalidTokenString";
     MockHttpServletRequest request = new MockHttpServletRequest();
     request.addHeader("Authorization", "Bearer " + invalidToken);
@@ -263,8 +258,9 @@ class JwtRequestFilterTest {
   }
 
   @Test
-  void testDoFilterInternal_ExtraAuthNotConfigured_WithValidJWT_ShouldWorkAsUsual() throws ServletException, IOException {
-  // Extra auth not configured, should not verify validateExtraAuthHeader
+  void testDoFilterInternal_ExtraAuthNotConfigured_WithValidJWT_ShouldWorkAsUsual()
+      throws ServletException, IOException {
+    // Extra auth not configured, should not verify validateExtraAuthHeader
     String validToken = "validTokenString";
     UUID sessionId = UUID.randomUUID();
     MockHttpServletRequest request = new MockHttpServletRequest();
@@ -286,10 +282,11 @@ class JwtRequestFilterTest {
   }
 
   @Test
-  void testDoFilterInternal_ExtraAuthValid_WithNoJWT_ShouldPassToPublicEndpoint() throws ServletException, IOException {
-  jwtExtractor.extraAuthHeaderName = "X-Extra-Auth";
-  jwtExtractor.extraAuthHeaderSecret = "secret";
-  // Extra auth configured, should verify validateExtraAuthHeader
+  void testDoFilterInternal_ExtraAuthValid_WithNoJWT_ShouldPassToPublicEndpoint()
+      throws ServletException, IOException {
+    jwtExtractor.extraAuthHeaderName = "X-Extra-Auth";
+    jwtExtractor.extraAuthHeaderSecret = "secret";
+    // Extra auth configured, should verify validateExtraAuthHeader
     MockHttpServletRequest request = new MockHttpServletRequest();
     MockHttpServletResponse response = new MockHttpServletResponse();
     FilterChain filterChain = mock(FilterChain.class);

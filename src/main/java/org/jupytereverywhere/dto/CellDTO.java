@@ -1,10 +1,10 @@
 package org.jupytereverywhere.dto;
 
-
 import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+
 import lombok.Data;
 
 @Data

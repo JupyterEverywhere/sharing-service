@@ -1,18 +1,18 @@
 package org.jupytereverywhere.dto;
 
-import java.util.Arrays;
-import java.util.List;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import org.junit.jupiter.api.Test;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.Arrays;
+import java.util.List;
+
+import org.junit.jupiter.api.Test;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 class NotebookDTOTest {
 
@@ -62,7 +62,8 @@ class NotebookDTOTest {
 
   @Test
   void testJsonDeserialization() throws JsonProcessingException {
-    String json = "{\"nbformat\":4,\"nbformat_minor\":2,\"metadata\":{\"kernelspec\":{\"display_name\":\"Python 3\",\"name\":\"python3\"},\"language_info\":{\"name\":\"python\",\"version\":\"3.8.5\",\"file_extension\":\".py\"}},\"cells\":[{\"cell_type\":\"code\",\"source\":[\"print('Hello World')\"]}]}";
+    String json =
+        "{\"nbformat\":4,\"nbformat_minor\":2,\"metadata\":{\"kernelspec\":{\"display_name\":\"Python 3\",\"name\":\"python3\"},\"language_info\":{\"name\":\"python\",\"version\":\"3.8.5\",\"file_extension\":\".py\"}},\"cells\":[{\"cell_type\":\"code\",\"source\":[\"print('Hello World')\"]}]}";
 
     ObjectMapper objectMapper = new ObjectMapper();
     NotebookDTO notebook = objectMapper.readValue(json, NotebookDTO.class);

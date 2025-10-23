@@ -1,5 +1,11 @@
 package org.jupytereverywhere.service;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.HashMap;
@@ -8,6 +14,8 @@ import java.util.UUID;
 
 import javax.crypto.SecretKey;
 
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
@@ -15,15 +23,6 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
-
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class JwtTokenServiceTest {
 
@@ -44,12 +43,13 @@ class JwtTokenServiceTest {
     Map<String, Object> claims = new HashMap<>();
     claims.put("session_id", sessionId.toString());
 
-    validToken = Jwts.builder()
-        .setClaims(claims)
-        .setIssuedAt(new Date())
-        .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60))
-        .signWith(secretKey, SignatureAlgorithm.HS256)
-        .compact();
+    validToken =
+        Jwts.builder()
+            .setClaims(claims)
+            .setIssuedAt(new Date())
+            .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60))
+            .signWith(secretKey, SignatureAlgorithm.HS256)
+            .compact();
   }
 
   @Test
@@ -88,12 +88,13 @@ class JwtTokenServiceTest {
     Map<String, Object> claims = new HashMap<>();
     claims.put("session_id", sessionId.toString());
 
-    String expiredToken = Jwts.builder()
-        .setClaims(claims)
-        .setIssuedAt(new Date(System.currentTimeMillis() - 1000 * 60 * 60))
-        .setExpiration(new Date(System.currentTimeMillis() - 1000 * 30))
-        .signWith(secretKey, SignatureAlgorithm.HS256)
-        .compact();
+    String expiredToken =
+        Jwts.builder()
+            .setClaims(claims)
+            .setIssuedAt(new Date(System.currentTimeMillis() - 1000 * 60 * 60))
+            .setExpiration(new Date(System.currentTimeMillis() - 1000 * 30))
+            .signWith(secretKey, SignatureAlgorithm.HS256)
+            .compact();
 
     UUID extractedSessionId = jwtTokenService.extractSessionIdFromToken(expiredToken);
     assertEquals(sessionId, extractedSessionId);
@@ -107,12 +108,13 @@ class JwtTokenServiceTest {
     Map<String, Object> claims = new HashMap<>();
     claims.put("session_id", sessionId.toString());
 
-    String expiredToken = Jwts.builder()
-        .setClaims(claims)
-        .setIssuedAt(new Date(System.currentTimeMillis() - 1000 * 60 * 60))
-        .setExpiration(new Date(System.currentTimeMillis() - 1000 * 30))
-        .signWith(secretKey, SignatureAlgorithm.HS256)
-        .compact();
+    String expiredToken =
+        Jwts.builder()
+            .setClaims(claims)
+            .setIssuedAt(new Date(System.currentTimeMillis() - 1000 * 60 * 60))
+            .setExpiration(new Date(System.currentTimeMillis() - 1000 * 30))
+            .signWith(secretKey, SignatureAlgorithm.HS256)
+            .compact();
 
     boolean isExpired = jwtTokenService.validateToken(expiredToken);
     assertFalse(isExpired);
@@ -152,12 +154,13 @@ class JwtTokenServiceTest {
     Map<String, Object> claims = new HashMap<>();
     claims.put("session_id", sessionId.toString());
 
-    String expiredToken = Jwts.builder()
-        .setClaims(claims)
-        .setIssuedAt(new Date(System.currentTimeMillis() - 1000 * 60 * 60))
-        .setExpiration(new Date(System.currentTimeMillis() - 1000 * 30))
-        .signWith(secretKey, SignatureAlgorithm.HS256)
-        .compact();
+    String expiredToken =
+        Jwts.builder()
+            .setClaims(claims)
+            .setIssuedAt(new Date(System.currentTimeMillis() - 1000 * 60 * 60))
+            .setExpiration(new Date(System.currentTimeMillis() - 1000 * 30))
+            .signWith(secretKey, SignatureAlgorithm.HS256)
+            .compact();
 
     isExpired = jwtTokenService.isTokenExpired(expiredToken);
     assertTrue(isExpired);

@@ -9,11 +9,11 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.function.Function;
 
+import org.apache.logging.log4j.message.StringMapMessage;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import lombok.extern.log4j.Log4j2;
-import org.apache.logging.log4j.message.StringMapMessage;
 
 @Log4j2
 @Component
@@ -33,7 +33,8 @@ public class PythonJupyterNotebookValidator {
     this.processBuilderFactory = ProcessBuilder::new;
   }
 
-  public PythonJupyterNotebookValidator(Function<List<String>, ProcessBuilder> processBuilderFactory) {
+  public PythonJupyterNotebookValidator(
+      Function<List<String>, ProcessBuilder> processBuilderFactory) {
     this.processBuilderFactory = processBuilderFactory;
   }
 
@@ -52,8 +53,7 @@ public class PythonJupyterNotebookValidator {
               .with(MESSAGE, "Thread was interrupted during notebook validation")
               .with("ExceptionType", e.getClass().getSimpleName())
               .with("ExceptionMessage", e.getMessage()),
-          e
-      );
+          e);
 
       return false;
     } catch (IOException e) {
@@ -63,8 +63,7 @@ public class PythonJupyterNotebookValidator {
               .with(MESSAGE, "IOException occurred during notebook validation")
               .with("ExceptionType", e.getClass().getSimpleName())
               .with("ExceptionMessage", e.getMessage()),
-          e
-      );
+          e);
 
       return false;
     } catch (Exception e) {
@@ -74,8 +73,7 @@ public class PythonJupyterNotebookValidator {
               .with(MESSAGE, "An error occurred during notebook validation")
               .with("ExceptionType", e.getClass().getSimpleName())
               .with("ExceptionMessage", e.getMessage()),
-          e
-      );
+          e);
 
       return false;
     }
@@ -86,8 +84,7 @@ public class PythonJupyterNotebookValidator {
         new StringMapMessage()
             .with(MESSAGE, "Starting notebook validation process")
             .with("InterpreterPath", pythonInterpreterPath)
-            .with("ScriptPath", pythonScriptPath)
-    );
+            .with("ScriptPath", pythonScriptPath));
 
     String interpreter = pythonInterpreterPath;
     List<String> command = Arrays.asList(interpreter, pythonScriptPath);
@@ -95,8 +92,7 @@ public class PythonJupyterNotebookValidator {
     log.info(
         new StringMapMessage()
             .with(MESSAGE, "Executing command")
-            .with("Command", String.join(" ", command))
-    );
+            .with("Command", String.join(" ", command)));
 
     ProcessBuilder processBuilder = processBuilderFactory.apply(command);
     processBuilder.redirectErrorStream(true);
@@ -112,8 +108,8 @@ public class PythonJupyterNotebookValidator {
 
   private boolean readValidationResult(Process process) throws IOException {
     StringBuilder output = new StringBuilder();
-    try (BufferedReader reader = new BufferedReader(
-        new InputStreamReader(process.getInputStream()))) {
+    try (BufferedReader reader =
+        new BufferedReader(new InputStreamReader(process.getInputStream()))) {
       String line;
       while ((line = reader.readLine()) != null) {
         output.append(line).append("\n");
@@ -123,15 +119,13 @@ public class PythonJupyterNotebookValidator {
           log.info(
               new StringMapMessage()
                   .with(MESSAGE, "Notebook is valid")
-                  .with("Output", trimmedLine)
-          );
+                  .with("Output", trimmedLine));
           return true;
         } else if ("invalid".equals(trimmedLine)) {
           log.info(
               new StringMapMessage()
                   .with(MESSAGE, "Notebook is invalid")
-                  .with("Output", trimmedLine)
-          );
+                  .with("Output", trimmedLine));
           return false;
         }
       }
@@ -140,8 +134,7 @@ public class PythonJupyterNotebookValidator {
     log.error(
         new StringMapMessage()
             .with(MESSAGE, "Validation script did not produce expected output")
-            .with("FullOutput", output.toString())
-    );
+            .with("FullOutput", output.toString()));
 
     return false;
   }

@@ -42,8 +42,7 @@ public class JupyterNotebookEntity {
 
   private String readableId;
 
-  @ToString.Exclude
-  private String password;
+  @ToString.Exclude private String password;
 
   @Column(nullable = false)
   private Timestamp createdAt;

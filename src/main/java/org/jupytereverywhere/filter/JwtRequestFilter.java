@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.UUID;
 
+import org.apache.logging.log4j.message.StringMapMessage;
+import org.jupytereverywhere.service.JwtTokenService;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -17,9 +19,6 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.log4j.Log4j2;
-import org.apache.logging.log4j.message.StringMapMessage;
-
-import org.jupytereverywhere.service.JwtTokenService;
 
 @Log4j2
 @Component
@@ -34,20 +33,26 @@ public class JwtRequestFilter extends OncePerRequestFilter {
   private final JwtExtractor jwtExtractor;
   private final JwtValidator jwtValidator;
 
-
-  public JwtRequestFilter(JwtTokenService jwtTokenService, JwtExtractor jwtExtractor, JwtValidator jwtValidator) {
+  public JwtRequestFilter(
+      JwtTokenService jwtTokenService, JwtExtractor jwtExtractor, JwtValidator jwtValidator) {
     this.jwtTokenService = jwtTokenService;
     this.jwtExtractor = jwtExtractor;
     this.jwtValidator = jwtValidator;
   }
 
   @Override
-  protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain chain)
+  protected void doFilterInternal(
+      @NonNull HttpServletRequest request,
+      @NonNull HttpServletResponse response,
+      @NonNull FilterChain chain)
       throws ServletException, IOException {
 
     // Extra auth header logic: only enforce if both name and secret are set and header is present
-    boolean extraAuthConfigured = jwtExtractor.extraAuthHeaderName != null && !jwtExtractor.extraAuthHeaderName.trim().isEmpty()
-        && jwtExtractor.extraAuthHeaderSecret != null && !jwtExtractor.extraAuthHeaderSecret.trim().isEmpty();
+    boolean extraAuthConfigured =
+        jwtExtractor.extraAuthHeaderName != null
+            && !jwtExtractor.extraAuthHeaderName.trim().isEmpty()
+            && jwtExtractor.extraAuthHeaderSecret != null
+            && !jwtExtractor.extraAuthHeaderSecret.trim().isEmpty();
     if (extraAuthConfigured) {
       if (!jwtExtractor.validateExtraAuthHeader(request)) {
         handleInvalidExtraAuth(response);
@@ -80,10 +85,14 @@ public class JwtRequestFilter extends OncePerRequestFilter {
   }
 
   private void setAuthentication(HttpServletRequest request, UUID sessionId) {
-    log.info(new StringMapMessage().with(MESSAGE_KEY, "Valid session detected").with("sessionId", sessionId.toString()));
+    log.info(
+        new StringMapMessage()
+            .with(MESSAGE_KEY, "Valid session detected")
+            .with("sessionId", sessionId.toString()));
     request.setAttribute("sessionId", sessionId);
 
-    Authentication authentication = new UsernamePasswordAuthenticationToken(sessionId, null, Collections.emptyList());
+    Authentication authentication =
+        new UsernamePasswordAuthenticationToken(sessionId, null, Collections.emptyList());
     SecurityContextHolder.getContext().setAuthentication(authentication);
   }
 
@@ -92,20 +101,28 @@ public class JwtRequestFilter extends OncePerRequestFilter {
     response.sendError(HttpServletResponse.SC_FORBIDDEN, INVALID_OR_EXPIRED_JWT_TOKEN_MESSAGE);
   }
 
-  private void handleExpiredToken(HttpServletResponse response, ExpiredJwtException e) throws IOException {
-    log.warn(new StringMapMessage().with(MESSAGE_KEY, JWT_TOKEN_HAS_EXPIRED_MESSAGE).with(
-        ERROR_MESSAGE_KEY, e.getMessage()));
+  private void handleExpiredToken(HttpServletResponse response, ExpiredJwtException e)
+      throws IOException {
+    log.warn(
+        new StringMapMessage()
+            .with(MESSAGE_KEY, JWT_TOKEN_HAS_EXPIRED_MESSAGE)
+            .with(ERROR_MESSAGE_KEY, e.getMessage()));
     response.sendError(HttpServletResponse.SC_FORBIDDEN, JWT_TOKEN_HAS_EXPIRED_MESSAGE);
   }
 
-  private void handleTokenProcessingError(HttpServletResponse response, Exception e) throws IOException {
-    log.error(new StringMapMessage().with(MESSAGE_KEY, "Error during JWT Token processing").with(
-        ERROR_MESSAGE_KEY, e.getMessage()), e);
+  private void handleTokenProcessingError(HttpServletResponse response, Exception e)
+      throws IOException {
+    log.error(
+        new StringMapMessage()
+            .with(MESSAGE_KEY, "Error during JWT Token processing")
+            .with(ERROR_MESSAGE_KEY, e.getMessage()),
+        e);
     response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Error processing JWT token");
   }
 
   private void handleInvalidExtraAuth(HttpServletResponse response) throws IOException {
-    log.warn(new StringMapMessage().with(MESSAGE_KEY, "Invalid or missing extra authentication header"));
+    log.warn(
+        new StringMapMessage().with(MESSAGE_KEY, "Invalid or missing extra authentication header"));
     response.sendError(HttpServletResponse.SC_FORBIDDEN, "Invalid authentication header");
   }
 }

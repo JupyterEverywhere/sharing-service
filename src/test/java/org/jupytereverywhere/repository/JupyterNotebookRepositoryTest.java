@@ -1,35 +1,31 @@
 package org.jupytereverywhere.repository;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.junit.jupiter.api.Test;
+import org.jupytereverywhere.model.JupyterNotebookEntity;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase.Replace;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import org.jupytereverywhere.model.JupyterNotebookEntity;
-
-import org.junit.jupiter.api.Test;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 @Testcontainers
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = Replace.NONE)
-
 class JupyterNotebookRepositoryTest {
   static {
     System.setProperty("DB_USERNAME", "test");
@@ -38,10 +34,11 @@ class JupyterNotebookRepositoryTest {
 
   @SuppressWarnings("resource") // Testcontainers will manage the lifecycle of the container
   @Container
-  private static final PostgreSQLContainer<?> postgresContainer = new PostgreSQLContainer<>("postgres:15")
-      .withDatabaseName("testdb")
-      .withUsername("test")
-      .withPassword("test");
+  private static final PostgreSQLContainer<?> postgresContainer =
+      new PostgreSQLContainer<>("postgres:15")
+          .withDatabaseName("testdb")
+          .withUsername("test")
+          .withPassword("test");
 
   @DynamicPropertySource
   static void setDataSourceProperties(DynamicPropertyRegistry registry) {
@@ -51,8 +48,7 @@ class JupyterNotebookRepositoryTest {
     registry.add("spring.datasource.driver-class-name", postgresContainer::getDriverClassName);
   }
 
-  @Autowired
-  private JupyterNotebookRepository notebookRepository;
+  @Autowired private JupyterNotebookRepository notebookRepository;
 
   @Test
   void testSaveNotebook() {
@@ -62,7 +58,8 @@ class JupyterNotebookRepositoryTest {
     assertNotNull(savedNotebook.getId(), "Saved notebook ID should not be null");
     assertEquals(notebook.getSessionId(), savedNotebook.getSessionId(), "Session IDs should match");
     assertEquals(notebook.getDomain(), savedNotebook.getDomain(), "Domains should match");
-    assertEquals(notebook.getReadableId(), savedNotebook.getReadableId(), "Readable ID should match");
+    assertEquals(
+        notebook.getReadableId(), savedNotebook.getReadableId(), "Readable ID should match");
   }
 
   @Test
@@ -80,17 +77,21 @@ class JupyterNotebookRepositoryTest {
 
   @Test
   void testFindByReadableId() {
-    // For testing purposes, we'll set a readable ID manually to test the findByReadableId functionality
-    // In production, this would be set by the system/trigger, but for unit testing we need predictable values
+    // For testing purposes, we'll set a readable ID manually to test the findByReadableId
+    // functionality
+    // In production, this would be set by the system/trigger, but for unit testing we need
+    // predictable values
     String testReadableId = "test-readable-id-for-testing";
 
-    JupyterNotebookEntity notebook = createNotebook("s3://bucket/notebook-readable-test.ipynb", UUID.randomUUID());
+    JupyterNotebookEntity notebook =
+        createNotebook("s3://bucket/notebook-readable-test.ipynb", UUID.randomUUID());
     notebook.setReadableId(testReadableId);
 
     JupyterNotebookEntity savedNotebook = notebookRepository.save(notebook);
     notebookRepository.flush(); // Force database write
 
-    Optional<JupyterNotebookEntity> foundNotebook = notebookRepository.findByReadableId(testReadableId);
+    Optional<JupyterNotebookEntity> foundNotebook =
+        notebookRepository.findByReadableId(testReadableId);
 
     assertTrue(foundNotebook.isPresent(), "Notebook should be found by readable id");
     assertEquals(testReadableId, foundNotebook.get().getReadableId(), "Readable ID should match");
@@ -132,11 +133,14 @@ class JupyterNotebookRepositoryTest {
     savedNotebook.setDomain("updated.com");
     notebookRepository.save(savedNotebook);
 
-    Optional<JupyterNotebookEntity> updatedNotebook = notebookRepository.findById(savedNotebook.getId());
+    Optional<JupyterNotebookEntity> updatedNotebook =
+        notebookRepository.findById(savedNotebook.getId());
 
     assertTrue(updatedNotebook.isPresent(), "Updated notebook should be found");
-    assertEquals("python3.9", updatedNotebook.get().getKernelName(), "Kernel name should be updated");
-    assertEquals("3.9", updatedNotebook.get().getLanguageVersion(), "Language version should be updated");
+    assertEquals(
+        "python3.9", updatedNotebook.get().getKernelName(), "Kernel name should be updated");
+    assertEquals(
+        "3.9", updatedNotebook.get().getLanguageVersion(), "Language version should be updated");
     assertEquals("updated.com", updatedNotebook.get().getDomain(), "Domain should be updated");
   }
 

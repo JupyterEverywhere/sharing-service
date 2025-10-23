@@ -1,12 +1,13 @@
 package org.jupytereverywhere.config;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import static org.junit.jupiter.api.Assertions.*;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.jupytereverywhere.model.request.JupyterNotebookRequest;
 
-import static org.junit.jupiter.api.Assertions.*;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 class JacksonConfigTest {
 
@@ -22,12 +23,18 @@ class JacksonConfigTest {
   @Test
   void testObjectMapper_Configuration_Applied() {
     assertNotNull(objectMapper);
-    assertTrue(objectMapper.getDeserializationConfig()
-        .isEnabled(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES));
-    assertTrue(objectMapper.getDeserializationConfig()
-        .isEnabled(DeserializationFeature.FAIL_ON_TRAILING_TOKENS));
-    assertTrue(objectMapper.getDeserializationConfig()
-        .isEnabled(DeserializationFeature.FAIL_ON_NULL_CREATOR_PROPERTIES));
+    assertTrue(
+        objectMapper
+            .getDeserializationConfig()
+            .isEnabled(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES));
+    assertTrue(
+        objectMapper
+            .getDeserializationConfig()
+            .isEnabled(DeserializationFeature.FAIL_ON_TRAILING_TOKENS));
+    assertTrue(
+        objectMapper
+            .getDeserializationConfig()
+            .isEnabled(DeserializationFeature.FAIL_ON_NULL_CREATOR_PROPERTIES));
   }
 
   @Test
@@ -43,7 +50,8 @@ class JacksonConfigTest {
 
   @Test
   void testDeserialization_ValidRequest_Succeeds() throws Exception {
-    String json = """
+    String json =
+        """
       {
         "password": "test",
         "notebook": {
