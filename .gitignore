@@ -79,3 +79,4 @@ replay_pid*
 #####################
 ### macOS ###
 .DS_Store
+scripts/test-notebook.ipynb

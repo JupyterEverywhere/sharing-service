@@ -17,8 +17,9 @@ RUN chmod +x ./gradlew
 # Copy source code
 COPY src/ /app/src/
 
-# Build the application
-RUN ./gradlew clean bootJar --no-daemon --console=plain
+# Build the application with Gradle cache mount
+RUN --mount=type=cache,target=/root/.gradle \
+    ./gradlew clean bootJar --no-daemon --console=plain
 
 
 # -----------------------------------------------------------------------------
