@@ -1,26 +1,23 @@
 package org.jupytereverywhere.filter;
 
-import io.jsonwebtoken.JwtException;
-
-import org.jupytereverywhere.service.JwtTokenService;
-
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.jupytereverywhere.service.JwtTokenService;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import io.jsonwebtoken.JwtException;
+
 @ExtendWith(MockitoExtension.class)
 class JwtValidatorTest {
 
-  @Mock
-  private JwtTokenService jwtTokenService;
+  @Mock private JwtTokenService jwtTokenService;
 
   private JwtValidator jwtValidator;
 

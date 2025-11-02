@@ -1,13 +1,13 @@
 package org.jupytereverywhere.service.utils;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 class JupyterNotebookValidatorTest {
 
@@ -27,7 +27,8 @@ class JupyterNotebookValidatorTest {
 
   @Test
   void testValidateNotebook_ValidMinimalNotebook() {
-    String validNotebook = """
+    String validNotebook =
+        """
         {
           "cells": [
             {
@@ -59,7 +60,8 @@ class JupyterNotebookValidatorTest {
 
   @Test
   void testValidateNotebook_ValidNotebookWithContent() {
-    String validNotebook = """
+    String validNotebook =
+        """
         {
           "cells": [
             {
@@ -104,7 +106,8 @@ class JupyterNotebookValidatorTest {
 
   @Test
   void testValidateNotebook_MissingRequiredField_cells() {
-    String invalidNotebook = """
+    String invalidNotebook =
+        """
         {
           "metadata": {
             "kernelspec": {
@@ -126,7 +129,8 @@ class JupyterNotebookValidatorTest {
 
   @Test
   void testValidateNotebook_MissingRequiredField_metadata() {
-    String invalidNotebook = """
+    String invalidNotebook =
+        """
         {
           "cells": [],
           "nbformat": 4,
@@ -140,7 +144,8 @@ class JupyterNotebookValidatorTest {
 
   @Test
   void testValidateNotebook_MissingRequiredField_nbformat() {
-    String invalidNotebook = """
+    String invalidNotebook =
+        """
         {
           "cells": [],
           "metadata": {
@@ -162,7 +167,8 @@ class JupyterNotebookValidatorTest {
 
   @Test
   void testValidateNotebook_MissingRequiredField_nbformat_minor() {
-    String invalidNotebook = """
+    String invalidNotebook =
+        """
         {
           "cells": [],
           "metadata": {
@@ -184,7 +190,8 @@ class JupyterNotebookValidatorTest {
 
   @Test
   void testValidateNotebook_InvalidCellType() {
-    String invalidNotebook = """
+    String invalidNotebook =
+        """
         {
           "cells": [
             {
@@ -213,7 +220,8 @@ class JupyterNotebookValidatorTest {
 
   @Test
   void testValidateNotebook_WrongNbformatVersion() {
-    String invalidNotebook = """
+    String invalidNotebook =
+        """
         {
           "cells": [],
           "metadata": {
@@ -260,7 +268,8 @@ class JupyterNotebookValidatorTest {
 
   @Test
   void testValidateNotebook_ValidRawCell() {
-    String validNotebook = """
+    String validNotebook =
+        """
         {
           "cells": [
             {
@@ -290,7 +299,8 @@ class JupyterNotebookValidatorTest {
 
   @Test
   void testValidateNotebook_CodeCellMissingRequiredFields() {
-    String invalidNotebook = """
+    String invalidNotebook =
+        """
         {
           "cells": [
             {
@@ -318,7 +328,8 @@ class JupyterNotebookValidatorTest {
 
   @Test
   void testValidateNotebook_ValidMultipleCells() {
-    String validNotebook = """
+    String validNotebook =
+        """
         {
           "cells": [
             {

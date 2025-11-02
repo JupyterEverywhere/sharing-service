@@ -1,16 +1,16 @@
 package org.jupytereverywhere.model;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class JupyterNotebookEntityTest {
 
@@ -117,17 +117,20 @@ class JupyterNotebookEntityTest {
     notebook.setDomain(null);
     notebook.setReadableId(null);
 
-    String expectedString = "JupyterNotebookEntity(id=" + notebook.getId() +
-            ", sessionId=" + notebook.getSessionId() +
-            ", kernelName=Python 3" +
-            ", kernelDisplayName=null" +
-            ", language=null" +
-            ", languageVersion=null" +
-            ", fileExtension=null" +
-            ", domain=null" +
-            ", storageUrl=null" +
-            ", readableId=null" +
-            ", createdAt=null)";
+    String expectedString =
+        "JupyterNotebookEntity(id="
+            + notebook.getId()
+            + ", sessionId="
+            + notebook.getSessionId()
+            + ", kernelName=Python 3"
+            + ", kernelDisplayName=null"
+            + ", language=null"
+            + ", languageVersion=null"
+            + ", fileExtension=null"
+            + ", domain=null"
+            + ", storageUrl=null"
+            + ", readableId=null"
+            + ", createdAt=null)";
 
     assertEquals(expectedString, notebook.toString());
   }
@@ -158,7 +161,8 @@ class JupyterNotebookEntityTest {
     anotherNotebook.setStorageUrl(notebook.getStorageUrl());
     anotherNotebook.setCreatedAt(notebook.getCreatedAt());
 
-    assertTrue(notebook.equals(anotherNotebook), "Two objects with the same values should be equal");
+    assertTrue(
+        notebook.equals(anotherNotebook), "Two objects with the same values should be equal");
   }
 
   @Test
@@ -166,7 +170,8 @@ class JupyterNotebookEntityTest {
     JupyterNotebookEntity differentNotebook = new JupyterNotebookEntity();
     differentNotebook.setId(UUID.randomUUID());
 
-    assertFalse(notebook.equals(differentNotebook), "Two objects with different IDs should not be equal");
+    assertFalse(
+        notebook.equals(differentNotebook), "Two objects with different IDs should not be equal");
   }
 
   @Test
@@ -177,7 +182,9 @@ class JupyterNotebookEntityTest {
   @Test
   void testEquals_DifferentType() {
     Object otherObject = "Not a JupyterNotebookEntity";
-    assertFalse(notebook.equals(otherObject), "The object should not be equal to an object of a different type");
+    assertFalse(
+        notebook.equals(otherObject),
+        "The object should not be equal to an object of a different type");
   }
 
   @Test
@@ -193,7 +200,10 @@ class JupyterNotebookEntityTest {
     anotherNotebook.setStorageUrl(notebook.getStorageUrl());
     anotherNotebook.setCreatedAt(notebook.getCreatedAt());
 
-    assertEquals(notebook.hashCode(), anotherNotebook.hashCode(), "Equal objects must have the same hashCode");
+    assertEquals(
+        notebook.hashCode(),
+        anotherNotebook.hashCode(),
+        "Equal objects must have the same hashCode");
   }
 
   @Test
@@ -201,7 +211,10 @@ class JupyterNotebookEntityTest {
     JupyterNotebookEntity differentNotebook = new JupyterNotebookEntity();
     differentNotebook.setId(UUID.randomUUID());
 
-    assertNotEquals(notebook.hashCode(), differentNotebook.hashCode(), "Different objects should have different hashCodes");
+    assertNotEquals(
+        notebook.hashCode(),
+        differentNotebook.hashCode(),
+        "Different objects should have different hashCodes");
   }
 
   @Test
@@ -215,7 +228,9 @@ class JupyterNotebookEntityTest {
     assertFalse(notebook1.equals(notebook2), "Objects with different fields should not be equal");
 
     notebook2.setId(notebook1.getId());
-    assertTrue(notebook1.equals(notebook2), "Objects with the same ID should be equal even if other fields are null");
+    assertTrue(
+        notebook1.equals(notebook2),
+        "Objects with the same ID should be equal even if other fields are null");
   }
 
   @Test
@@ -230,7 +245,8 @@ class JupyterNotebookEntityTest {
     notebook1.setSessionId(UUID.randomUUID());
     notebook2.setSessionId(UUID.randomUUID());
 
-    assertFalse(notebook1.equals(notebook2), "Objects with different sessionId should not be equal");
+    assertFalse(
+        notebook1.equals(notebook2), "Objects with different sessionId should not be equal");
   }
 
   @Test
@@ -245,7 +261,8 @@ class JupyterNotebookEntityTest {
     notebook1.setKernelName("Python 3");
     notebook2.setKernelName("Java 11");
 
-    assertFalse(notebook1.equals(notebook2), "Objects with different kernelName should not be equal");
+    assertFalse(
+        notebook1.equals(notebook2), "Objects with different kernelName should not be equal");
   }
 
   @Test
@@ -253,7 +270,9 @@ class JupyterNotebookEntityTest {
     JupyterNotebookEntity notebook = new JupyterNotebookEntity();
     Object differentTypeObject = "I am not a JupyterNotebookEntity";
 
-    assertFalse(notebook.equals(differentTypeObject), "The object should not be equal to an object of a different type");
+    assertFalse(
+        notebook.equals(differentTypeObject),
+        "The object should not be equal to an object of a different type");
   }
 
   @Test
@@ -289,7 +308,8 @@ class JupyterNotebookEntityTest {
     notebook2.setSessionId(sessionId);
 
     assertEquals(notebook1, notebook2, "Objects should be equal");
-    assertEquals(notebook1.hashCode(), notebook2.hashCode(), "HashCodes should be equal for equal objects");
+    assertEquals(
+        notebook1.hashCode(), notebook2.hashCode(), "HashCodes should be equal for equal objects");
   }
 
   @Test
@@ -318,18 +338,34 @@ class JupyterNotebookEntityTest {
     notebook.setCreatedAt(createdAt);
     notebook.setReadableId(readableId);
 
-    String expectedString = "JupyterNotebookEntity(id=" + id +
-        ", sessionId=" + sessionId +
-        ", kernelName=" + kernelName +
-        ", kernelDisplayName=" + kernelDisplayName +
-        ", language=" + language +
-        ", languageVersion=" + languageVersion +
-        ", fileExtension=" + fileExtension +
-        ", domain=" + domain +
-        ", storageUrl=" + storageUrl +
-        ", readableId=" + readableId +
-        ", createdAt=" + createdAt + ")";
+    String expectedString =
+        "JupyterNotebookEntity(id="
+            + id
+            + ", sessionId="
+            + sessionId
+            + ", kernelName="
+            + kernelName
+            + ", kernelDisplayName="
+            + kernelDisplayName
+            + ", language="
+            + language
+            + ", languageVersion="
+            + languageVersion
+            + ", fileExtension="
+            + fileExtension
+            + ", domain="
+            + domain
+            + ", storageUrl="
+            + storageUrl
+            + ", readableId="
+            + readableId
+            + ", createdAt="
+            + createdAt
+            + ")";
 
-    assertEquals(expectedString, notebook.toString(), "The toString method should reflect all fields correctly");
+    assertEquals(
+        expectedString,
+        notebook.toString(),
+        "The toString method should reflect all fields correctly");
   }
 }

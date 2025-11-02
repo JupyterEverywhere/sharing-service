@@ -1,17 +1,16 @@
 package org.jupytereverywhere.utils;
 
-import org.springframework.http.HttpHeaders;
-
-import jakarta.servlet.http.HttpServletRequest;
-
-import org.junit.jupiter.api.Test;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 class HttpHeaderUtilsTest {
 
@@ -22,7 +21,10 @@ class HttpHeaderUtilsTest {
 
     assertNotNull(headers, "Headers should not be null");
     assertTrue(headers.containsKey("Authorization"), "Headers should contain Authorization key");
-    assertEquals("Bearer " + token, headers.getFirst("Authorization"), "Authorization header value should be correct");
+    assertEquals(
+        "Bearer " + token,
+        headers.getFirst("Authorization"),
+        "Authorization header value should be correct");
   }
 
   @Test
@@ -32,7 +34,10 @@ class HttpHeaderUtilsTest {
 
     assertNotNull(headers, "Headers should not be null");
     assertTrue(headers.containsKey("Authorization"), "Headers should contain Authorization key");
-    assertEquals("Bearer ", headers.getFirst("Authorization"), "Authorization header value should be 'Bearer '");
+    assertEquals(
+        "Bearer ",
+        headers.getFirst("Authorization"),
+        "Authorization header value should be 'Bearer '");
   }
 
   @Test
@@ -42,7 +47,10 @@ class HttpHeaderUtilsTest {
 
     assertNotNull(headers, "Headers should not be null");
     assertTrue(headers.containsKey("Authorization"), "Headers should contain Authorization key");
-    assertEquals("Bearer null", headers.getFirst("Authorization"), "Authorization header value should be 'Bearer null'");
+    assertEquals(
+        "Bearer null",
+        headers.getFirst("Authorization"),
+        "Authorization header value should be 'Bearer null'");
   }
 
   @Test
@@ -54,7 +62,8 @@ class HttpHeaderUtilsTest {
     String domain = HttpHeaderUtils.getDomainFromRequest(request);
 
     assertNotNull(domain, "Domain should not be null");
-    assertEquals("192.168.1.1", domain, "Domain should match the first IP in X-Forwarded-For header");
+    assertEquals(
+        "192.168.1.1", domain, "Domain should match the first IP in X-Forwarded-For header");
   }
 
   @Test
@@ -80,7 +89,8 @@ class HttpHeaderUtilsTest {
     String domain = HttpHeaderUtils.getDomainFromRequest(request);
 
     assertNotNull(domain, "Domain should not be null");
-    assertTrue(domain.equals("8.8.8.8") || domain.equals("dns.google"),
+    assertTrue(
+        domain.equals("8.8.8.8") || domain.equals("dns.google"),
         "Domain should match the remote address or resolve to the DNS hostname");
   }
 
@@ -89,7 +99,8 @@ class HttpHeaderUtilsTest {
     String hostName = HttpHeaderUtils.resolveHostName("8.8.8.8");
 
     assertNotNull(hostName, "Host name should not be null");
-    assertTrue(hostName.equals("8.8.8.8") || !hostName.isEmpty(),
+    assertTrue(
+        hostName.equals("8.8.8.8") || !hostName.isEmpty(),
         "Host name should either match the IP or resolve to a valid hostname");
   }
 
@@ -109,7 +120,8 @@ class HttpHeaderUtilsTest {
 
     String domain = HttpHeaderUtils.getDomainFromRequest(request);
 
-    assertEquals("192.168.0.1", domain, "Domain should fall back to remote address if headers are invalid");
+    assertEquals(
+        "192.168.0.1", domain, "Domain should fall back to remote address if headers are invalid");
   }
 
   @Test

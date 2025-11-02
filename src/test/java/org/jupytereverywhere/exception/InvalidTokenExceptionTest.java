@@ -1,12 +1,11 @@
 package org.jupytereverywhere.exception;
 
-import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.ResponseStatus;
-
-import org.junit.jupiter.api.Test;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.ResponseStatus;
 
 class InvalidTokenExceptionTest {
 
@@ -22,9 +21,12 @@ class InvalidTokenExceptionTest {
   void testInvalidTokenExceptionWithResponseStatus() {
     String expectedMessage = "Unauthorized access due to invalid token";
 
-    InvalidTokenException exception = assertThrows(InvalidTokenException.class, () -> {
-      throw new InvalidTokenException(expectedMessage);
-    });
+    InvalidTokenException exception =
+        assertThrows(
+            InvalidTokenException.class,
+            () -> {
+              throw new InvalidTokenException(expectedMessage);
+            });
 
     assertEquals(expectedMessage, exception.getMessage());
 

@@ -1,12 +1,12 @@
 package org.jupytereverywhere.model.auth;
 
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 class AuthenticationRequestTest {
 
@@ -48,12 +48,16 @@ class AuthenticationRequestTest {
     authenticationRequest.setNotebookId("notebook-123");
     authenticationRequest.setPassword("testPassword");
     String expectedString = "AuthenticationRequest(notebookId=notebook-123)";
-    assertEquals(expectedString, authenticationRequest.toString(), "Password should be excluded from toString()");
+    assertEquals(
+        expectedString,
+        authenticationRequest.toString(),
+        "Password should be excluded from toString()");
   }
 
   @Test
   void testEquals_SameObject() {
-    assertEquals(authenticationRequest, authenticationRequest, "An object should be equal to itself");
+    assertEquals(
+        authenticationRequest, authenticationRequest, "An object should be equal to itself");
   }
 
   @Test
@@ -72,7 +76,8 @@ class AuthenticationRequestTest {
   @Test
   void testEquals_DifferentType() {
     AuthenticationRequest request = new AuthenticationRequest("notebook-123", "testPassword");
-    assertNotEquals("Some String", request, "An object should not be equal to an object of a different type");
+    assertNotEquals(
+        "Some String", request, "An object should not be equal to an object of a different type");
   }
 
   @Test
@@ -86,14 +91,20 @@ class AuthenticationRequestTest {
   void testHashCode_SameValues() {
     AuthenticationRequest request1 = new AuthenticationRequest("notebook-123", "testPassword");
     AuthenticationRequest request2 = new AuthenticationRequest("notebook-123", "testPassword");
-    assertEquals(request1.hashCode(), request2.hashCode(), "HashCode should be the same for objects with the same values");
+    assertEquals(
+        request1.hashCode(),
+        request2.hashCode(),
+        "HashCode should be the same for objects with the same values");
   }
 
   @Test
   void testHashCode_DifferentValues() {
     AuthenticationRequest request1 = new AuthenticationRequest("notebook-123", "testPassword");
     AuthenticationRequest request2 = new AuthenticationRequest("notebook-456", "otherPassword");
-    assertNotEquals(request1.hashCode(), request2.hashCode(), "HashCode should be different for objects with different values");
+    assertNotEquals(
+        request1.hashCode(),
+        request2.hashCode(),
+        "HashCode should be different for objects with different values");
   }
 
   @Test

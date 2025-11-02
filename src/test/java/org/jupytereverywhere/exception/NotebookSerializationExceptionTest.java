@@ -1,9 +1,9 @@
 package org.jupytereverywhere.exception;
 
-import org.junit.jupiter.api.Test;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+
+import org.junit.jupiter.api.Test;
 
 class NotebookSerializationExceptionTest {
 
@@ -12,7 +12,8 @@ class NotebookSerializationExceptionTest {
     String errorMessage = "Failed to serialize notebook";
     Throwable cause = new NullPointerException("Null value encountered");
 
-    NotebookSerializationException exception = new NotebookSerializationException(errorMessage, cause);
+    NotebookSerializationException exception =
+        new NotebookSerializationException(errorMessage, cause);
 
     assertEquals(errorMessage, exception.getMessage());
 
@@ -32,7 +33,8 @@ class NotebookSerializationExceptionTest {
   void testConstructorWithMessageOnly() {
     String errorMessage = "Failed to serialize notebook";
 
-    NotebookSerializationException exception = new NotebookSerializationException(errorMessage, null);
+    NotebookSerializationException exception =
+        new NotebookSerializationException(errorMessage, null);
 
     assertEquals(errorMessage, exception.getMessage());
 

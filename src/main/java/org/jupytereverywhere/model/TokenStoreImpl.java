@@ -22,4 +22,3 @@ public class TokenStoreImpl implements TokenStore {
     tokenStore.remove(sessionId);
   }
 }
-

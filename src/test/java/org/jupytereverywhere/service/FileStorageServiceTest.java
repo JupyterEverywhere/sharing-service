@@ -1,31 +1,5 @@
 package org.jupytereverywhere.service;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-
-import org.springframework.test.util.ReflectionTestUtils;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import org.jupytereverywhere.dto.CodemirrorModeDTO;
-import org.jupytereverywhere.dto.JupyterNotebookDTO;
-import org.jupytereverywhere.dto.KernelspecDTO;
-import org.jupytereverywhere.dto.LanguageInfoDTO;
-import org.jupytereverywhere.dto.MetadataDTO;
-import org.jupytereverywhere.exception.NotebookNotFoundException;
-import org.jupytereverywhere.exception.NotebookStorageException;
-
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-
-import org.mockito.MockedStatic;
-import org.mockito.junit.jupiter.MockitoExtension;
-
 import static com.jayway.jsonpath.internal.path.PathCompiler.fail;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -34,6 +8,29 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.times;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.jupytereverywhere.dto.CodemirrorModeDTO;
+import org.jupytereverywhere.dto.JupyterNotebookDTO;
+import org.jupytereverywhere.dto.KernelspecDTO;
+import org.jupytereverywhere.dto.LanguageInfoDTO;
+import org.jupytereverywhere.dto.MetadataDTO;
+import org.jupytereverywhere.exception.NotebookNotFoundException;
+import org.jupytereverywhere.exception.NotebookStorageException;
+import org.mockito.MockedStatic;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @ExtendWith(MockitoExtension.class)
 class FileStorageServiceTest {
@@ -51,8 +48,16 @@ class FileStorageServiceTest {
     ReflectionTestUtils.setField(fileStorageService, "localStoragePath", "/path/to/notebooks");
 
     JupyterNotebookDTO notebookDto = new JupyterNotebookDTO();
-    MetadataDTO metadata = new MetadataDTO(new KernelspecDTO("python3", "Python 3", "python"),
-        new LanguageInfoDTO(new CodemirrorModeDTO("python", 3), ".py", "text/x-python", "python", "python", "3.8.5"));
+    MetadataDTO metadata =
+        new MetadataDTO(
+            new KernelspecDTO("python3", "Python 3", "python"),
+            new LanguageInfoDTO(
+                new CodemirrorModeDTO("python", 3),
+                ".py",
+                "text/x-python",
+                "python",
+                "python",
+                "3.8.5"));
     notebookDto.setMetadata(metadata);
 
     String fileName = "testNotebook.ipynb";
@@ -62,7 +67,9 @@ class FileStorageServiceTest {
     String jsonString = objectMapper.writeValueAsString(notebookDto);
 
     try (MockedStatic<Files> filesMock = mockStatic(Files.class)) {
-      filesMock.when(() -> Files.createDirectories(testPath.getParent())).thenReturn(testPath.getParent());
+      filesMock
+          .when(() -> Files.createDirectories(testPath.getParent()))
+          .thenReturn(testPath.getParent());
       filesMock.when(() -> Files.write(eq(testPath), any(byte[].class))).thenReturn(testPath);
 
       String resultPath = fileStorageService.uploadNotebook(jsonString, fileName);
@@ -70,15 +77,24 @@ class FileStorageServiceTest {
       assertNotNull(resultPath);
       assertEquals(testPath.toString(), resultPath);
 
-      filesMock.verify(() -> Files.write(eq(testPath), eq(jsonString.getBytes(StandardCharsets.UTF_8))));
+      filesMock.verify(
+          () -> Files.write(eq(testPath), eq(jsonString.getBytes(StandardCharsets.UTF_8))));
     }
   }
 
   @Test
   void testSaveNotebook_ThrowsIOException() throws JsonProcessingException {
     JupyterNotebookDTO notebookDto = new JupyterNotebookDTO();
-    MetadataDTO metadata = new MetadataDTO(new KernelspecDTO("python3", "Python 3", "python"),
-        new LanguageInfoDTO(new CodemirrorModeDTO("python", 3), ".py", "text/x-python", "python", "python", "3.8.5"));
+    MetadataDTO metadata =
+        new MetadataDTO(
+            new KernelspecDTO("python3", "Python 3", "python"),
+            new LanguageInfoDTO(
+                new CodemirrorModeDTO("python", 3),
+                ".py",
+                "text/x-python",
+                "python",
+                "python",
+                "3.8.5"));
     notebookDto.setMetadata(metadata);
 
     String fileName = "testNotebook.ipynb";
@@ -86,12 +102,16 @@ class FileStorageServiceTest {
     Path testPath = Paths.get(directoryPath, fileName);
 
     try (MockedStatic<Files> filesMock = mockStatic(Files.class)) {
-      filesMock.when(() -> Files.createDirectories(testPath.getParent())).thenReturn(testPath.getParent());
-      filesMock.when(() -> Files.write(eq(testPath), any(byte[].class)))
+      filesMock
+          .when(() -> Files.createDirectories(testPath.getParent()))
+          .thenReturn(testPath.getParent());
+      filesMock
+          .when(() -> Files.write(eq(testPath), any(byte[].class)))
           .thenThrow(new IOException("Simulated IO Exception"));
 
       String jsonString = objectMapper.writeValueAsString(notebookDto);
-      assertThrows(RuntimeException.class, () -> fileStorageService.uploadNotebook(jsonString, fileName));
+      assertThrows(
+          RuntimeException.class, () -> fileStorageService.uploadNotebook(jsonString, fileName));
     }
   }
 
@@ -101,11 +121,14 @@ class FileStorageServiceTest {
     String fullPath = "/path/to/notebooks/" + fileName;
     Path testPath = Paths.get(fullPath);
 
-    String simulatedContent = "{\"nbformat\": 4, \"nbformat_minor\": 2, \"metadata\": {\"kernelspec\": {\"display_name\": \"Python 3\", \"language\": \"python\", \"name\": \"python3\"}, \"language_info\": {\"name\": \"python\"}}}";
+    String simulatedContent =
+        "{\"nbformat\": 4, \"nbformat_minor\": 2, \"metadata\": {\"kernelspec\": {\"display_name\": \"Python 3\", \"language\": \"python\", \"name\": \"python3\"}, \"language_info\": {\"name\": \"python\"}}}";
 
     try (MockedStatic<Files> filesMock = mockStatic(Files.class)) {
       filesMock.when(() -> Files.exists(testPath)).thenReturn(true);
-      filesMock.when(() -> Files.readString(testPath, StandardCharsets.UTF_8)).thenReturn(simulatedContent);
+      filesMock
+          .when(() -> Files.readString(testPath, StandardCharsets.UTF_8))
+          .thenReturn(simulatedContent);
 
       JupyterNotebookDTO result = fileStorageService.downloadNotebook(fullPath);
 
@@ -129,7 +152,8 @@ class FileStorageServiceTest {
 
     try (MockedStatic<Files> filesMock = mockStatic(Files.class)) {
       filesMock.when(() -> Files.exists(testPath)).thenReturn(false);
-      assertThrows(NotebookNotFoundException.class, () -> fileStorageService.downloadNotebook(fullPath));
+      assertThrows(
+          NotebookNotFoundException.class, () -> fileStorageService.downloadNotebook(fullPath));
     }
   }
 
@@ -141,10 +165,12 @@ class FileStorageServiceTest {
 
     try (MockedStatic<Files> filesMock = mockStatic(Files.class)) {
       filesMock.when(() -> Files.exists(testPath)).thenReturn(true);
-      filesMock.when(() -> Files.readString(testPath, StandardCharsets.UTF_8))
+      filesMock
+          .when(() -> Files.readString(testPath, StandardCharsets.UTF_8))
           .thenThrow(new IOException("Simulated IO Exception"));
 
-      assertThrows(NotebookStorageException.class, () -> fileStorageService.downloadNotebook(fullPath));
+      assertThrows(
+          NotebookStorageException.class, () -> fileStorageService.downloadNotebook(fullPath));
     }
   }
 
@@ -176,7 +202,8 @@ class FileStorageServiceTest {
 
     try (MockedStatic<Files> filesMock = mockStatic(Files.class)) {
       filesMock.when(() -> Files.exists(notebookPath)).thenReturn(false);
-      assertThrows(NotebookNotFoundException.class, () -> fileStorageService.deleteNotebook(fileName));
+      assertThrows(
+          NotebookNotFoundException.class, () -> fileStorageService.deleteNotebook(fileName));
       filesMock.verify(() -> Files.exists(notebookPath), times(1));
     }
   }
@@ -191,9 +218,12 @@ class FileStorageServiceTest {
 
     try (MockedStatic<Files> filesMock = mockStatic(Files.class)) {
       filesMock.when(() -> Files.exists(notebookPath)).thenReturn(true);
-      filesMock.when(() -> Files.delete(notebookPath)).thenThrow(new IOException("Simulated IO Exception"));
+      filesMock
+          .when(() -> Files.delete(notebookPath))
+          .thenThrow(new IOException("Simulated IO Exception"));
 
-      assertThrows(NotebookStorageException.class, () -> fileStorageService.deleteNotebook(fileName));
+      assertThrows(
+          NotebookStorageException.class, () -> fileStorageService.deleteNotebook(fileName));
     }
   }
 }

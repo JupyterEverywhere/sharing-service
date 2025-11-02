@@ -10,7 +10,6 @@ readonly RED='\033[0;31m'
 readonly GREEN='\033[0;32m'
 readonly YELLOW='\033[1;33m'
 readonly BLUE='\033[0;34m'
-readonly PURPLE='\033[0;35m'
 readonly CYAN='\033[0;36m'
 readonly WHITE='\033[1;37m'
 readonly NC='\033[0m' # No Color
@@ -20,7 +19,9 @@ readonly ITERATIONS=${1:-100}
 readonly NOTEBOOK_SIZE_KB=${2:-5120}  # Default 5MB
 readonly BASELINE_VERSION="0.6.0"
 readonly RESULTS_DIR="perf-results"
-readonly TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+TIMESTAMP=""
+TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+readonly TIMESTAMP
 
 # Logging functions
 log_info() {
@@ -90,17 +91,23 @@ run_performance_test() {
   log_info "Running performance test ($ITERATIONS iterations, ${NOTEBOOK_SIZE_KB}KB notebooks)..."
 
   # Run the performance test and capture JSON output
-  local test_output=$(./scripts/performance-test.sh "$ITERATIONS" "$NOTEBOOK_SIZE_KB" 2>&1)
-  local json_result=$(echo "$test_output" | tail -n 1)
+  local test_output
+  test_output=$(./scripts/performance-test.sh "$ITERATIONS" "$NOTEBOOK_SIZE_KB" 2>&1)
+  local json_result
+  json_result=$(echo "$test_output" | tail -n 1)
 
   # Save full output
   echo "$test_output" > "$output_file"
 
   # Parse JSON results
-  local avg=$(echo "$json_result" | jq -r '.avg')
-  local min=$(echo "$json_result" | jq -r '.min')
-  local max=$(echo "$json_result" | jq -r '.max')
-  local iterations=$(echo "$json_result" | jq -r '.iterations')
+  local avg
+  avg=$(echo "$json_result" | jq -r '.avg')
+  local min
+  min=$(echo "$json_result" | jq -r '.min')
+  local max
+  max=$(echo "$json_result" | jq -r '.max')
+  local iterations
+  iterations=$(echo "$json_result" | jq -r '.iterations')
 
   log_success "Test completed: $iterations successful uploads"
   echo -e "  ${WHITE}Average:${NC} ${avg}s"
@@ -116,8 +123,10 @@ calculate_improvement() {
   local baseline_avg=$1
   local current_avg=$2
 
-  local improvement=$(echo "scale=2; (($baseline_avg - $current_avg) / $baseline_avg) * 100" | bc)
-  local speedup=$(echo "scale=2; $baseline_avg / $current_avg" | bc)
+  local improvement
+  improvement=$(echo "scale=2; (($baseline_avg - $current_avg) / $baseline_avg) * 100" | bc)
+  local speedup
+  speedup=$(echo "scale=2; $baseline_avg / $current_avg" | bc)
 
   echo "$improvement|$speedup"
 }
@@ -127,19 +136,29 @@ generate_report() {
   local baseline_results=$1
   local current_results=$2
 
-  local baseline_avg=$(echo "$baseline_results" | jq -r '.avg')
-  local baseline_min=$(echo "$baseline_results" | jq -r '.min')
-  local baseline_max=$(echo "$baseline_results" | jq -r '.max')
+  local baseline_avg
+  baseline_avg=$(echo "$baseline_results" | jq -r '.avg')
+  local baseline_min
+  baseline_min=$(echo "$baseline_results" | jq -r '.min')
+  local baseline_max
+  baseline_max=$(echo "$baseline_results" | jq -r '.max')
 
-  local current_avg=$(echo "$current_results" | jq -r '.avg')
-  local current_min=$(echo "$current_results" | jq -r '.min')
-  local current_max=$(echo "$current_results" | jq -r '.max')
+  local current_avg
+  current_avg=$(echo "$current_results" | jq -r '.avg')
+  local current_min
+  current_min=$(echo "$current_results" | jq -r '.min')
+  local current_max
+  current_max=$(echo "$current_results" | jq -r '.max')
 
-  local notebook_size=$(echo "$current_results" | jq -r '.notebook_size')
+  local notebook_size
+  notebook_size=$(echo "$current_results" | jq -r '.notebook_size')
 
-  local metrics=$(calculate_improvement "$baseline_avg" "$current_avg")
-  local improvement=$(echo "$metrics" | cut -d'|' -f1)
-  local speedup=$(echo "$metrics" | cut -d'|' -f2)
+  local metrics
+  metrics=$(calculate_improvement "$baseline_avg" "$current_avg")
+  local improvement
+  improvement=$(echo "$metrics" | cut -d'|' -f1)
+  local speedup
+  speedup=$(echo "$metrics" | cut -d'|' -f2)
 
   print_header "Performance Comparison Report"
 
@@ -167,7 +186,8 @@ generate_report() {
     echo -e "  ${GREEN}✓ ${improvement}% faster${NC}"
     echo -e "  ${GREEN}✓ ${speedup}x speedup${NC}"
   elif (( $(echo "$improvement < 0" | bc -l) )); then
-    local regression=$(echo "scale=2; -1 * $improvement" | bc)
+    local regression
+    regression=$(echo "scale=2; -1 * $improvement" | bc)
     echo -e "  ${RED}✗ ${regression}% slower${NC}"
     echo -e "  ${RED}✗ Performance regression${NC}"
   else
@@ -216,11 +236,13 @@ main() {
 
   # Test baseline version
   local baseline_output="$RESULTS_DIR/baseline-$BASELINE_VERSION-$TIMESTAMP.log"
-  local baseline_results=$(run_performance_test "$BASELINE_VERSION" "$baseline_output")
+  local baseline_results
+  baseline_results=$(run_performance_test "$BASELINE_VERSION" "$baseline_output")
 
   # Test current version
   local current_output="$RESULTS_DIR/current-$TIMESTAMP.log"
-  local current_results=$(run_performance_test "$ORIGINAL_BRANCH" "$current_output")
+  local current_results
+  current_results=$(run_performance_test "$ORIGINAL_BRANCH" "$current_output")
 
   # Generate comparison report
   generate_report "$baseline_results" "$current_results"
