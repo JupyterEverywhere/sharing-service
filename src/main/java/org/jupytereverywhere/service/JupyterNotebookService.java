@@ -26,7 +26,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
@@ -48,7 +47,6 @@ public class JupyterNotebookService {
   private final JupyterNotebookValidator jupyterNotebookValidator;
   private final JupyterNotebookRepository notebookRepository;
   private final EntityManager entityManager;
-  private final ObjectMapper objectMapper;
 
   private final JwtTokenService jwtTokenService;
   private final PasswordEncoder passwordEncoder;
@@ -61,14 +59,12 @@ public class JupyterNotebookService {
       JupyterNotebookValidator jupyterNotebookValidator,
       JupyterNotebookRepository notebookRepository,
       EntityManager entityManager,
-      ObjectMapper objectMapper,
       JwtTokenService jwtTokenService,
       PasswordEncoder passwordEncoder) {
     this.storageService = storageService;
     this.jupyterNotebookValidator = jupyterNotebookValidator;
     this.notebookRepository = notebookRepository;
     this.entityManager = entityManager;
-    this.objectMapper = objectMapper;
     this.jwtTokenService = jwtTokenService;
     this.passwordEncoder = passwordEncoder;
   }
