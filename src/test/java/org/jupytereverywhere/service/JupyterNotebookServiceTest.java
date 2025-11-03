@@ -365,33 +365,23 @@ class JupyterNotebookServiceTest {
 
   @Test
   void testValidateAndStoreNotebook_InvalidMetadata() {
+    // Create notebook JSON with missing required metadata field
+    String invalidNotebookJson = "{\"cells\":[],\"nbformat\":4}"; // missing metadata
     JupyterNotebookDTO notebookDto = new JupyterNotebookDTO();
-    notebookDto.setMetadata(null);
+    notebookDto.setMetadata(new MetadataDTO()); // DTO has metadata but JSON doesn't
+
+    // Mock validator to reject the invalid JSON
+    when(jupyterNotebookValidator.validateNotebook(anyString())).thenReturn(false);
 
     InvalidNotebookException exception =
         assertThrows(
             InvalidNotebookException.class,
             () -> {
               notebookService.validateAndStoreNotebook(
-                  notebookDto, sessionId, domain, "password", SAMPLE_NOTEBOOK_JSON);
+                  notebookDto, sessionId, domain, "password", invalidNotebookJson);
             });
 
-    assertEquals("Invalid metadata format in notebook", exception.getMessage());
-  }
-
-  @Test
-  void testValidateNotebookMetadata_InvalidMetadata() {
-    JupyterNotebookDTO notebookDto = new JupyterNotebookDTO();
-    notebookDto.setMetadata(null);
-
-    InvalidNotebookException exception =
-        assertThrows(
-            InvalidNotebookException.class,
-            () -> {
-              notebookService.validateNotebookMetadata(notebookDto);
-            });
-
-    assertEquals("Invalid metadata format in notebook", exception.getMessage());
+    assertEquals("Notebook validation failed", exception.getMessage());
   }
 
   @Test
@@ -732,5 +722,33 @@ class JupyterNotebookServiceTest {
     assertEquals("1.0.0", entity.getLanguageVersion());
     assertEquals("custom", entity.getKernelName());
     assertEquals("Custom Kernel", entity.getKernelDisplayName());
+  }
+
+  @Test
+  void testSetNotebookEntityMetadata_WithEmptyLanguageInfoName() {
+    JupyterNotebookEntity entity = new JupyterNotebookEntity();
+    MetadataDTO metadata = new MetadataDTO();
+
+    // languageInfo exists but name is empty string (like Untitled.ipynb)
+    LanguageInfoDTO languageInfo = new LanguageInfoDTO();
+    languageInfo.setName(""); // Empty string
+    languageInfo.setVersion("3.9.0");
+    languageInfo.setFileExtension(".py");
+    metadata.setLanguageInfo(languageInfo);
+
+    KernelspecDTO kernelspec = new KernelspecDTO();
+    kernelspec.setName("python3");
+    kernelspec.setDisplayName("Python 3");
+    metadata.setKernelspec(kernelspec);
+
+    ReflectionTestUtils.invokeMethod(
+        notebookService, "setNotebookEntityMetadata", entity, metadata);
+
+    // Language should be null because empty string should not be stored
+    assertNull(entity.getLanguage());
+    assertEquals("3.9.0", entity.getLanguageVersion());
+    assertEquals(".py", entity.getFileExtension());
+    assertEquals("python3", entity.getKernelName());
+    assertEquals("Python 3", entity.getKernelDisplayName());
   }
 }

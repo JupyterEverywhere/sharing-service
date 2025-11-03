@@ -29,7 +29,11 @@ public class FileStorageService implements StorageService {
   @Value("${storage.path.local}")
   private String localStoragePath;
 
-  private final ObjectMapper objectMapper = new ObjectMapper();
+  private final ObjectMapper objectMapper;
+
+  public FileStorageService(ObjectMapper objectMapper) {
+    this.objectMapper = objectMapper;
+  }
 
   void ensureDirectoryExists(Path directoryPath) throws IOException {
     if (!Files.exists(directoryPath)) {

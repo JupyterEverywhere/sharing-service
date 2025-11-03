@@ -16,7 +16,6 @@ import org.jupytereverywhere.model.response.JupyterNotebookRetrieved;
 import org.jupytereverywhere.model.response.JupyterNotebookSaved;
 import org.jupytereverywhere.model.response.JupyterNotebookSavedResponse;
 import org.jupytereverywhere.service.JupyterNotebookService;
-import org.jupytereverywhere.utils.CachedBodyHttpServletRequest;
 import org.jupytereverywhere.utils.HttpHeaderUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -29,7 +28,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -66,27 +64,29 @@ public class JupyterNotebookController {
    */
   private String extractRawNotebookJsonFromRequest(
       HttpServletRequest request, JupyterNotebookRequest notebookRequest) {
-    // Try to get cached body first
-    if (request instanceof CachedBodyHttpServletRequest cachedRequest) {
-      try {
-        String rawBody = cachedRequest.getCachedBody();
-        // Extract just the "notebook" field from the request body
-        JsonNode rootNode = objectMapper.readTree(rawBody);
-        JsonNode notebookNode = rootNode.get("notebook");
-        if (notebookNode != null) {
-          return objectMapper.writeValueAsString(notebookNode);
-        }
-      } catch (Exception e) {
-        log.warn("Failed to extract raw notebook JSON from cached body, using fallback", e);
-      }
+    String rawBody =
+        (String)
+            request.getAttribute(
+                org.jupytereverywhere.filter.CachedBodyFilter.CACHED_BODY_ATTRIBUTE);
+
+    if (rawBody == null) {
+      log.error("Cached body not found in request attributes");
+      throw new InvalidNotebookException("Failed to extract notebook from request");
     }
 
-    // Fallback: serialize the DTO
     try {
-      return objectMapper.writeValueAsString(notebookRequest.getNotebook());
-    } catch (JsonProcessingException e) {
-      log.error("Failed to serialize notebook", e);
-      throw new InvalidNotebookException("Failed to serialize notebook");
+      // Extract just the "notebook" field from the request body
+      JsonNode rootNode = objectMapper.readTree(rawBody);
+      JsonNode notebookNode = rootNode.get("notebook");
+      if (notebookNode != null) {
+        return objectMapper.writeValueAsString(notebookNode);
+      }
+      throw new InvalidNotebookException("No 'notebook' field found in request body");
+    } catch (InvalidNotebookException e) {
+      throw e;
+    } catch (Exception e) {
+      log.error("Failed to extract raw notebook JSON from cached body", e);
+      throw new InvalidNotebookException("Failed to extract notebook from request");
     }
   }
 
@@ -100,22 +100,17 @@ public class JupyterNotebookController {
    */
   private String extractRawNotebookJsonFromDto(
       HttpServletRequest request, JupyterNotebookDTO notebookDto) {
-    // Try to get cached body first
-    if (request instanceof CachedBodyHttpServletRequest cachedRequest) {
-      try {
-        return cachedRequest.getCachedBody();
-      } catch (Exception e) {
-        log.warn("Failed to extract raw notebook JSON from cached body, using fallback", e);
-      }
+    String rawBody =
+        (String)
+            request.getAttribute(
+                org.jupytereverywhere.filter.CachedBodyFilter.CACHED_BODY_ATTRIBUTE);
+
+    if (rawBody == null) {
+      log.error("Cached body not found in request attributes");
+      throw new InvalidNotebookException("Failed to extract notebook from request");
     }
 
-    // Fallback: serialize the DTO
-    try {
-      return objectMapper.writeValueAsString(notebookDto);
-    } catch (JsonProcessingException e) {
-      log.error("Failed to serialize notebook", e);
-      throw new InvalidNotebookException("Failed to serialize notebook");
-    }
+    return rawBody;
   }
 
   @GetMapping("/{uuid}")

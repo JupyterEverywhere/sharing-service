@@ -56,6 +56,8 @@ print_header() {
 # Global variables
 PYTHON_NOTEBOOK_ID=""
 R_NOTEBOOK_ID=""
+REAL_R_NOTEBOOK_ID=""
+NO_KERNEL_NOTEBOOK_ID=""
 API_TOKEN=""
 EXTRA_AUTH_HEADER_NAME="${EXTRA_AUTH_HEADER_NAME:-X-Extra-Auth}"
 EXTRA_AUTH_HEADER_SECRET="${EXTRA_AUTH_HEADER_SECRET:-secret}"
@@ -229,6 +231,16 @@ share_r_notebook() {
   R_NOTEBOOK_ID=$(share_notebook "R" "scripts/example-r.ipynb")
 }
 
+# Share a real R notebook (larger, real-world example with nbformat 4.1)
+share_real_r_notebook() {
+  REAL_R_NOTEBOOK_ID=$(share_notebook "Real-R" "scripts/example-real-r.ipynb")
+}
+
+# Share a notebook with empty language_info.name (tests fix for issue #0.8.1)
+share_no_kernel_notebook() {
+  NO_KERNEL_NOTEBOOK_ID=$(share_notebook "No-Kernel" "scripts/example-no-kernel.ipynb")
+}
+
 # Retrieve a notebook (generic function)
 retrieve_notebook() {
   local notebook_type="$1"
@@ -279,6 +291,16 @@ retrieve_r_notebook() {
   retrieve_notebook "R" "${R_NOTEBOOK_ID}"
 }
 
+# Retrieve the shared real R notebook
+retrieve_real_r_notebook() {
+  retrieve_notebook "Real-R" "${REAL_R_NOTEBOOK_ID}"
+}
+
+# Retrieve the shared no-kernel notebook
+retrieve_no_kernel_notebook() {
+  retrieve_notebook "No-Kernel" "${NO_KERNEL_NOTEBOOK_ID}"
+}
+
 # Main execution function
 main() {
   local start_time
@@ -296,6 +318,10 @@ main() {
     "retrieve_python_notebook"
     "share_r_notebook"
     "retrieve_r_notebook"
+    "share_real_r_notebook"
+    "retrieve_real_r_notebook"
+    "share_no_kernel_notebook"
+    "retrieve_no_kernel_notebook"
   )
 
   local failed_tests=()
@@ -323,6 +349,12 @@ main() {
     fi
     if [[ -n "${R_NOTEBOOK_ID}" ]]; then
       log_info "Created R notebook: ${R_NOTEBOOK_ID}"
+    fi
+    if [[ -n "${REAL_R_NOTEBOOK_ID}" ]]; then
+      log_info "Created Real-R notebook: ${REAL_R_NOTEBOOK_ID}"
+    fi
+    if [[ -n "${NO_KERNEL_NOTEBOOK_ID}" ]]; then
+      log_info "Created No-Kernel notebook: ${NO_KERNEL_NOTEBOOK_ID}"
     fi
   else
     log_error "Some tests failed! ❌"

@@ -31,6 +31,9 @@ import jakarta.servlet.http.HttpServletResponse;
 @Order(Ordered.HIGHEST_PRECEDENCE + 2)
 public class CachedBodyFilter extends OncePerRequestFilter {
 
+  /** Request attribute key for storing the cached request body */
+  public static final String CACHED_BODY_ATTRIBUTE = "cachedRequestBody";
+
   @Override
   protected void doFilterInternal(
       HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -38,6 +41,8 @@ public class CachedBodyFilter extends OncePerRequestFilter {
 
     if (shouldCacheBody(request)) {
       CachedBodyHttpServletRequest cachedRequest = new CachedBodyHttpServletRequest(request);
+      // Store cached body as request attribute so it survives wrapper layers
+      request.setAttribute(CACHED_BODY_ATTRIBUTE, cachedRequest.getCachedBody());
       filterChain.doFilter(cachedRequest, response);
     } else {
       filterChain.doFilter(request, response);

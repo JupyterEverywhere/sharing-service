@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.jupytereverywhere.dto.LanguageInfoDTO;
 import org.jupytereverywhere.model.request.JupyterNotebookRequest;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -68,5 +69,32 @@ class JacksonConfigTest {
     assertNotNull(request);
     assertNotNull(request.getNotebook());
     assertEquals(4, request.getNotebook().getNbformat());
+  }
+
+  @Test
+  void testSerialization_NON_NULL_Configuration() throws Exception {
+    // Create LanguageInfoDTO with some null fields and some non-null fields
+    LanguageInfoDTO langInfo = new LanguageInfoDTO();
+    langInfo.setName(null); // Null field - should NOT be serialized
+    langInfo.setVersion("3.9.0"); // Non-null field - should be serialized
+    langInfo.setMimetype(null); // Another null field - should NOT be serialized
+    langInfo.setFileExtension(".py"); // Non-null field - should be serialized
+
+    String json = objectMapper.writeValueAsString(langInfo);
+
+    // Verify null fields are NOT in the JSON
+    assertFalse(
+        json.contains("\"name\""),
+        "Null 'name' field should not be serialized with NON_NULL configuration");
+    assertFalse(
+        json.contains("\"mimetype\""),
+        "Null 'mimetype' field should not be serialized with NON_NULL configuration");
+
+    // Verify non-null fields ARE in the JSON
+    assertTrue(
+        json.contains("\"version\":\"3.9.0\""), "Non-null 'version' field should be serialized");
+    assertTrue(
+        json.contains("\"file_extension\":\".py\""),
+        "Non-null 'file_extension' field should be serialized");
   }
 }

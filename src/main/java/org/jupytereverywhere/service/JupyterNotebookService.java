@@ -26,7 +26,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
@@ -48,7 +47,6 @@ public class JupyterNotebookService {
   private final JupyterNotebookValidator jupyterNotebookValidator;
   private final JupyterNotebookRepository notebookRepository;
   private final EntityManager entityManager;
-  private final ObjectMapper objectMapper;
 
   private final JwtTokenService jwtTokenService;
   private final PasswordEncoder passwordEncoder;
@@ -61,14 +59,12 @@ public class JupyterNotebookService {
       JupyterNotebookValidator jupyterNotebookValidator,
       JupyterNotebookRepository notebookRepository,
       EntityManager entityManager,
-      ObjectMapper objectMapper,
       JwtTokenService jwtTokenService,
       PasswordEncoder passwordEncoder) {
     this.storageService = storageService;
     this.jupyterNotebookValidator = jupyterNotebookValidator;
     this.notebookRepository = notebookRepository;
     this.entityManager = entityManager;
-    this.objectMapper = objectMapper;
     this.jwtTokenService = jwtTokenService;
     this.passwordEncoder = passwordEncoder;
   }
@@ -177,8 +173,6 @@ public class JupyterNotebookService {
       String rawNotebookJson)
       throws InvalidNotebookException, JsonProcessingException {
 
-    validateNotebookMetadata(notebookDto);
-
     // Validate the raw incoming JSON (not re-serialized DTO) to preserve user's exact input
     validateNotebookSize(rawNotebookJson, sessionId);
 
@@ -261,8 +255,6 @@ public class JupyterNotebookService {
           Map.of(NOTEBOOK_ID_MESSAGE_KEY, notebookId.toString()));
     }
 
-    validateNotebookMetadata(notebookDto);
-
     // Validate the raw incoming JSON (not re-serialized DTO) to preserve user's exact input
     validateNotebookSize(rawNotebookJson, sessionId);
 
@@ -300,28 +292,6 @@ public class JupyterNotebookService {
 
       throw new NotebookTooLargeException(errorMessage, notebookSizeBytes, maxNotebookSizeBytes);
     }
-  }
-
-  void validateNotebookMetadata(JupyterNotebookDTO notebookDto) throws InvalidNotebookException {
-
-    MetadataDTO metadata = notebookDto.getMetadata();
-    if (metadata == null) {
-      log.error(new StringMapMessage().with(MESSAGE_KEY, "Invalid metadata format in notebook"));
-      throw new InvalidNotebookException("Invalid metadata format in notebook");
-    }
-
-    // Validate language_info if present - name is required in notebook format 4.5
-    if (metadata.getLanguageInfo() != null) {
-      if (metadata.getLanguageInfo().getName() == null
-          || metadata.getLanguageInfo().getName().trim().isEmpty()) {
-        log.error(
-            new StringMapMessage()
-                .with(MESSAGE_KEY, "language_info.name is required in notebook format 4.5"));
-        throw new InvalidNotebookException("language_info.name is required in notebook format 4.5");
-      }
-    }
-
-    notebookDto.setMetadata(metadata);
   }
 
   String storeNotebook(String notebookJsonString, String fileName) {
@@ -389,8 +359,11 @@ public class JupyterNotebookService {
     }
 
     if (metadata.getLanguageInfo() != null) {
-      // Only 'name' is required in notebook format 4.5
-      notebookEntity.setLanguage(metadata.getLanguageInfo().getName());
+      // Set language name if present and non-empty, otherwise leave as null
+      String languageName = metadata.getLanguageInfo().getName();
+      if (languageName != null && !languageName.trim().isEmpty()) {
+        notebookEntity.setLanguage(languageName);
+      }
 
       // Optional fields - only set if present
       if (metadata.getLanguageInfo().getVersion() != null) {
