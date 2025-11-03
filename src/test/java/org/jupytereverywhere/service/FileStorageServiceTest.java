@@ -30,17 +30,24 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @ExtendWith(MockitoExtension.class)
 class FileStorageServiceTest {
 
   private FileStorageService fileStorageService;
-  private final ObjectMapper objectMapper = new ObjectMapper();
+  private final ObjectMapper objectMapper;
+
+  public FileStorageServiceTest() {
+    objectMapper = new ObjectMapper();
+    // Configure to match JacksonConfig
+    objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+  }
 
   @BeforeEach
   void setUp() {
-    fileStorageService = new FileStorageService();
+    fileStorageService = new FileStorageService(objectMapper);
   }
 
   @Test

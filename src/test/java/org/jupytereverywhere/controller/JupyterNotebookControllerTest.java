@@ -67,6 +67,15 @@ class JupyterNotebookControllerTest {
     lenient()
         .when(objectMapper.writeValueAsString(any()))
         .thenReturn("{\"nbformat\":4,\"nbformat_minor\":5,\"metadata\":{},\"cells\":[]}");
+    // Mock readTree for POST requests that extract notebook field
+    lenient()
+        .when(objectMapper.readTree(anyString()))
+        .thenReturn(
+            objectMapper().createObjectNode().set("notebook", objectMapper().createObjectNode()));
+  }
+
+  private com.fasterxml.jackson.databind.ObjectMapper objectMapper() {
+    return new com.fasterxml.jackson.databind.ObjectMapper();
   }
 
   @AfterEach
@@ -84,6 +93,11 @@ class JupyterNotebookControllerTest {
     mockedStaticHttpHeaderUtils
         .when(() -> HttpHeaderUtils.getTokenFromRequest(request))
         .thenReturn(token);
+  }
+
+  private void mockCachedBody(String rawNotebookJson) {
+    when(request.getAttribute(org.jupytereverywhere.filter.CachedBodyFilter.CACHED_BODY_ATTRIBUTE))
+        .thenReturn(rawNotebookJson);
   }
 
   @Test
@@ -186,6 +200,7 @@ class JupyterNotebookControllerTest {
 
     when(authentication.getPrincipal()).thenReturn(sessionId);
     mockDomainExtraction();
+    mockCachedBody("{\"notebook\":{\"nbformat\":4}}");
     when(notebookService.uploadNotebook(
             eq(notebookRequest), eq(sessionId), eq(domain), anyString()))
         .thenReturn(notebookSaved);
@@ -204,6 +219,7 @@ class JupyterNotebookControllerTest {
 
     when(authentication.getPrincipal()).thenReturn(sessionId);
     mockDomainExtraction();
+    mockCachedBody("{\"notebook\":{\"nbformat\":4}}");
     when(notebookService.uploadNotebook(
             eq(notebookRequest), eq(sessionId), eq(domain), anyString()))
         .thenThrow(new InvalidNotebookException("Invalid notebook format"));
@@ -225,6 +241,7 @@ class JupyterNotebookControllerTest {
 
     when(authentication.getPrincipal()).thenReturn(sessionId);
     mockDomainExtraction();
+    mockCachedBody("{\"notebook\":{\"nbformat\":4}}");
     when(notebookService.uploadNotebook(
             eq(notebookRequest), eq(sessionId), eq(domain), anyString()))
         .thenThrow(new RuntimeException("Unexpected error"));
@@ -252,6 +269,7 @@ class JupyterNotebookControllerTest {
 
     when(authentication.getPrincipal()).thenReturn(sessionId);
     mockTokenExtraction(token);
+    mockCachedBody("{\"nbformat\":4}");
     when(notebookService.updateNotebook(
             eq(notebookId), eq(notebookDto), eq(sessionId), eq(token), anyString()))
         .thenReturn(notebookSaved);
@@ -272,6 +290,7 @@ class JupyterNotebookControllerTest {
 
     when(authentication.getPrincipal()).thenReturn(sessionId);
     mockTokenExtraction(token);
+    mockCachedBody("{\"nbformat\":4}");
     when(notebookService.updateNotebook(
             eq(notebookId), eq(notebookDto), eq(sessionId), eq(token), anyString()))
         .thenThrow(new InvalidNotebookPasswordException("Invalid password"));
@@ -295,6 +314,7 @@ class JupyterNotebookControllerTest {
 
     when(authentication.getPrincipal()).thenReturn(sessionId);
     mockTokenExtraction(token);
+    mockCachedBody("{\"nbformat\":4}");
     when(notebookService.updateNotebook(
             eq(notebookId), eq(notebookDto), eq(sessionId), eq(token), anyString()))
         .thenThrow(new SessionMismatchException("Session ID mismatch"));
@@ -318,6 +338,7 @@ class JupyterNotebookControllerTest {
 
     when(authentication.getPrincipal()).thenReturn(sessionId);
     mockTokenExtraction(token);
+    mockCachedBody("{\"nbformat\":4}");
     when(notebookService.updateNotebook(
             eq(notebookId), eq(notebookDto), eq(sessionId), eq(token), anyString()))
         .thenThrow(new InvalidNotebookException("Invalid notebook format"));
@@ -341,6 +362,7 @@ class JupyterNotebookControllerTest {
 
     when(authentication.getPrincipal()).thenReturn(sessionId);
     mockTokenExtraction(token);
+    mockCachedBody("{\"nbformat\":4}");
     when(notebookService.updateNotebook(
             eq(notebookId), eq(notebookDto), eq(sessionId), eq(token), anyString()))
         .thenThrow(new RuntimeException("Unexpected error"));
@@ -367,6 +389,7 @@ class JupyterNotebookControllerTest {
 
     when(authentication.getPrincipal()).thenReturn(sessionId);
     mockTokenExtraction(token);
+    mockCachedBody("{\"nbformat\":4}");
     when(notebookService.updateNotebook(
             eq(readableId), eq(notebookDto), eq(sessionId), eq(token), anyString()))
         .thenReturn(notebookSaved);
@@ -386,6 +409,7 @@ class JupyterNotebookControllerTest {
 
     when(authentication.getPrincipal()).thenReturn(sessionId);
     mockTokenExtraction(token);
+    mockCachedBody("{\"nbformat\":4}");
     when(notebookService.updateNotebook(
             eq(readableId), eq(notebookDto), eq(sessionId), eq(token), anyString()))
         .thenThrow(new SessionMismatchException("Session ID mismatch"));
@@ -408,6 +432,7 @@ class JupyterNotebookControllerTest {
 
     when(authentication.getPrincipal()).thenReturn(sessionId);
     mockTokenExtraction(token);
+    mockCachedBody("{\"nbformat\":4}");
     when(notebookService.updateNotebook(
             eq(readableId), eq(notebookDto), eq(sessionId), eq(token), anyString()))
         .thenThrow(new InvalidNotebookException("Invalid notebook format"));
@@ -430,6 +455,7 @@ class JupyterNotebookControllerTest {
 
     when(authentication.getPrincipal()).thenReturn(sessionId);
     mockTokenExtraction(token);
+    mockCachedBody("{\"nbformat\":4}");
     when(notebookService.updateNotebook(
             eq(readableId), eq(notebookDto), eq(sessionId), eq(token), anyString()))
         .thenThrow(new RuntimeException("Unexpected error"));
@@ -451,6 +477,7 @@ class JupyterNotebookControllerTest {
 
     when(authentication.getPrincipal()).thenReturn(sessionId);
     mockDomainExtraction();
+    mockCachedBody("{\"notebook\":{\"nbformat\":4}}");
     when(notebookService.uploadNotebook(
             eq(notebookRequest), eq(sessionId), eq(domain), anyString()))
         .thenThrow(
@@ -476,6 +503,7 @@ class JupyterNotebookControllerTest {
 
     when(authentication.getPrincipal()).thenReturn(sessionId);
     mockTokenExtraction(token);
+    mockCachedBody("{\"nbformat\":4}");
     when(notebookService.updateNotebook(
             eq(notebookId), eq(notebookDto), eq(sessionId), eq(token), anyString()))
         .thenThrow(
@@ -500,6 +528,7 @@ class JupyterNotebookControllerTest {
 
     when(authentication.getPrincipal()).thenReturn(sessionId);
     mockTokenExtraction(token);
+    mockCachedBody("{\"nbformat\":4}");
     when(notebookService.updateNotebook(
             eq(readableId), eq(notebookDto), eq(sessionId), eq(token), anyString()))
         .thenThrow(
