@@ -177,8 +177,6 @@ public class JupyterNotebookService {
       String rawNotebookJson)
       throws InvalidNotebookException, JsonProcessingException {
 
-    validateNotebookMetadata(notebookDto);
-
     // Validate the raw incoming JSON (not re-serialized DTO) to preserve user's exact input
     validateNotebookSize(rawNotebookJson, sessionId);
 
@@ -261,8 +259,6 @@ public class JupyterNotebookService {
           Map.of(NOTEBOOK_ID_MESSAGE_KEY, notebookId.toString()));
     }
 
-    validateNotebookMetadata(notebookDto);
-
     // Validate the raw incoming JSON (not re-serialized DTO) to preserve user's exact input
     validateNotebookSize(rawNotebookJson, sessionId);
 
@@ -300,28 +296,6 @@ public class JupyterNotebookService {
 
       throw new NotebookTooLargeException(errorMessage, notebookSizeBytes, maxNotebookSizeBytes);
     }
-  }
-
-  void validateNotebookMetadata(JupyterNotebookDTO notebookDto) throws InvalidNotebookException {
-
-    MetadataDTO metadata = notebookDto.getMetadata();
-    if (metadata == null) {
-      log.error(new StringMapMessage().with(MESSAGE_KEY, "Invalid metadata format in notebook"));
-      throw new InvalidNotebookException("Invalid metadata format in notebook");
-    }
-
-    // Validate language_info if present - name is required in notebook format 4.5
-    if (metadata.getLanguageInfo() != null) {
-      if (metadata.getLanguageInfo().getName() == null
-          || metadata.getLanguageInfo().getName().trim().isEmpty()) {
-        log.error(
-            new StringMapMessage()
-                .with(MESSAGE_KEY, "language_info.name is required in notebook format 4.5"));
-        throw new InvalidNotebookException("language_info.name is required in notebook format 4.5");
-      }
-    }
-
-    notebookDto.setMetadata(metadata);
   }
 
   String storeNotebook(String notebookJsonString, String fileName) {
@@ -389,8 +363,11 @@ public class JupyterNotebookService {
     }
 
     if (metadata.getLanguageInfo() != null) {
-      // Only 'name' is required in notebook format 4.5
-      notebookEntity.setLanguage(metadata.getLanguageInfo().getName());
+      // Set language name if present and non-empty, otherwise leave as null
+      String languageName = metadata.getLanguageInfo().getName();
+      if (languageName != null && !languageName.trim().isEmpty()) {
+        notebookEntity.setLanguage(languageName);
+      }
 
       // Optional fields - only set if present
       if (metadata.getLanguageInfo().getVersion() != null) {
