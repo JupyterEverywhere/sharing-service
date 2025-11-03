@@ -503,4 +503,223 @@ class JupyterNotebookValidatorTest {
     boolean result = validator.validateNotebook(validNotebook);
     assertTrue(result, "Valid notebook with multiple cells should pass validation");
   }
+
+  @Test
+  void testValidateNotebook_ValidV41NotebookWithoutCellIds() {
+    String validV41Notebook =
+        """
+        {
+          "cells": [
+            {
+              "cell_type": "code",
+              "execution_count": null,
+              "metadata": {},
+              "outputs": [],
+              "source": ["print('Hello from v4.1')"]
+            }
+          ],
+          "metadata": {
+            "kernelspec": {
+              "display_name": "Python 3",
+              "name": "python3"
+            },
+            "language_info": {
+              "name": "python"
+            }
+          },
+          "nbformat": 4,
+          "nbformat_minor": 1
+        }
+        """;
+
+    boolean result = validator.validateNotebook(validV41Notebook);
+    assertTrue(result, "Valid v4.1 notebook without cell IDs should pass validation");
+  }
+
+  @Test
+  void testValidateNotebook_ValidV40Notebook() {
+    String validV40Notebook =
+        """
+        {
+          "cells": [
+            {
+              "cell_type": "markdown",
+              "metadata": {},
+              "source": ["# Title"]
+            }
+          ],
+          "metadata": {
+            "kernelspec": {
+              "display_name": "R",
+              "name": "ir"
+            },
+            "language_info": {
+              "name": "R"
+            }
+          },
+          "nbformat": 4,
+          "nbformat_minor": 0
+        }
+        """;
+
+    boolean result = validator.validateNotebook(validV40Notebook);
+    assertTrue(result, "Valid v4.0 notebook should pass validation");
+  }
+
+  @Test
+  void testValidateNotebook_RealRNotebookSample() {
+    // Simplified version of the real R notebook structure
+    String rNotebook =
+        """
+        {
+          "cells": [
+            {
+              "cell_type": "code",
+              "execution_count": null,
+              "metadata": {},
+              "outputs": [],
+              "source": ["library(coursekata)"]
+            }
+          ],
+          "metadata": {
+            "kernelspec": {
+              "display_name": "R",
+              "language": "R",
+              "name": "ir"
+            },
+            "language_info": {
+              "codemirror_mode": "r",
+              "file_extension": ".r",
+              "mimetype": "text/x-r-source",
+              "name": "R",
+              "pygments_lexer": "r"
+            }
+          },
+          "nbformat": 4,
+          "nbformat_minor": 1
+        }
+        """;
+
+    boolean result = validator.validateNotebook(rNotebook);
+    assertTrue(result, "Real-world R notebook structure (v4.1) should pass validation");
+  }
+
+  @Test
+  void testValidateNotebook_NegativeMinorVersion() {
+    String notebook =
+        """
+        {
+          "cells": [],
+          "metadata": {},
+          "nbformat": 4,
+          "nbformat_minor": -1
+        }
+        """;
+
+    boolean result = validator.validateNotebook(notebook);
+    assertFalse(result, "Notebook with negative nbformat_minor should fail validation");
+  }
+
+  @Test
+  void testValidateNotebook_VeryLargeMinorVersion() {
+    String notebook =
+        """
+        {
+          "cells": [],
+          "metadata": {
+            "kernelspec": {
+              "display_name": "Python 3",
+              "name": "python3"
+            },
+            "language_info": {
+              "name": "python"
+            }
+          },
+          "nbformat": 4,
+          "nbformat_minor": 100
+        }
+        """;
+
+    boolean result = validator.validateNotebook(notebook);
+    // Should use v4.5 schema and pass if it meets v4.5 requirements
+    assertTrue(result, "Notebook with very large nbformat_minor should fall back to v4.5");
+  }
+
+  @Test
+  void testValidateNotebook_MinorVersionAsString() {
+    String notebook =
+        """
+        {
+          "cells": [],
+          "metadata": {},
+          "nbformat": 4,
+          "nbformat_minor": "5"
+        }
+        """;
+
+    boolean result = validator.validateNotebook(notebook);
+    assertFalse(result, "Notebook with nbformat_minor as string should fail validation");
+  }
+
+  @Test
+  void testValidateNotebook_AllIntermediateVersions() {
+    // Test v4.2, v4.3, v4.4 explicitly
+    for (int minor = 2; minor <= 4; minor++) {
+      String notebook =
+          String.format(
+              """
+              {
+                "cells": [],
+                "metadata": {
+                  "kernelspec": {
+                    "display_name": "Python 3",
+                    "name": "python3"
+                  },
+                  "language_info": {
+                    "name": "python"
+                  }
+                },
+                "nbformat": 4,
+                "nbformat_minor": %d
+              }
+              """,
+              minor);
+
+      boolean result = validator.validateNotebook(notebook);
+      assertTrue(result, "v4." + minor + " notebook should pass validation");
+    }
+  }
+
+  @Test
+  void testValidateNotebook_V45WithoutCellIds_ShouldFail() {
+    // v4.5 REQUIRES cell IDs, so this should fail when using v4.5 schema
+    String v45NotebookWithoutIds =
+        """
+        {
+          "cells": [
+            {
+              "cell_type": "code",
+              "execution_count": null,
+              "metadata": {},
+              "outputs": [],
+              "source": ["print('test')"]
+            }
+          ],
+          "metadata": {
+            "kernelspec": {
+              "display_name": "Python 3",
+              "name": "python3"
+            },
+            "language_info": {
+              "name": "python"
+            }
+          },
+          "nbformat": 4,
+          "nbformat_minor": 5
+        }
+        """;
+
+    boolean result = validator.validateNotebook(v45NotebookWithoutIds);
+    assertFalse(result, "v4.5 notebook without cell IDs should fail validation");
+  }
 }
