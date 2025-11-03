@@ -21,12 +21,14 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 /**
  * Verification tests for empty notebook support.
  *
- * This test suite verifies that the issues described in empty-notebook-sharing-issue.md
- * have been properly addressed by migrations V5 and V6:
- * - V5__make_language_info_fields_nullable.sql (Sep 12) - Made fileExtension and languageVersion nullable
- * - V6__make_metadata_fields_nullable.sql (Oct 22) - Made language, kernelName, kernelDisplayName nullable
+ * <p>This test suite verifies that the issues described in empty-notebook-sharing-issue.md have
+ * been properly addressed by migrations V5 and V6: - V5__make_language_info_fields_nullable.sql
+ * (Sep 12) - Made fileExtension and languageVersion nullable -
+ * V6__make_metadata_fields_nullable.sql (Oct 22) - Made language, kernelName, kernelDisplayName
+ * nullable
  *
- * All tests should PASS, confirming that empty notebooks are now properly supported at the database level.
+ * <p>All tests should PASS, confirming that empty notebooks are now properly supported at the
+ * database level.
  */
 @Testcontainers
 @DataJpaTest
@@ -57,8 +59,8 @@ class EmptyNotebookValidationVerificationTest {
   @Autowired private JupyterNotebookRepository notebookRepository;
 
   /**
-   * Verifies that empty notebooks (minimal valid per nbformat spec) can now be saved.
-   * This was the main issue reported - empty notebooks should be valid.
+   * Verifies that empty notebooks (minimal valid per nbformat spec) can now be saved. This was the
+   * main issue reported - empty notebooks should be valid.
    */
   @Test
   void testEmptyNotebookCanBeSaved() {
@@ -81,9 +83,7 @@ class EmptyNotebookValidationVerificationTest {
     assertNull(saved.getLanguageVersion(), "languageVersion can be null");
   }
 
-  /**
-   * Verifies that markdown-only notebooks (no kernel needed) can be saved.
-   */
+  /** Verifies that markdown-only notebooks (no kernel needed) can be saved. */
   @Test
   void testMarkdownOnlyNotebookCanBeSaved() {
     JupyterNotebookEntity notebook = new JupyterNotebookEntity();
@@ -102,8 +102,8 @@ class EmptyNotebookValidationVerificationTest {
   }
 
   /**
-   * Verifies that notebooks with partial metadata (only language name) can be saved.
-   * Per nbformat spec, only language_info.name is required when language_info is present.
+   * Verifies that notebooks with partial metadata (only language name) can be saved. Per nbformat
+   * spec, only language_info.name is required when language_info is present.
    */
   @Test
   void testPartialMetadataCanBeSaved() {
@@ -127,9 +127,7 @@ class EmptyNotebookValidationVerificationTest {
     assertNull(saved.getKernelDisplayName(), "kernelspec is optional");
   }
 
-  /**
-   * Verifies that notebooks with only kernelspec (no language_info) can be saved.
-   */
+  /** Verifies that notebooks with only kernelspec (no language_info) can be saved. */
   @Test
   void testOnlyKernelspecCanBeSaved() {
     JupyterNotebookEntity notebook = new JupyterNotebookEntity();
@@ -153,9 +151,7 @@ class EmptyNotebookValidationVerificationTest {
     assertNull(saved.getLanguageVersion());
   }
 
-  /**
-   * Verifies that fully specified notebooks still work correctly.
-   */
+  /** Verifies that fully specified notebooks still work correctly. */
   @Test
   void testFullySpecifiedNotebookStillWorks() {
     JupyterNotebookEntity notebook = new JupyterNotebookEntity();
@@ -182,9 +178,8 @@ class EmptyNotebookValidationVerificationTest {
   }
 
   /**
-   * Documents the fix timeline:
-   * - V5 migration (Sep 12): Made fileExtension and languageVersion nullable
-   * - V6 migration (Oct 22): Made language, kernelName, kernelDisplayName nullable
+   * Documents the fix timeline: - V5 migration (Sep 12): Made fileExtension and languageVersion
+   * nullable - V6 migration (Oct 22): Made language, kernelName, kernelDisplayName nullable
    */
   @Test
   void testDocumentFixTimeline() {

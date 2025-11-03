@@ -10,7 +10,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.jupytereverywhere.dto.JupyterNotebookDTO;
 import org.jupytereverywhere.exception.InvalidNotebookException;
-import org.jupytereverywhere.exception.NotebookTooLargeException;
 import org.jupytereverywhere.model.request.JupyterNotebookRequest;
 import org.jupytereverywhere.model.response.JupyterNotebookSaved;
 import org.jupytereverywhere.repository.JupyterNotebookRepository;
@@ -28,8 +27,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
- * Test to reproduce the empty notebook validation issues at the service layer.
- * This bypasses HTTP/Controller layers to focus on service validation.
+ * Test to reproduce the empty notebook validation issues at the service layer. This bypasses
+ * HTTP/Controller layers to focus on service validation.
  */
 @SpringBootTest
 @Testcontainers
@@ -59,20 +58,15 @@ class EmptyNotebookValidationReproductionTest {
     registry.add("jwt.secret.name", () -> "test-secret");
   }
 
-  @Autowired
-  private JupyterNotebookService notebookService;
+  @Autowired private JupyterNotebookService notebookService;
 
-  @Autowired
-  private ObjectMapper objectMapper;
+  @Autowired private ObjectMapper objectMapper;
 
-  @Autowired
-  private JupyterNotebookValidator validator;
+  @Autowired private JupyterNotebookValidator validator;
 
-  @Autowired
-  private JupyterNotebookRepository repository;
+  @Autowired private JupyterNotebookRepository repository;
 
-  @MockBean
-  private FileStorageService storageService;
+  @MockBean private FileStorageService storageService;
 
   private UUID sessionId;
 
@@ -90,18 +84,18 @@ class EmptyNotebookValidationReproductionTest {
     emptyDto.setMetadata(new org.jupytereverywhere.dto.MetadataDTO());
     emptyDto.setNbformat(4);
     emptyDto.setNbformatMinor(5);
-    when(storageService.downloadNotebook(anyString()))
-        .thenReturn(emptyDto);
+    when(storageService.downloadNotebook(anyString())).thenReturn(emptyDto);
   }
 
   /**
    * Test Case 1: Empty Notebook with minimal metadata
    *
-   * This is valid per nbformat spec but might fail validation.
+   * <p>This is valid per nbformat spec but might fail validation.
    */
   @Test
   void testEmptyNotebook_MinimalMetadata() throws Exception {
-    String emptyNotebook = """
+    String emptyNotebook =
+        """
         {
           "cells": [],
           "metadata": {},
@@ -134,7 +128,8 @@ class EmptyNotebookValidationReproductionTest {
     request.setNotebook(notebookDto);
 
     try {
-      JupyterNotebookSaved result = notebookService.uploadNotebook(request, sessionId, "test.example.com");
+      JupyterNotebookSaved result =
+          notebookService.uploadNotebook(request, sessionId, "test.example.com");
       System.out.println("Service upload: ✅ SUCCESS");
       System.out.println("Notebook saved with ID: " + result.getId());
       System.out.println("Readable ID: " + result.getReadableId());
@@ -163,12 +158,11 @@ class EmptyNotebookValidationReproductionTest {
     }
   }
 
-  /**
-   * Test Case 2: Markdown-only notebook
-   */
+  /** Test Case 2: Markdown-only notebook */
   @Test
   void testMarkdownOnlyNotebook() throws Exception {
-    String markdownNotebook = """
+    String markdownNotebook =
+        """
         {
           "cells": [
             {
@@ -193,14 +187,16 @@ class EmptyNotebookValidationReproductionTest {
     System.out.println("Validator: " + (isValid ? "✅ VALID" : "❌ INVALID"));
 
     // Parse to DTO
-    JupyterNotebookDTO notebookDto = objectMapper.readValue(markdownNotebook, JupyterNotebookDTO.class);
+    JupyterNotebookDTO notebookDto =
+        objectMapper.readValue(markdownNotebook, JupyterNotebookDTO.class);
 
     // Try to save
     JupyterNotebookRequest request = new JupyterNotebookRequest();
     request.setNotebook(notebookDto);
 
     try {
-      JupyterNotebookSaved result = notebookService.uploadNotebook(request, sessionId, "test.example.com");
+      JupyterNotebookSaved result =
+          notebookService.uploadNotebook(request, sessionId, "test.example.com");
       System.out.println("✅ Markdown-only notebook accepted - ID: " + result.getId());
     } catch (Exception e) {
       System.out.println("❌ Markdown-only notebook rejected: " + e.getMessage());
@@ -208,12 +204,11 @@ class EmptyNotebookValidationReproductionTest {
     }
   }
 
-  /**
-   * Test Case 3: Partial metadata (only language name)
-   */
+  /** Test Case 3: Partial metadata (only language name) */
   @Test
   void testPartialMetadata_OnlyLanguageName() throws Exception {
-    String partialMetadata = """
+    String partialMetadata =
+        """
         {
           "cells": [],
           "metadata": {
@@ -233,14 +228,16 @@ class EmptyNotebookValidationReproductionTest {
     System.out.println("Validator: " + (isValid ? "✅ VALID" : "❌ INVALID"));
 
     // Parse to DTO
-    JupyterNotebookDTO notebookDto = objectMapper.readValue(partialMetadata, JupyterNotebookDTO.class);
+    JupyterNotebookDTO notebookDto =
+        objectMapper.readValue(partialMetadata, JupyterNotebookDTO.class);
 
     // Try to save
     JupyterNotebookRequest request = new JupyterNotebookRequest();
     request.setNotebook(notebookDto);
 
     try {
-      JupyterNotebookSaved result = notebookService.uploadNotebook(request, sessionId, "test.example.com");
+      JupyterNotebookSaved result =
+          notebookService.uploadNotebook(request, sessionId, "test.example.com");
       System.out.println("✅ Partial metadata notebook accepted - ID: " + result.getId());
     } catch (DataIntegrityViolationException e) {
       System.out.println("❌ DATABASE ERROR: " + e.getMessage());
@@ -254,12 +251,11 @@ class EmptyNotebookValidationReproductionTest {
     }
   }
 
-  /**
-   * Test Case 4: No metadata fields at all (testing defaults)
-   */
+  /** Test Case 4: No metadata fields at all (testing defaults) */
   @Test
   void testCompletelyEmptyMetadata() throws Exception {
-    String minimalNotebook = """
+    String minimalNotebook =
+        """
         {
           "cells": [],
           "metadata": {},
@@ -270,7 +266,8 @@ class EmptyNotebookValidationReproductionTest {
 
     System.out.println("\n=== Test Case 4: Completely Empty Metadata ===");
 
-    JupyterNotebookDTO notebookDto = objectMapper.readValue(minimalNotebook, JupyterNotebookDTO.class);
+    JupyterNotebookDTO notebookDto =
+        objectMapper.readValue(minimalNotebook, JupyterNotebookDTO.class);
 
     // Check what values the DTO has
     System.out.println("DTO metadata: " + notebookDto.getMetadata());
@@ -283,7 +280,8 @@ class EmptyNotebookValidationReproductionTest {
     request.setNotebook(notebookDto);
 
     try {
-      JupyterNotebookSaved result = notebookService.uploadNotebook(request, sessionId, "test.example.com");
+      JupyterNotebookSaved result =
+          notebookService.uploadNotebook(request, sessionId, "test.example.com");
       System.out.println("✅ Empty metadata accepted - Issue is FIXED");
       System.out.println("Saved with ID: " + result.getId());
 

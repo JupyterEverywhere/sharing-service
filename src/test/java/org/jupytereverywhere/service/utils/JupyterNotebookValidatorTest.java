@@ -141,7 +141,8 @@ class JupyterNotebookValidatorTest {
         """;
 
     boolean result = validator.validateNotebook(validEmptyNotebook);
-    assertTrue(result, "Absolute minimum valid notebook per nbformat v4.5 spec should pass validation");
+    assertTrue(
+        result, "Absolute minimum valid notebook per nbformat v4.5 spec should pass validation");
   }
 
   @Test

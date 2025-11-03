@@ -11,13 +11,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 /**
  * Jackson configuration for stricter JSON deserialization and clean serialization.
  *
- * <p>Deserialization: Configured to fail on:
- * - Null values for primitive types (int, boolean, etc.)
- * - Trailing tokens after valid JSON
- * - Null values passed to constructor parameters
+ * <p>Deserialization: Configured to fail on: - Null values for primitive types (int, boolean, etc.)
+ * - Trailing tokens after valid JSON - Null values passed to constructor parameters
  *
- * <p>Serialization: Configured to:
- * - Exclude null fields from JSON output (NON_NULL inclusion)
+ * <p>Serialization: Configured to: - Exclude null fields from JSON output (NON_NULL inclusion)
  *
  * <p>Note: This does not prevent null values for missing object fields during deserialization.
  * Use @NotNull with Bean Validation to enforce required fields.
