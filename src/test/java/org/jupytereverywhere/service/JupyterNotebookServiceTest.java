@@ -67,6 +67,10 @@ class JupyterNotebookServiceTest {
   private String readableId;
   private String token;
 
+  // Sample valid notebook JSON for testing
+  private static final String SAMPLE_NOTEBOOK_JSON =
+      "{\"nbformat\":4,\"nbformat_minor\":5,\"metadata\":{},\"cells\":[]}";
+
   @BeforeEach
   void setUp() {
     notebookId = UUID.randomUUID();
@@ -200,11 +204,10 @@ class JupyterNotebookServiceTest {
               return entity;
             });
     when(passwordEncoder.encode(anyString())).thenReturn("encoded-password");
-    when(objectMapper.writeValueAsString(any())).thenReturn("serialized-notebook-json");
     doNothing().when(entityManager).refresh(any(JupyterNotebookEntity.class));
 
     JupyterNotebookSaved result =
-        notebookService.uploadNotebook(notebookRequest, sessionId, domain);
+        notebookService.uploadNotebook(notebookRequest, sessionId, domain, SAMPLE_NOTEBOOK_JSON);
 
     assertNotNull(result);
     assertEquals(notebookId, result.getId());
@@ -223,7 +226,8 @@ class JupyterNotebookServiceTest {
         assertThrows(
             InvalidNotebookException.class,
             () -> {
-              notebookService.uploadNotebook(notebookRequest, sessionId, domain);
+              notebookService.uploadNotebook(
+                  notebookRequest, sessionId, domain, SAMPLE_NOTEBOOK_JSON);
             });
 
     assertEquals("Notebook validation failed", exception.getMessage());
@@ -239,7 +243,8 @@ class JupyterNotebookServiceTest {
     when(storageService.uploadNotebook(anyString(), anyString())).thenReturn("storage-url");
 
     JupyterNotebookSaved result =
-        notebookService.updateNotebook(notebookId, notebookDto, sessionId, token);
+        notebookService.updateNotebook(
+            notebookId, notebookDto, sessionId, token, SAMPLE_NOTEBOOK_JSON);
 
     assertNotNull(result);
     assertEquals(notebookId, result.getId());
@@ -266,7 +271,8 @@ class JupyterNotebookServiceTest {
     when(storageService.uploadNotebook(anyString(), anyString())).thenReturn("storage-url");
 
     JupyterNotebookSaved result =
-        notebookService.updateNotebook(notebookId, notebookDto, sessionId, token);
+        notebookService.updateNotebook(
+            notebookId, notebookDto, sessionId, token, SAMPLE_NOTEBOOK_JSON);
 
     assertNotNull(result);
     assertEquals(notebookId, result.getId());
@@ -294,7 +300,8 @@ class JupyterNotebookServiceTest {
         assertThrows(
             UnauthorizedNotebookAccessException.class,
             () -> {
-              notebookService.updateNotebook(notebookId, notebookDto, sessionId, token);
+              notebookService.updateNotebook(
+                  notebookId, notebookDto, sessionId, token, SAMPLE_NOTEBOOK_JSON);
             });
 
     assertEquals("You do not have permission to update this notebook", exception.getMessage());
@@ -310,7 +317,8 @@ class JupyterNotebookServiceTest {
         assertThrows(
             NotebookNotFoundException.class,
             () -> {
-              notebookService.updateNotebook(notebookId, notebookDto, sessionId, token);
+              notebookService.updateNotebook(
+                  notebookId, notebookDto, sessionId, token, SAMPLE_NOTEBOOK_JSON);
             });
 
     assertEquals("Notebook not found with ID: " + notebookId, exception.getMessage());
@@ -328,10 +336,10 @@ class JupyterNotebookServiceTest {
 
     when(jupyterNotebookValidator.validateNotebook(anyString())).thenReturn(true);
     when(storageService.uploadNotebook(anyString(), anyString())).thenReturn("storage-url");
-    when(objectMapper.writeValueAsString(any())).thenReturn("serialized-notebook-json");
 
     JupyterNotebookSaved result =
-        notebookService.updateNotebook(readableId, notebookDto, sessionId, token);
+        notebookService.updateNotebook(
+            readableId, notebookDto, sessionId, token, SAMPLE_NOTEBOOK_JSON);
 
     assertNotNull(result);
     assertEquals(notebookId, result.getId());
@@ -348,7 +356,8 @@ class JupyterNotebookServiceTest {
         assertThrows(
             NotebookNotFoundException.class,
             () -> {
-              notebookService.updateNotebook(readableId, notebookDto, sessionId, token);
+              notebookService.updateNotebook(
+                  readableId, notebookDto, sessionId, token, SAMPLE_NOTEBOOK_JSON);
             });
 
     assertEquals("Notebook not found", exception.getMessage());
@@ -363,7 +372,8 @@ class JupyterNotebookServiceTest {
         assertThrows(
             InvalidNotebookException.class,
             () -> {
-              notebookService.validateAndStoreNotebook(notebookDto, sessionId, domain, "password");
+              notebookService.validateAndStoreNotebook(
+                  notebookDto, sessionId, domain, "password", SAMPLE_NOTEBOOK_JSON);
             });
 
     assertEquals("Invalid metadata format in notebook", exception.getMessage());
@@ -452,7 +462,7 @@ class JupyterNotebookServiceTest {
             });
 
     JupyterNotebookSaved result =
-        notebookService.uploadNotebook(notebookRequest, sessionId, domain);
+        notebookService.uploadNotebook(notebookRequest, sessionId, domain, SAMPLE_NOTEBOOK_JSON);
     assertEquals("system-assigned-id", result.getReadableId());
     assertEquals(notebookId, result.getId());
     assertEquals(domain, result.getDomain());
@@ -474,7 +484,8 @@ class JupyterNotebookServiceTest {
     when(notebookRepository.save(any(JupyterNotebookEntity.class))).thenReturn(existingEntity);
 
     JupyterNotebookSaved result =
-        notebookService.updateNotebook(notebookId, notebookDto, sessionId, token);
+        notebookService.updateNotebook(
+            notebookId, notebookDto, sessionId, token, SAMPLE_NOTEBOOK_JSON);
     assertEquals("original-readable-id", result.getReadableId());
     assertEquals(notebookId, result.getId());
     assertEquals(domain, result.getDomain());
@@ -498,7 +509,8 @@ class JupyterNotebookServiceTest {
     when(notebookRepository.save(any(JupyterNotebookEntity.class))).thenReturn(existingEntity);
 
     JupyterNotebookSaved result =
-        notebookService.updateNotebook("original-readable-id", notebookDto, sessionId, token);
+        notebookService.updateNotebook(
+            "original-readable-id", notebookDto, sessionId, token, SAMPLE_NOTEBOOK_JSON);
     assertEquals("original-readable-id", result.getReadableId());
     assertEquals(notebookId, result.getId());
     assertEquals(domain, result.getDomain());
@@ -551,13 +563,11 @@ class JupyterNotebookServiceTest {
     }
     String largeJson = largeContent.toString();
 
-    when(objectMapper.writeValueAsString(any())).thenReturn(largeJson);
-
     NotebookTooLargeException exception =
         assertThrows(
             NotebookTooLargeException.class,
             () -> {
-              notebookService.uploadNotebook(notebookRequest, sessionId, domain);
+              notebookService.uploadNotebook(notebookRequest, sessionId, domain, largeJson);
             });
 
     assertNotNull(exception);
@@ -578,13 +588,13 @@ class JupyterNotebookServiceTest {
     String largeJson = largeContent.toString();
 
     when(notebookRepository.findById(notebookId)).thenReturn(Optional.of(notebookEntity));
-    when(objectMapper.writeValueAsString(any())).thenReturn(largeJson);
 
     NotebookTooLargeException exception =
         assertThrows(
             NotebookTooLargeException.class,
             () -> {
-              notebookService.updateNotebook(notebookId, largeNotebookDto, sessionId, token);
+              notebookService.updateNotebook(
+                  notebookId, largeNotebookDto, sessionId, token, largeJson);
             });
 
     assertNotNull(exception);

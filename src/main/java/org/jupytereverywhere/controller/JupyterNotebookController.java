@@ -16,6 +16,7 @@ import org.jupytereverywhere.model.response.JupyterNotebookRetrieved;
 import org.jupytereverywhere.model.response.JupyterNotebookSaved;
 import org.jupytereverywhere.model.response.JupyterNotebookSavedResponse;
 import org.jupytereverywhere.service.JupyterNotebookService;
+import org.jupytereverywhere.utils.CachedBodyHttpServletRequest;
 import org.jupytereverywhere.utils.HttpHeaderUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -27,6 +28,10 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -43,9 +48,74 @@ public class JupyterNotebookController {
   private static final String READABLE_ID_MESSAGE_KEY = "ReadableID";
 
   private final JupyterNotebookService notebookService;
+  private final ObjectMapper objectMapper;
 
-  public JupyterNotebookController(JupyterNotebookService notebookService) {
+  public JupyterNotebookController(
+      JupyterNotebookService notebookService, ObjectMapper objectMapper) {
     this.notebookService = notebookService;
+    this.objectMapper = objectMapper;
+  }
+
+  /**
+   * Extracts the raw notebook JSON from a POST request body. For POST requests, the body contains a
+   * JupyterNotebookRequest wrapper with a "notebook" field that needs to be extracted.
+   *
+   * @param request the HTTP servlet request
+   * @param notebookRequest the deserialized request object (used as fallback)
+   * @return raw notebook JSON string
+   */
+  private String extractRawNotebookJsonFromRequest(
+      HttpServletRequest request, JupyterNotebookRequest notebookRequest) {
+    // Try to get cached body first
+    if (request instanceof CachedBodyHttpServletRequest cachedRequest) {
+      try {
+        String rawBody = cachedRequest.getCachedBody();
+        // Extract just the "notebook" field from the request body
+        JsonNode rootNode = objectMapper.readTree(rawBody);
+        JsonNode notebookNode = rootNode.get("notebook");
+        if (notebookNode != null) {
+          return objectMapper.writeValueAsString(notebookNode);
+        }
+      } catch (Exception e) {
+        log.warn("Failed to extract raw notebook JSON from cached body, using fallback", e);
+      }
+    }
+
+    // Fallback: serialize the DTO
+    try {
+      return objectMapper.writeValueAsString(notebookRequest.getNotebook());
+    } catch (JsonProcessingException e) {
+      log.error("Failed to serialize notebook", e);
+      throw new InvalidNotebookException("Failed to serialize notebook");
+    }
+  }
+
+  /**
+   * Extracts the raw notebook JSON from a PUT request body. For PUT requests, the body is directly
+   * the notebook DTO, so we can use the entire cached body.
+   *
+   * @param request the HTTP servlet request
+   * @param notebookDto the deserialized notebook DTO (used as fallback)
+   * @return raw notebook JSON string
+   */
+  private String extractRawNotebookJsonFromDto(
+      HttpServletRequest request, JupyterNotebookDTO notebookDto) {
+    // Try to get cached body first
+    if (request instanceof CachedBodyHttpServletRequest cachedRequest) {
+      try {
+        return cachedRequest.getCachedBody();
+      } catch (Exception e) {
+        log.warn("Failed to extract raw notebook JSON from cached body, using fallback", e);
+      }
+    }
+
+    // Fallback: serialize the DTO
+    try {
+      return objectMapper.writeValueAsString(notebookDto);
+    } catch (JsonProcessingException e) {
+      log.error("Failed to serialize notebook", e);
+      throw new InvalidNotebookException("Failed to serialize notebook");
+    }
   }
 
   @GetMapping("/{uuid}")
@@ -87,8 +157,9 @@ public class JupyterNotebookController {
     logInfo("Received notebook upload request", SESSION_ID_MESSAGE_KEY, sessionId.toString());
 
     try {
+      String rawNotebookJson = extractRawNotebookJsonFromRequest(request, notebookRequest);
       JupyterNotebookSaved notebookSaved =
-          notebookService.uploadNotebook(notebookRequest, sessionId, domain);
+          notebookService.uploadNotebook(notebookRequest, sessionId, domain, rawNotebookJson);
       logInfo(
           "Notebook uploaded and validated successfully",
           SESSION_ID_MESSAGE_KEY,
@@ -127,9 +198,10 @@ public class JupyterNotebookController {
 
     try {
       String token = HttpHeaderUtils.getTokenFromRequest(request);
+      String rawNotebookJson = extractRawNotebookJsonFromDto(request, notebookDto);
 
       JupyterNotebookSaved notebookUpdated =
-          notebookService.updateNotebook(uuid, notebookDto, sessionId, token);
+          notebookService.updateNotebook(uuid, notebookDto, sessionId, token, rawNotebookJson);
 
       logInfo(
           "Notebook updated successfully",
@@ -172,9 +244,11 @@ public class JupyterNotebookController {
 
     try {
       String token = HttpHeaderUtils.getTokenFromRequest(request);
+      String rawNotebookJson = extractRawNotebookJsonFromDto(request, notebookDto);
 
       JupyterNotebookSaved notebookUpdated =
-          notebookService.updateNotebook(readableId, notebookDto, sessionId, token);
+          notebookService.updateNotebook(
+              readableId, notebookDto, sessionId, token, rawNotebookJson);
       logInfo(
           "Notebook updated successfully",
           NOTEBOOK_ID_MESSAGE_KEY,

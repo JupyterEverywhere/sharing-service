@@ -2,6 +2,10 @@ package org.jupytereverywhere.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
@@ -34,6 +38,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -43,6 +48,8 @@ class JupyterNotebookControllerTest {
   @InjectMocks private JupyterNotebookController controller;
 
   @Mock private JupyterNotebookService notebookService;
+
+  @Mock private ObjectMapper objectMapper;
 
   @Mock private Authentication authentication;
 
@@ -54,8 +61,12 @@ class JupyterNotebookControllerTest {
   private MockedStatic<HttpHeaderUtils> mockedStaticHttpHeaderUtils;
 
   @BeforeEach
-  void setUp() {
+  void setUp() throws Exception {
     mockedStaticHttpHeaderUtils = mockStatic(HttpHeaderUtils.class);
+    // Lenient stubbing - won't fail if not used in all tests
+    lenient()
+        .when(objectMapper.writeValueAsString(any()))
+        .thenReturn("{\"nbformat\":4,\"nbformat_minor\":5,\"metadata\":{},\"cells\":[]}");
   }
 
   @AfterEach
@@ -164,7 +175,7 @@ class JupyterNotebookControllerTest {
   }
 
   @Test
-  void testUploadNotebook_Success() {
+  void testUploadNotebook_Success() throws Exception {
     JupyterNotebookRequest notebookRequest = new JupyterNotebookRequest();
     UUID sessionId = UUID.randomUUID();
     UUID notebookId = UUID.randomUUID();
@@ -175,7 +186,8 @@ class JupyterNotebookControllerTest {
 
     when(authentication.getPrincipal()).thenReturn(sessionId);
     mockDomainExtraction();
-    when(notebookService.uploadNotebook(notebookRequest, sessionId, domain))
+    when(notebookService.uploadNotebook(
+            eq(notebookRequest), eq(sessionId), eq(domain), anyString()))
         .thenReturn(notebookSaved);
 
     ResponseEntity<JupyterNotebookResponse> response =
@@ -192,7 +204,8 @@ class JupyterNotebookControllerTest {
 
     when(authentication.getPrincipal()).thenReturn(sessionId);
     mockDomainExtraction();
-    when(notebookService.uploadNotebook(notebookRequest, sessionId, domain))
+    when(notebookService.uploadNotebook(
+            eq(notebookRequest), eq(sessionId), eq(domain), anyString()))
         .thenThrow(new InvalidNotebookException("Invalid notebook format"));
 
     ResponseEntity<JupyterNotebookResponse> response =
@@ -212,7 +225,8 @@ class JupyterNotebookControllerTest {
 
     when(authentication.getPrincipal()).thenReturn(sessionId);
     mockDomainExtraction();
-    when(notebookService.uploadNotebook(notebookRequest, sessionId, domain))
+    when(notebookService.uploadNotebook(
+            eq(notebookRequest), eq(sessionId), eq(domain), anyString()))
         .thenThrow(new RuntimeException("Unexpected error"));
 
     ResponseEntity<JupyterNotebookResponse> response =
@@ -238,7 +252,8 @@ class JupyterNotebookControllerTest {
 
     when(authentication.getPrincipal()).thenReturn(sessionId);
     mockTokenExtraction(token);
-    when(notebookService.updateNotebook(notebookId, notebookDto, sessionId, token))
+    when(notebookService.updateNotebook(
+            eq(notebookId), eq(notebookDto), eq(sessionId), eq(token), anyString()))
         .thenReturn(notebookSaved);
 
     ResponseEntity<JupyterNotebookResponse> response =
@@ -257,7 +272,8 @@ class JupyterNotebookControllerTest {
 
     when(authentication.getPrincipal()).thenReturn(sessionId);
     mockTokenExtraction(token);
-    when(notebookService.updateNotebook(notebookId, notebookDto, sessionId, token))
+    when(notebookService.updateNotebook(
+            eq(notebookId), eq(notebookDto), eq(sessionId), eq(token), anyString()))
         .thenThrow(new InvalidNotebookPasswordException("Invalid password"));
 
     ResponseEntity<JupyterNotebookResponse> response =
@@ -279,7 +295,8 @@ class JupyterNotebookControllerTest {
 
     when(authentication.getPrincipal()).thenReturn(sessionId);
     mockTokenExtraction(token);
-    when(notebookService.updateNotebook(notebookId, notebookDto, sessionId, token))
+    when(notebookService.updateNotebook(
+            eq(notebookId), eq(notebookDto), eq(sessionId), eq(token), anyString()))
         .thenThrow(new SessionMismatchException("Session ID mismatch"));
 
     ResponseEntity<JupyterNotebookResponse> response =
@@ -301,7 +318,8 @@ class JupyterNotebookControllerTest {
 
     when(authentication.getPrincipal()).thenReturn(sessionId);
     mockTokenExtraction(token);
-    when(notebookService.updateNotebook(notebookId, notebookDto, sessionId, token))
+    when(notebookService.updateNotebook(
+            eq(notebookId), eq(notebookDto), eq(sessionId), eq(token), anyString()))
         .thenThrow(new InvalidNotebookException("Invalid notebook format"));
 
     ResponseEntity<JupyterNotebookResponse> response =
@@ -323,7 +341,8 @@ class JupyterNotebookControllerTest {
 
     when(authentication.getPrincipal()).thenReturn(sessionId);
     mockTokenExtraction(token);
-    when(notebookService.updateNotebook(notebookId, notebookDto, sessionId, token))
+    when(notebookService.updateNotebook(
+            eq(notebookId), eq(notebookDto), eq(sessionId), eq(token), anyString()))
         .thenThrow(new RuntimeException("Unexpected error"));
 
     ResponseEntity<JupyterNotebookResponse> response =
@@ -348,7 +367,8 @@ class JupyterNotebookControllerTest {
 
     when(authentication.getPrincipal()).thenReturn(sessionId);
     mockTokenExtraction(token);
-    when(notebookService.updateNotebook(readableId, notebookDto, sessionId, token))
+    when(notebookService.updateNotebook(
+            eq(readableId), eq(notebookDto), eq(sessionId), eq(token), anyString()))
         .thenReturn(notebookSaved);
 
     ResponseEntity<JupyterNotebookResponse> response =
@@ -366,7 +386,8 @@ class JupyterNotebookControllerTest {
 
     when(authentication.getPrincipal()).thenReturn(sessionId);
     mockTokenExtraction(token);
-    when(notebookService.updateNotebook(readableId, notebookDto, sessionId, token))
+    when(notebookService.updateNotebook(
+            eq(readableId), eq(notebookDto), eq(sessionId), eq(token), anyString()))
         .thenThrow(new SessionMismatchException("Session ID mismatch"));
 
     ResponseEntity<JupyterNotebookResponse> response =
@@ -387,7 +408,8 @@ class JupyterNotebookControllerTest {
 
     when(authentication.getPrincipal()).thenReturn(sessionId);
     mockTokenExtraction(token);
-    when(notebookService.updateNotebook(readableId, notebookDto, sessionId, token))
+    when(notebookService.updateNotebook(
+            eq(readableId), eq(notebookDto), eq(sessionId), eq(token), anyString()))
         .thenThrow(new InvalidNotebookException("Invalid notebook format"));
 
     ResponseEntity<JupyterNotebookResponse> response =
@@ -408,7 +430,8 @@ class JupyterNotebookControllerTest {
 
     when(authentication.getPrincipal()).thenReturn(sessionId);
     mockTokenExtraction(token);
-    when(notebookService.updateNotebook(readableId, notebookDto, sessionId, token))
+    when(notebookService.updateNotebook(
+            eq(readableId), eq(notebookDto), eq(sessionId), eq(token), anyString()))
         .thenThrow(new RuntimeException("Unexpected error"));
 
     ResponseEntity<JupyterNotebookResponse> response =
@@ -428,7 +451,8 @@ class JupyterNotebookControllerTest {
 
     when(authentication.getPrincipal()).thenReturn(sessionId);
     mockDomainExtraction();
-    when(notebookService.uploadNotebook(notebookRequest, sessionId, domain))
+    when(notebookService.uploadNotebook(
+            eq(notebookRequest), eq(sessionId), eq(domain), anyString()))
         .thenThrow(
             new NotebookTooLargeException(
                 "Notebook size (11534336 bytes) exceeds maximum allowed size of 10 MB"));
@@ -452,7 +476,8 @@ class JupyterNotebookControllerTest {
 
     when(authentication.getPrincipal()).thenReturn(sessionId);
     mockTokenExtraction(token);
-    when(notebookService.updateNotebook(notebookId, notebookDto, sessionId, token))
+    when(notebookService.updateNotebook(
+            eq(notebookId), eq(notebookDto), eq(sessionId), eq(token), anyString()))
         .thenThrow(
             new NotebookTooLargeException(
                 "Notebook size (11534336 bytes) exceeds maximum allowed size of 10 MB"));
@@ -475,7 +500,8 @@ class JupyterNotebookControllerTest {
 
     when(authentication.getPrincipal()).thenReturn(sessionId);
     mockTokenExtraction(token);
-    when(notebookService.updateNotebook(readableId, notebookDto, sessionId, token))
+    when(notebookService.updateNotebook(
+            eq(readableId), eq(notebookDto), eq(sessionId), eq(token), anyString()))
         .thenThrow(
             new NotebookTooLargeException(
                 "Notebook size (11534336 bytes) exceeds maximum allowed size of 10 MB"));
