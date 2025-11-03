@@ -190,6 +190,28 @@ class JupyterNotebookValidatorTest {
   }
 
   @Test
+  void testValidateNotebook_ValidNotebookWithEmptyLanguageInfoName() {
+    String validNotebook =
+        """
+        {
+          "cells": [],
+          "metadata": {
+            "language_info": {
+              "name": ""
+            }
+          },
+          "nbformat": 4,
+          "nbformat_minor": 5
+        }
+        """;
+
+    boolean result = validator.validateNotebook(validNotebook);
+    assertTrue(
+        result,
+        "Notebook with empty language_info.name should pass validation per nbformat 4.5 spec");
+  }
+
+  @Test
   void testValidateNotebook_ValidEmptyNotebookHigherMinorVersion() {
     String validEmptyNotebook =
         """
