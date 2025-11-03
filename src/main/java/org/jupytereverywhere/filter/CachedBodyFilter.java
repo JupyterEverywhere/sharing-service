@@ -48,16 +48,19 @@ public class CachedBodyFilter extends OncePerRequestFilter {
    * Determines if the request body should be cached.
    *
    * @param request the HTTP request
-   * @return true if this is a POST or PUT request to a notebooks endpoint
+   * @return true if this is a POST or PUT request to a notebooks endpoint with JSON content
    */
   private boolean shouldCacheBody(HttpServletRequest request) {
     String method = request.getMethod();
     String path = request.getRequestURI();
+    String contentType = request.getContentType();
 
-    // Only cache for POST/PUT to notebook endpoints
+    // Only cache for POST/PUT to notebook endpoints with JSON content
     boolean isModifyingRequest = "POST".equals(method) || "PUT".equals(method);
     boolean isNotebookEndpoint = path != null && path.contains("/notebooks");
+    boolean isJsonContent =
+        contentType != null && contentType.toLowerCase().contains("application/json");
 
-    return isModifyingRequest && isNotebookEndpoint;
+    return isModifyingRequest && isNotebookEndpoint && isJsonContent;
   }
 }

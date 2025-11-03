@@ -3,10 +3,9 @@ package org.jupytereverywhere.utils;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-
-import org.springframework.util.StreamUtils;
 
 import jakarta.servlet.ReadListener;
 import jakarta.servlet.ServletInputStream;
@@ -20,9 +19,15 @@ import jakarta.servlet.http.HttpServletRequestWrapper;
  * during the first read, allowing it to be accessed multiple times. This is essential for
  * validating the raw incoming JSON before Spring deserializes it.
  *
+ * <p>Security: This wrapper enforces a maximum body size of 15MB to prevent memory exhaustion
+ * attacks, providing defense-in-depth alongside application-level size validation.
+ *
  * <p>Usage: Wrap the request in a CachedBodyFilter before passing it to the controller.
  */
 public class CachedBodyHttpServletRequest extends HttpServletRequestWrapper {
+
+  /** Maximum size for cached request body (15MB) - matches MAX_IN_MEMORY_SIZE */
+  private static final long MAX_CACHED_BODY_SIZE = 15 * 1024 * 1024;
 
   private final byte[] cachedBody;
 
@@ -30,11 +35,38 @@ public class CachedBodyHttpServletRequest extends HttpServletRequestWrapper {
    * Constructs a new CachedBodyHttpServletRequest.
    *
    * @param request the original HTTP request
-   * @throws IOException if reading the request body fails
+   * @throws IOException if reading the request body fails or exceeds size limit
    */
   public CachedBodyHttpServletRequest(HttpServletRequest request) throws IOException {
     super(request);
-    this.cachedBody = StreamUtils.copyToByteArray(request.getInputStream());
+    this.cachedBody = readAndValidateBody(request.getInputStream());
+  }
+
+  /**
+   * Reads the request body with size validation to prevent memory exhaustion.
+   *
+   * @param inputStream the request input stream
+   * @return the cached body bytes
+   * @throws IOException if reading fails or body exceeds MAX_CACHED_BODY_SIZE
+   */
+  private byte[] readAndValidateBody(InputStream inputStream) throws IOException {
+    byte[] buffer = new byte[4096];
+    int bytesRead;
+    long totalBytesRead = 0;
+    java.io.ByteArrayOutputStream outputStream = new java.io.ByteArrayOutputStream();
+
+    while ((bytesRead = inputStream.read(buffer)) != -1) {
+      totalBytesRead += bytesRead;
+      if (totalBytesRead > MAX_CACHED_BODY_SIZE) {
+        throw new IOException(
+            String.format(
+                "Request body size (%d bytes) exceeds maximum cacheable size of %d bytes",
+                totalBytesRead, MAX_CACHED_BODY_SIZE));
+      }
+      outputStream.write(buffer, 0, bytesRead);
+    }
+
+    return outputStream.toByteArray();
   }
 
   /**
