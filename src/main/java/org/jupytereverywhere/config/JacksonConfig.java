@@ -4,16 +4,20 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
- * Jackson configuration for stricter JSON deserialization. Configures Jackson to fail on: - Null
- * values for primitive types (int, boolean, etc.) - Trailing tokens after valid JSON - Null values
- * passed to constructor parameters
+ * Jackson configuration for stricter JSON deserialization and clean serialization.
  *
- * <p>Note: This does not prevent null values for missing object fields. Use @NotNull with Bean
- * Validation to enforce required fields.
+ * <p>Deserialization: Configured to fail on: - Null values for primitive types (int, boolean, etc.)
+ * - Trailing tokens after valid JSON - Null values passed to constructor parameters
+ *
+ * <p>Serialization: Configured to: - Exclude null fields from JSON output (NON_NULL inclusion)
+ *
+ * <p>Note: This does not prevent null values for missing object fields during deserialization.
+ * Use @NotNull with Bean Validation to enforce required fields.
  */
 @Configuration
 public class JacksonConfig {
@@ -34,6 +38,9 @@ public class JacksonConfig {
 
     // Fail if JSON reads into a null value for creator (constructor) properties
     mapper.configure(DeserializationFeature.FAIL_ON_NULL_CREATOR_PROPERTIES, true);
+
+    // Exclude null fields from serialized JSON to prevent validation issues with optional metadata
+    mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
 
     return mapper;
   }
