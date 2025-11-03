@@ -1,32 +1,48 @@
-.PHONY: help build test clean start stop restart perf-test docker-up docker-down
+.PHONY: help build clean test start stop restart docker-up docker-down smoke-test stress-test
 
-# Default target
+#==========================================
+# Help (Default Target)
+#==========================================
+
 help:
 	@echo "Available targets:"
+	@echo ""
+	@echo "Build & Test:"
 	@echo "  build         - Build the application with Gradle"
-	@echo "  test          - Run all tests"
 	@echo "  clean         - Clean build artifacts"
-	@echo "  start         - Start infrastructure and run app locally"
-	@echo "  stop          - Stop all services"
-	@echo "  restart       - Restart all services"
-	@echo "  perf-test     - Run performance test (10 iterations, 5MB notebook)"
-	@echo "  docker-up     - Start all services with Docker Compose"
+	@echo "  test          - Run unit and integration tests"
+	@echo ""
+	@echo "Local Development:"
+	@echo "  start         - Start infrastructure (db+localstack) and run app locally"
+	@echo "  stop          - Stop infrastructure and local app"
+	@echo "  restart       - Restart local services"
+	@echo ""
+	@echo "Docker Operations:"
+	@echo "  docker-up     - Start full stack with Docker Compose"
 	@echo "  docker-down   - Stop all Docker Compose services"
+	@echo ""
+	@echo "Integration Testing:"
+	@echo "  smoke-test    - Run smoke tests against running services"
+	@echo "  stress-test   - Start services and run comprehensive stress test battery"
 
-# Build the application
+#==========================================
+# Build & Test
+#==========================================
+
 build:
 	./gradlew clean build
 
-# Run tests
-test:
-	./gradlew test
-
-# Clean build artifacts
 clean:
 	./gradlew clean
 	rm -f scripts/test-notebook.ipynb
 
-# Start infrastructure (db + localstack) and run app locally
+test:
+	./gradlew test
+
+#==========================================
+# Local Development
+#==========================================
+
 start:
 	@echo "Starting infrastructure services..."
 	docker compose up -d db localstack
@@ -47,25 +63,36 @@ start:
 	JWT_SECRET_KEY=test-secret-key-for-local-development-only \
 	./gradlew bootRun
 
-# Stop all services
 stop:
 	@echo "Stopping Spring Boot application..."
 	-pkill -f "gradle.*bootRun" || true
 	@echo "Stopping infrastructure services..."
 	docker compose down
 
-# Restart services
 restart: stop start
 
-# Run performance test with locally running services
-perf-test:
-	@echo "Running performance test..."
-	./scripts/performance-test.sh 10 5120
+#==========================================
+# Docker Operations
+#==========================================
 
-# Start all services with Docker Compose (full stack)
 docker-up:
 	docker compose up -d --build
 
-# Stop Docker Compose services
 docker-down:
-	docker compose down -v
+	docker compose down
+
+#==========================================
+# Integration Testing
+#==========================================
+
+wait-for-health: docker-up
+	@echo
+	@./scripts/wait-for-health.sh
+
+smoke-test: wait-for-health
+	@echo
+	@./scripts/smoke-test.sh
+
+stress-test: wait-for-health
+	@echo
+	@CONTAINER_ID=$$(docker compose ps -q api) ./scripts/stress-test-battery.sh
