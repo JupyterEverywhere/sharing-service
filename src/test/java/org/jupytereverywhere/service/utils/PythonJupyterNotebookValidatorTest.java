@@ -96,6 +96,43 @@ class PythonJupyterNotebookValidatorTest {
   }
 
   @Test
+  void testValidateNotebook_ValidEmptyNotebook() throws Exception {
+    when(processBuilder.redirectErrorStream(true)).thenReturn(processBuilder);
+    when(processBuilder.start()).thenReturn(process);
+
+    String simulatedOutput = "valid";
+    InputStream inputStream =
+        new ByteArrayInputStream(simulatedOutput.getBytes(StandardCharsets.UTF_8));
+    when(process.getInputStream()).thenReturn(inputStream);
+
+    OutputStream outputStream = mock(OutputStream.class);
+    when(process.getOutputStream()).thenReturn(outputStream);
+
+    when(process.waitFor()).thenReturn(0);
+
+    String emptyNotebook =
+        """
+        {
+          "cells": [],
+          "metadata": {
+            "kernelspec": {
+              "display_name": "Python 3",
+              "name": "python3"
+            },
+            "language_info": {
+              "name": "python"
+            }
+          },
+          "nbformat": 4,
+          "nbformat_minor": 5
+        }
+        """;
+
+    boolean result = notebookValidator.validateNotebook(emptyNotebook);
+    assertTrue(result);
+  }
+
+  @Test
   void testValidateNotebook_WriteIOException() throws Exception {
     when(processBuilder.redirectErrorStream(true)).thenReturn(processBuilder);
     when(processBuilder.start()).thenReturn(process);

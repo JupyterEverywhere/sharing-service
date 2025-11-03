@@ -105,6 +105,114 @@ class JupyterNotebookValidatorTest {
   }
 
   @Test
+  void testValidateNotebook_ValidEmptyNotebook() {
+    String validEmptyNotebook =
+        """
+        {
+          "cells": [],
+          "metadata": {
+            "kernelspec": {
+              "display_name": "Python 3",
+              "name": "python3"
+            },
+            "language_info": {
+              "name": "python"
+            }
+          },
+          "nbformat": 4,
+          "nbformat_minor": 5
+        }
+        """;
+
+    boolean result = validator.validateNotebook(validEmptyNotebook);
+    assertTrue(result, "Empty notebook with all required fields should pass validation");
+  }
+
+  @Test
+  void testValidateNotebook_ValidEmptyNotebookMinimalMetadata() {
+    String validEmptyNotebook =
+        """
+        {
+          "cells": [],
+          "metadata": {},
+          "nbformat": 4,
+          "nbformat_minor": 5
+        }
+        """;
+
+    boolean result = validator.validateNotebook(validEmptyNotebook);
+    assertTrue(result, "Absolute minimum valid notebook per nbformat v4.5 spec should pass validation");
+  }
+
+  @Test
+  void testValidateNotebook_ValidEmptyNotebookWithKernelspecOnly() {
+    String validEmptyNotebook =
+        """
+        {
+          "cells": [],
+          "metadata": {
+            "kernelspec": {
+              "display_name": "Python 3 (ipykernel)",
+              "name": "python3"
+            }
+          },
+          "nbformat": 4,
+          "nbformat_minor": 5
+        }
+        """;
+
+    boolean result = validator.validateNotebook(validEmptyNotebook);
+    assertTrue(result, "Empty notebook with only kernelspec should pass validation");
+  }
+
+  @Test
+  void testValidateNotebook_ValidEmptyNotebookWithLanguageInfoOnly() {
+    String validEmptyNotebook =
+        """
+        {
+          "cells": [],
+          "metadata": {
+            "language_info": {
+              "name": "python",
+              "version": "3.9.0",
+              "mimetype": "text/x-python",
+              "file_extension": ".py"
+            }
+          },
+          "nbformat": 4,
+          "nbformat_minor": 5
+        }
+        """;
+
+    boolean result = validator.validateNotebook(validEmptyNotebook);
+    assertTrue(result, "Empty notebook with only language_info should pass validation");
+  }
+
+  @Test
+  void testValidateNotebook_ValidEmptyNotebookHigherMinorVersion() {
+    String validEmptyNotebook =
+        """
+        {
+          "cells": [],
+          "metadata": {
+            "kernelspec": {
+              "display_name": "Python 3",
+              "name": "python3"
+            },
+            "language_info": {
+              "name": "python"
+            }
+          },
+          "nbformat": 4,
+          "nbformat_minor": 6
+        }
+        """;
+
+    boolean result = validator.validateNotebook(validEmptyNotebook);
+    assertTrue(result, "Empty notebook with higher nbformat_minor should pass validation");
+  }
+
+  @Test
   void testValidateNotebook_MissingRequiredField_cells() {
     String invalidNotebook =
         """
