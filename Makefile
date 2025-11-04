@@ -85,14 +85,29 @@ docker-down:
 # Integration Testing
 #==========================================
 
-wait-for-health: docker-up
+# Detect if API_URL is set to a remote (non-localhost) URL
+# If remote, skip docker-up; if local or unset, run docker-up
+IS_REMOTE_URL := $(shell \
+	if [ -z "$(API_URL)" ]; then \
+		echo "false"; \
+	elif echo "$(API_URL)" | grep -qE "localhost|127\.0\.0\.1|0\.0\.0\.0"; then \
+		echo "false"; \
+	else \
+		echo "true"; \
+	fi)
+
+wait-for-health:
+ifeq ($(IS_REMOTE_URL),false)
+	@echo "Testing local service - starting Docker stack..."
+	@$(MAKE) docker-up
+endif
 	@echo
-	@./scripts/wait-for-health.sh
+	@API_URL="$(API_URL)" ./scripts/wait-for-health.sh
 
 smoke-test: wait-for-health
 	@echo
-	@./scripts/smoke-test.sh
+	@API_URL="$(API_URL)" ./scripts/smoke-test.sh
 
 stress-test: wait-for-health
 	@echo
-	@CONTAINER_ID=$$(docker compose ps -q api) ./scripts/stress-test-battery.sh
+	@API_URL="$(API_URL)" CONTAINER_ID=$$(docker compose ps -q api) ./scripts/stress-test-battery.sh
