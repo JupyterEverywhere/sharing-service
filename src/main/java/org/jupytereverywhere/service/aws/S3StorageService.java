@@ -6,7 +6,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 import org.apache.logging.log4j.message.StringMapMessage;
-import org.jupytereverywhere.dto.JupyterNotebookDTO;
 import org.jupytereverywhere.exception.S3DeleteException;
 import org.jupytereverywhere.exception.S3DownloadException;
 import org.jupytereverywhere.exception.S3UploadException;
@@ -14,8 +13,6 @@ import org.jupytereverywhere.service.StorageService;
 import org.jupytereverywhere.service.aws.secrets.SecretsService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import jakarta.annotation.PostConstruct;
 import lombok.extern.log4j.Log4j2;
@@ -179,17 +176,13 @@ public class S3StorageService implements StorageService {
   }
 
   @Override
-  public JupyterNotebookDTO downloadNotebook(String fileName) {
+  public String downloadNotebookAsJson(String fileName) {
     try {
       GetObjectRequest getObjectRequest =
           GetObjectRequest.builder().bucket(bucketName).key(fileName).build();
 
       try (InputStream inputStream = s3Client.getObject(getObjectRequest)) {
         String notebookContent = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
-
-        ObjectMapper objectMapper = new ObjectMapper();
-        JupyterNotebookDTO notebookDto =
-            objectMapper.readValue(notebookContent, JupyterNotebookDTO.class);
 
         StringMapMessage successLog =
             new StringMapMessage()
@@ -200,7 +193,7 @@ public class S3StorageService implements StorageService {
 
         log.info(successLog);
 
-        return notebookDto;
+        return notebookContent;
       }
     } catch (IOException e) {
       StringMapMessage ioErrorLog =

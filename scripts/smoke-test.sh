@@ -223,22 +223,22 @@ share_notebook() {
 
 # Share a Python notebook
 share_python_notebook() {
-  PYTHON_NOTEBOOK_ID=$(share_notebook "Python" "scripts/example-py.ipynb")
+  PYTHON_NOTEBOOK_ID=$(share_notebook "Python" "scripts/example-notebooks/py.ipynb")
 }
 
 # Share an R notebook
 share_r_notebook() {
-  R_NOTEBOOK_ID=$(share_notebook "R" "scripts/example-r.ipynb")
+  R_NOTEBOOK_ID=$(share_notebook "R" "scripts/example-notebooks/r.ipynb")
 }
 
 # Share a real R notebook (larger, real-world example with nbformat 4.1)
 share_real_r_notebook() {
-  REAL_R_NOTEBOOK_ID=$(share_notebook "Real-R" "scripts/example-real-r.ipynb")
+  REAL_R_NOTEBOOK_ID=$(share_notebook "Real-R" "scripts/example-notebooks/real-r.ipynb")
 }
 
 # Share a notebook with empty language_info.name (tests fix for issue #0.8.1)
 share_no_kernel_notebook() {
-  NO_KERNEL_NOTEBOOK_ID=$(share_notebook "No-Kernel" "scripts/example-no-kernel.ipynb")
+  NO_KERNEL_NOTEBOOK_ID=$(share_notebook "No-Kernel" "scripts/example-notebooks/no-kernel.ipynb")
 }
 
 # Retrieve a notebook (generic function)
@@ -341,7 +341,7 @@ main() {
   print_header "SMOKE TEST SUMMARY"
 
   if [[ ${#failed_tests[@]} -eq 0 ]]; then
-    log_success "All tests passed! ✅"
+    log_success "All tests passed"
     log_info "Duration: ${duration}s"
     log_info "API URL: ${API_URL}"
     if [[ -n "${PYTHON_NOTEBOOK_ID}" ]]; then
@@ -357,7 +357,7 @@ main() {
       log_info "Created No-Kernel notebook: ${NO_KERNEL_NOTEBOOK_ID}"
     fi
   else
-    log_error "Some tests failed! ❌"
+    log_error "Some tests failed"
     log_error "Failed tests: ${failed_tests[*]}"
     exit 1
   fi

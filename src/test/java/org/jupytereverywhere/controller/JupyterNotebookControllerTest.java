@@ -103,8 +103,9 @@ class JupyterNotebookControllerTest {
   @Test
   void testGetNotebookById_Success() {
     UUID notebookId = UUID.randomUUID();
+    String notebookJson = "{\"nbformat\":4,\"cells\":[]}";
     var notebookRetrieved =
-        new JupyterNotebookRetrieved(notebookId, domain, readableId, new JupyterNotebookDTO());
+        new JupyterNotebookRetrieved(notebookId, domain, readableId, notebookJson);
 
     when(notebookService.getNotebookContent(notebookId)).thenReturn(notebookRetrieved);
 
@@ -148,9 +149,9 @@ class JupyterNotebookControllerTest {
 
   @Test
   void testGetNotebookByReadableId_Success() {
+    String notebookJson = "{\"nbformat\":4,\"cells\":[]}";
     var notebookRetrieved =
-        new JupyterNotebookRetrieved(
-            UUID.randomUUID(), domain, readableId, new JupyterNotebookDTO());
+        new JupyterNotebookRetrieved(UUID.randomUUID(), domain, readableId, notebookJson);
 
     when(notebookService.getNotebookContent(readableId)).thenReturn(notebookRetrieved);
 

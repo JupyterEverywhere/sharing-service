@@ -47,7 +47,7 @@ class FileStorageServiceTest {
 
   @BeforeEach
   void setUp() {
-    fileStorageService = new FileStorageService(objectMapper);
+    fileStorageService = new FileStorageService();
   }
 
   @Test
@@ -137,15 +137,10 @@ class FileStorageServiceTest {
           .when(() -> Files.readString(testPath, StandardCharsets.UTF_8))
           .thenReturn(simulatedContent);
 
-      JupyterNotebookDTO result = fileStorageService.downloadNotebook(fullPath);
+      String result = fileStorageService.downloadNotebookAsJson(fullPath);
 
       assertNotNull(result);
-      assertNotNull(result.getMetadata());
-
-      assertEquals("Python 3", result.getMetadata().getKernelspec().getDisplayName());
-      assertEquals("python", result.getMetadata().getKernelspec().getLanguage());
-      assertEquals("python3", result.getMetadata().getKernelspec().getName());
-      assertEquals("python", result.getMetadata().getLanguageInfo().getName());
+      assertEquals(simulatedContent, result);
     } catch (Exception e) {
       fail("Exception occurred: " + e.getMessage());
     }
@@ -160,7 +155,8 @@ class FileStorageServiceTest {
     try (MockedStatic<Files> filesMock = mockStatic(Files.class)) {
       filesMock.when(() -> Files.exists(testPath)).thenReturn(false);
       assertThrows(
-          NotebookNotFoundException.class, () -> fileStorageService.downloadNotebook(fullPath));
+          NotebookNotFoundException.class,
+          () -> fileStorageService.downloadNotebookAsJson(fullPath));
     }
   }
 
@@ -177,7 +173,8 @@ class FileStorageServiceTest {
           .thenThrow(new IOException("Simulated IO Exception"));
 
       assertThrows(
-          NotebookStorageException.class, () -> fileStorageService.downloadNotebook(fullPath));
+          NotebookStorageException.class,
+          () -> fileStorageService.downloadNotebookAsJson(fullPath));
     }
   }
 

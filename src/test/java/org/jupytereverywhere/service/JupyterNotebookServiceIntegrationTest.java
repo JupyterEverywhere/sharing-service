@@ -73,7 +73,7 @@ class JupyterNotebookServiceIntegrationTest {
   @Test
   void testRNotebook_WithPygmentsLexer_RoundTrip() throws IOException {
     // Load the actual example-r.ipynb file
-    String rNotebookJson = Files.readString(Path.of("scripts/example-r.ipynb"));
+    String rNotebookJson = Files.readString(Path.of("scripts/example-notebooks/r.ipynb"));
 
     // Parse it to a DTO
     JupyterNotebookDTO rNotebook = objectMapper.readValue(rNotebookJson, JupyterNotebookDTO.class);
@@ -94,31 +94,30 @@ class JupyterNotebookServiceIntegrationTest {
     assertNotNull(saved.getId(), "Notebook ID should not be null");
     assertNotNull(saved.getReadableId(), "Readable ID should not be null");
 
-    // Retrieve the notebook - this is where the bug occurred
-    // FileStorageService.downloadNotebook() would fail with "Unrecognized field pygments_lexer"
-    // if it wasn't using the configured ObjectMapper
+    // Retrieve the notebook - now returns raw JSON instead of deserializing
     JupyterNotebookRetrieved retrieved = notebookService.getNotebookContent(saved.getId());
 
     assertNotNull(retrieved, "Retrieved notebook should not be null");
-    assertNotNull(retrieved.getNotebookDTO(), "Retrieved notebook content should not be null");
+    assertNotNull(retrieved.getNotebookContent(), "Retrieved notebook content should not be null");
     assertEquals(
         saved.getId(),
         retrieved.getId(),
         "Retrieved notebook ID should match the saved notebook ID");
 
+    // Parse the JSON to verify content
+    JupyterNotebookDTO parsedNotebook =
+        objectMapper.readValue(retrieved.getNotebookContent(), JupyterNotebookDTO.class);
+
     // Verify the notebook has the expected metadata
-    assertNotNull(retrieved.getNotebookDTO().getMetadata(), "Notebook metadata should not be null");
+    assertNotNull(parsedNotebook.getMetadata(), "Notebook metadata should not be null");
     assertNotNull(
-        retrieved.getNotebookDTO().getMetadata().getLanguageInfo(),
-        "Language info should not be null");
+        parsedNotebook.getMetadata().getLanguageInfo(), "Language info should not be null");
     assertEquals(
-        "R",
-        retrieved.getNotebookDTO().getMetadata().getLanguageInfo().getName(),
-        "Language should be R");
+        "R", parsedNotebook.getMetadata().getLanguageInfo().getName(), "Language should be R");
 
     // Verify the notebook has cells
-    assertNotNull(retrieved.getNotebookDTO().getCells(), "Cells should not be null");
-    assertFalse(retrieved.getNotebookDTO().getCells().isEmpty(), "Should have at least one cell");
+    assertNotNull(parsedNotebook.getCells(), "Cells should not be null");
+    assertFalse(parsedNotebook.getCells().isEmpty(), "Should have at least one cell");
   }
 
   /**
@@ -128,7 +127,7 @@ class JupyterNotebookServiceIntegrationTest {
   @Test
   void testNotebook_WithEmptyLanguageName_RoundTrip() throws IOException {
     // Load the example no-kernel notebook
-    String noKernelJson = Files.readString(Path.of("scripts/example-no-kernel.ipynb"));
+    String noKernelJson = Files.readString(Path.of("scripts/example-notebooks/no-kernel.ipynb"));
 
     JupyterNotebookDTO noKernelNotebook =
         objectMapper.readValue(noKernelJson, JupyterNotebookDTO.class);
@@ -150,12 +149,16 @@ class JupyterNotebookServiceIntegrationTest {
     JupyterNotebookRetrieved retrieved = notebookService.getNotebookContent(saved.getId());
 
     assertNotNull(retrieved);
-    assertNotNull(retrieved.getNotebookDTO());
+    assertNotNull(retrieved.getNotebookContent());
     assertEquals(saved.getId(), retrieved.getId());
 
+    // Parse the JSON to verify content
+    JupyterNotebookDTO parsedNotebook =
+        objectMapper.readValue(retrieved.getNotebookContent(), JupyterNotebookDTO.class);
+
     // Verify the language_info.name is handled correctly (should be empty string in file)
-    assertNotNull(retrieved.getNotebookDTO().getMetadata());
-    assertNotNull(retrieved.getNotebookDTO().getMetadata().getLanguageInfo());
+    assertNotNull(parsedNotebook.getMetadata());
+    assertNotNull(parsedNotebook.getMetadata().getLanguageInfo());
     // Note: empty string in language_info.name is preserved in the file but not stored in DB
   }
 }
