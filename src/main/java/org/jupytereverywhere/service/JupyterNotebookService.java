@@ -82,7 +82,7 @@ public class JupyterNotebookService {
                   return new NotebookNotFoundException(NOTEBOOK_NOT_FOUND_MESSAGE);
                 });
 
-    JupyterNotebookDTO notebookContent = fetchNotebookContent(notebookEntity);
+    String notebookContent = fetchNotebookContent(notebookEntity);
 
     return new JupyterNotebookRetrieved(
         notebookEntity.getId(),
@@ -91,9 +91,9 @@ public class JupyterNotebookService {
         notebookContent);
   }
 
-  public JupyterNotebookDTO fetchNotebookContent(JupyterNotebookEntity notebookEntity) {
+  public String fetchNotebookContent(JupyterNotebookEntity notebookEntity) {
     try {
-      return storageService.downloadNotebook(notebookEntity.getStorageUrl());
+      return storageService.downloadNotebookAsJson(notebookEntity.getStorageUrl());
     } catch (Exception e) {
       log.error(
           new StringMapMessage()
@@ -388,7 +388,7 @@ public class JupyterNotebookService {
                   return new NotebookNotFoundException(NOTEBOOK_NOT_FOUND_MESSAGE);
                 });
 
-    JupyterNotebookDTO notebookContent = fetchNotebookContent(notebookEntity);
+    String notebookContent = fetchNotebookContent(notebookEntity);
 
     return new JupyterNotebookRetrieved(
         notebookEntity.getId(),

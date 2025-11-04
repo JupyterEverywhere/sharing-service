@@ -7,13 +7,10 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import org.apache.logging.log4j.message.StringMapMessage;
-import org.jupytereverywhere.dto.JupyterNotebookDTO;
 import org.jupytereverywhere.exception.NotebookNotFoundException;
 import org.jupytereverywhere.exception.NotebookStorageException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.extern.log4j.Log4j2;
 
@@ -28,12 +25,6 @@ public class FileStorageService implements StorageService {
 
   @Value("${storage.path.local}")
   private String localStoragePath;
-
-  private final ObjectMapper objectMapper;
-
-  public FileStorageService(ObjectMapper objectMapper) {
-    this.objectMapper = objectMapper;
-  }
 
   void ensureDirectoryExists(Path directoryPath) throws IOException {
     if (!Files.exists(directoryPath)) {
@@ -80,7 +71,7 @@ public class FileStorageService implements StorageService {
   }
 
   @Override
-  public JupyterNotebookDTO downloadNotebook(String fullPath) {
+  public String downloadNotebookAsJson(String fullPath) {
     try {
       Path path = Paths.get(fullPath);
 
@@ -99,7 +90,7 @@ public class FileStorageService implements StorageService {
 
       String notebookContent = Files.readString(path, StandardCharsets.UTF_8);
 
-      return objectMapper.readValue(notebookContent, JupyterNotebookDTO.class);
+      return notebookContent;
     } catch (IOException e) {
       StringMapMessage errorLog =
           new StringMapMessage()

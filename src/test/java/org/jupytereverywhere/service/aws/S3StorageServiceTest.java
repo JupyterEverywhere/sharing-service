@@ -16,7 +16,6 @@ import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.jupytereverywhere.dto.JupyterNotebookDTO;
 import org.jupytereverywhere.exception.S3DownloadException;
 import org.jupytereverywhere.service.aws.secrets.SecretsService;
 import org.mockito.InjectMocks;
@@ -78,17 +77,9 @@ class S3StorageServiceTest {
     ResponseInputStream<GetObjectResponse> responseInputStream =
         new ResponseInputStream<>(getObjectResponse, AbortableInputStream.create(inputStream));
     when(s3Client.getObject(any(GetObjectRequest.class))).thenReturn(responseInputStream);
-    JupyterNotebookDTO result = s3StorageService.downloadNotebook(fileName);
+    String result = s3StorageService.downloadNotebookAsJson(fileName);
     assertNotNull(result);
-    assertEquals(4, result.getNbformat());
-    assertEquals(2, result.getNbformatMinor());
-    assertNotNull(result.getMetadata());
-    assertEquals("Python 3", result.getMetadata().getKernelspec().getDisplayName());
-    assertEquals("python3", result.getMetadata().getKernelspec().getName());
-    assertEquals("python", result.getMetadata().getLanguageInfo().getName());
-    assertEquals("3.8.5", result.getMetadata().getLanguageInfo().getVersion());
-    assertNotNull(result.getCells());
-    assertTrue(result.getCells().isEmpty());
+    assertEquals(notebookJson, result);
   }
 
   @Test
@@ -113,17 +104,9 @@ class S3StorageServiceTest {
     ResponseInputStream<GetObjectResponse> responseInputStream =
         new ResponseInputStream<>(getObjectResponse, AbortableInputStream.create(inputStream));
     when(s3Client.getObject(any(GetObjectRequest.class))).thenReturn(responseInputStream);
-    JupyterNotebookDTO result = s3StorageService.downloadNotebook(fileName);
+    String result = s3StorageService.downloadNotebookAsJson(fileName);
     assertNotNull(result);
-    assertEquals(4, result.getNbformat());
-    assertEquals(2, result.getNbformatMinor());
-    assertNotNull(result.getMetadata());
-    assertEquals("Python 3", result.getMetadata().getKernelspec().getDisplayName());
-    assertEquals("python3", result.getMetadata().getKernelspec().getName());
-    assertEquals("python", result.getMetadata().getLanguageInfo().getName());
-    assertEquals("3.8.5", result.getMetadata().getLanguageInfo().getVersion());
-    assertNotNull(result.getCells());
-    assertTrue(result.getCells().isEmpty());
+    assertEquals(notebookJson, result);
   }
 
   @Test
@@ -148,7 +131,7 @@ class S3StorageServiceTest {
         assertThrows(
             S3DownloadException.class,
             () -> {
-              s3StorageService.downloadNotebook(fileName);
+              s3StorageService.downloadNotebookAsJson(fileName);
             });
     String expectedMessage = "Error downloading notebook from S3";
     String actualMessage = exception.getMessage();
@@ -182,15 +165,12 @@ class S3StorageServiceTest {
         new ResponseInputStream<>(getObjectResponse, AbortableInputStream.create(inputStream));
     when(s3Client.getObject(any(GetObjectRequest.class))).thenReturn(responseInputStream);
 
-    JupyterNotebookDTO result = s3StorageService.downloadNotebook(fileName);
+    String result = s3StorageService.downloadNotebookAsJson(fileName);
 
     assertNotNull(result);
-    assertEquals(4, result.getNbformat());
-    assertEquals(2, result.getNbformatMinor());
-    assertNotNull(result.getMetadata());
-    assertEquals("R", result.getMetadata().getKernelspec().getDisplayName());
-    assertEquals("ir", result.getMetadata().getKernelspec().getName());
-    assertEquals("R", result.getMetadata().getLanguageInfo().getName());
-    // pygments_lexer is not in LanguageInfoDTO, so with old code this would fail deserialization
+    // Verify the JSON string contains the pygments_lexer field
+    assertTrue(result.contains("pygments_lexer"));
+    assertTrue(result.contains("\"R\""));
+    // With the new code, we return raw JSON string, avoiding deserialization issues
   }
 }

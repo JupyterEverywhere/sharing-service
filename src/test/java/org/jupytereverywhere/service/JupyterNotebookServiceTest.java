@@ -110,10 +110,11 @@ class JupyterNotebookServiceTest {
   @Test
   void testGetNotebookContent_ByUUID_Success() {
     JupyterNotebookEntity notebookEntity = createSampleNotebookEntity();
-    JupyterNotebookDTO notebookDTO = createSampleNotebookDTO();
+    String notebookJson = "{\"nbformat\":4,\"nbformat_minor\":2,\"metadata\":{},\"cells\":[]}";
 
     when(notebookRepository.findById(notebookId)).thenReturn(Optional.of(notebookEntity));
-    when(storageService.downloadNotebook(notebookEntity.getStorageUrl())).thenReturn(notebookDTO);
+    when(storageService.downloadNotebookAsJson(notebookEntity.getStorageUrl()))
+        .thenReturn(notebookJson);
 
     JupyterNotebookRetrieved result = notebookService.getNotebookContent(notebookId);
 
@@ -121,7 +122,7 @@ class JupyterNotebookServiceTest {
     assertEquals(notebookId, result.getId());
     assertEquals(domain, result.getDomain());
     assertEquals(readableId, result.getReadableId());
-    assertEquals(notebookDTO, result.getNotebookDTO());
+    assertEquals(notebookJson, result.getNotebookContent());
   }
 
   @Test
@@ -143,7 +144,7 @@ class JupyterNotebookServiceTest {
     JupyterNotebookEntity notebookEntity = createSampleNotebookEntity();
 
     when(notebookRepository.findById(notebookId)).thenReturn(Optional.of(notebookEntity));
-    when(storageService.downloadNotebook(notebookEntity.getStorageUrl()))
+    when(storageService.downloadNotebookAsJson(notebookEntity.getStorageUrl()))
         .thenThrow(new NotebookStorageException("Storage error"));
 
     NotebookStorageException exception =
@@ -159,10 +160,11 @@ class JupyterNotebookServiceTest {
   @Test
   void testGetNotebookContent_ByReadableId_Success() {
     JupyterNotebookEntity notebookEntity = createSampleNotebookEntity();
-    JupyterNotebookDTO notebookDTO = createSampleNotebookDTO();
+    String notebookJson = "{\"nbformat\":4,\"nbformat_minor\":2,\"metadata\":{},\"cells\":[]}";
 
     when(notebookRepository.findByReadableId(readableId)).thenReturn(Optional.of(notebookEntity));
-    when(storageService.downloadNotebook(notebookEntity.getStorageUrl())).thenReturn(notebookDTO);
+    when(storageService.downloadNotebookAsJson(notebookEntity.getStorageUrl()))
+        .thenReturn(notebookJson);
 
     JupyterNotebookRetrieved result = notebookService.getNotebookContent(readableId);
 
@@ -170,7 +172,7 @@ class JupyterNotebookServiceTest {
     assertEquals(notebookId, result.getId());
     assertEquals(domain, result.getDomain());
     assertEquals(readableId, result.getReadableId());
-    assertEquals(notebookDTO, result.getNotebookDTO());
+    assertEquals(notebookJson, result.getNotebookContent());
   }
 
   @Test
