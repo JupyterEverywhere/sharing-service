@@ -154,4 +154,43 @@ class S3StorageServiceTest {
     String actualMessage = exception.getMessage();
     assertTrue(actualMessage.contains(expectedMessage));
   }
+
+  @Test
+  void testDownloadNotebook_WithPygmentsLexer_Success() {
+    // This test reproduces the production bug where notebooks with pygments_lexer field
+    // fail to deserialize. With the old code (JupyterNotebookDTO return), this would fail.
+    // With the new code (String return), this should pass.
+    when(secretsService.getSecretValues("jupyter-s3")).thenReturn(secretValues);
+    s3StorageService.initializeS3Client();
+    try {
+      java.lang.reflect.Field s3ClientField =
+          s3StorageService.getClass().getDeclaredField("s3Client");
+      s3ClientField.setAccessible(true);
+      s3ClientField.set(s3StorageService, s3Client);
+    } catch (NoSuchFieldException | IllegalAccessException e) {
+      throw new RuntimeException(e);
+    }
+
+    // Notebook JSON with pygments_lexer field (from real R notebooks)
+    notebookJson =
+        "{\"nbformat\":4,\"nbformat_minor\":2,\"metadata\":{\"kernelspec\":{\"name\":\"ir\",\"display_name\":\"R\"},\"language_info\":{\"name\":\"R\",\"pygments_lexer\":\"r\",\"version\":\"4.1.0\"}},\"cells\":[]}";
+
+    InputStream inputStream =
+        new ByteArrayInputStream(notebookJson.getBytes(StandardCharsets.UTF_8));
+    GetObjectResponse getObjectResponse = GetObjectResponse.builder().build();
+    ResponseInputStream<GetObjectResponse> responseInputStream =
+        new ResponseInputStream<>(getObjectResponse, AbortableInputStream.create(inputStream));
+    when(s3Client.getObject(any(GetObjectRequest.class))).thenReturn(responseInputStream);
+
+    JupyterNotebookDTO result = s3StorageService.downloadNotebook(fileName);
+
+    assertNotNull(result);
+    assertEquals(4, result.getNbformat());
+    assertEquals(2, result.getNbformatMinor());
+    assertNotNull(result.getMetadata());
+    assertEquals("R", result.getMetadata().getKernelspec().getDisplayName());
+    assertEquals("ir", result.getMetadata().getKernelspec().getName());
+    assertEquals("R", result.getMetadata().getLanguageInfo().getName());
+    // pygments_lexer is not in LanguageInfoDTO, so with old code this would fail deserialization
+  }
 }
