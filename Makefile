@@ -54,11 +54,11 @@ start:
 	DB_HOST=localhost \
 	DB_PORT=5433 \
 	DB_NAME=sharingservice \
-	AWS_ACCESS_KEY_ID=test \
-	AWS_SECRET_ACCESS_KEY=test \
-	AWS_REGION=us-east-1 \
-	S3_BUCKET_NAME=test-bucket \
-	S3_ENDPOINT_OVERRIDE=http://localhost:4566 \
+	AWS_S3_REGION=us-east-1 \
+	AWS_S3_BUCKET=test-bucket \
+	AWS_S3_ENDPOINT_OVERRIDE=http://localhost:4567 \
+	AWS_S3_ACCESS_KEY=test \
+	AWS_S3_SECRET_KEY=test \
 	STORAGE_TYPE=s3 \
 	JWT_SECRET_KEY=test-secret-key-for-local-development-only \
 	./gradlew bootRun
