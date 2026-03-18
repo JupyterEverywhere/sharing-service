@@ -3,6 +3,7 @@ package org.jupytereverywhere.controller;
 import org.apache.logging.log4j.message.StringMapMessage;
 import org.jupytereverywhere.exception.InvalidNotebookPasswordException;
 import org.jupytereverywhere.exception.TokenRefreshException;
+import org.jupytereverywhere.model.auth.AdminTokenRequest;
 import org.jupytereverywhere.model.auth.AuthenticationRequest;
 import org.jupytereverywhere.model.auth.AuthenticationResponse;
 import org.jupytereverywhere.model.auth.TokenRefreshRequest;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.validation.Valid;
 import lombok.extern.log4j.Log4j2;
 
 @Log4j2
@@ -30,6 +32,22 @@ public class AuthController {
 
   public AuthController(AuthService authService) {
     this.authService = authService;
+  }
+
+  @PostMapping("/admin/token")
+  public ResponseEntity<AuthenticationResponse> issueAdminToken(
+      @Valid @RequestBody AdminTokenRequest adminTokenRequest) {
+    logInfo("Received admin token request", "TokenName", adminTokenRequest.getTokenName());
+
+    AuthenticationResponse response = authService.generateAdminTokenResponse(adminTokenRequest);
+    if (response == null) {
+      logInfo("Admin token request rejected", "TokenName", adminTokenRequest.getTokenName());
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+          .body(new AuthenticationResponse("Invalid admin secret"));
+    }
+
+    logInfo("Admin token issued successfully", "TokenName", adminTokenRequest.getTokenName());
+    return ResponseEntity.ok(response);
   }
 
   @PostMapping("/issue")

@@ -422,6 +422,73 @@ public class JupyterNotebookService {
         notebookEntity.getId(), notebookEntity.getDomain(), notebookEntity.getReadableId());
   }
 
+  @Transactional
+  public void deleteNotebook(UUID notebookId, String adminTokenName) {
+    JupyterNotebookEntity notebookEntity =
+        notebookRepository
+            .findById(notebookId)
+            .orElseThrow(
+                () -> {
+                  log.error(
+                      new StringMapMessage()
+                          .with(MESSAGE_KEY, NOTEBOOK_NOT_FOUND_MESSAGE)
+                          .with(NOTEBOOK_ID_MESSAGE_KEY, notebookId.toString()));
+                  return new NotebookNotFoundException(NOTEBOOK_NOT_FOUND_MESSAGE);
+                });
+
+    deleteNotebookInternal(notebookEntity, adminTokenName);
+  }
+
+  @Transactional
+  public void deleteNotebookByReadableId(String readableId, String adminTokenName) {
+    JupyterNotebookEntity notebookEntity =
+        notebookRepository
+            .findByReadableId(readableId)
+            .orElseThrow(
+                () -> {
+                  log.error(
+                      new StringMapMessage()
+                          .with(MESSAGE_KEY, NOTEBOOK_NOT_FOUND_MESSAGE)
+                          .with("ReadableId", readableId));
+                  return new NotebookNotFoundException(NOTEBOOK_NOT_FOUND_MESSAGE);
+                });
+
+    deleteNotebookInternal(notebookEntity, adminTokenName);
+  }
+
+  private void deleteNotebookInternal(JupyterNotebookEntity notebookEntity, String adminTokenName) {
+    UUID notebookId = notebookEntity.getId();
+    String readableId = notebookEntity.getReadableId();
+    String storageUrl = notebookEntity.getStorageUrl();
+
+    try {
+      storageService.deleteNotebook(storageUrl);
+    } catch (NotebookNotFoundException e) {
+      log.warn(
+          new StringMapMessage()
+              .with(MESSAGE_KEY, "Storage file already missing, proceeding with metadata deletion")
+              .with(NOTEBOOK_ID_MESSAGE_KEY, notebookId.toString())
+              .with("StorageUrl", storageUrl));
+    } catch (NotebookStorageException e) {
+      log.error(
+          new StringMapMessage()
+              .with(MESSAGE_KEY, "Failed to delete notebook from storage")
+              .with(NOTEBOOK_ID_MESSAGE_KEY, notebookId.toString())
+              .with("StorageUrl", storageUrl),
+          e);
+      throw e;
+    }
+
+    notebookRepository.deleteById(notebookId);
+
+    log.info(
+        new StringMapMessage()
+            .with(MESSAGE_KEY, "Notebook deleted by admin")
+            .with(NOTEBOOK_ID_MESSAGE_KEY, notebookId.toString())
+            .with("ReadableId", readableId)
+            .with("AdminTokenName", adminTokenName));
+  }
+
   public JupyterNotebookEntity getNotebookById(UUID notebookId) {
     return notebookRepository
         .findNotebookById(notebookId)

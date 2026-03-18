@@ -71,6 +71,7 @@ services:
       AWS_S3_SECRET_KEY: test
       EXTRA_AUTH_HEADER_NAME: X-Extra-Auth
       EXTRA_AUTH_HEADER_SECRET: secret
+      ADMIN_SECRET: admin-secret-for-dev
     networks:
       - sharingservice-network
     restart: unless-stopped

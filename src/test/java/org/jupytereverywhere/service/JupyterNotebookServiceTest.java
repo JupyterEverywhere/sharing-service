@@ -7,6 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
@@ -724,6 +726,65 @@ class JupyterNotebookServiceTest {
     assertEquals("1.0.0", entity.getLanguageVersion());
     assertEquals("custom", entity.getKernelName());
     assertEquals("Custom Kernel", entity.getKernelDisplayName());
+  }
+
+  @Test
+  void testDeleteNotebook_ByUUID_Success() {
+    JupyterNotebookEntity notebookEntity = createSampleNotebookEntity();
+    when(notebookRepository.findById(notebookId)).thenReturn(Optional.of(notebookEntity));
+    doNothing().when(storageService).deleteNotebook(notebookEntity.getStorageUrl());
+
+    notebookService.deleteNotebook(notebookId, "ops-team-1");
+
+    verify(storageService).deleteNotebook(notebookEntity.getStorageUrl());
+    verify(notebookRepository).deleteById(notebookId);
+  }
+
+  @Test
+  void testDeleteNotebook_ByReadableId_Success() {
+    JupyterNotebookEntity notebookEntity = createSampleNotebookEntity();
+    when(notebookRepository.findByReadableId(readableId)).thenReturn(Optional.of(notebookEntity));
+    doNothing().when(storageService).deleteNotebook(notebookEntity.getStorageUrl());
+
+    notebookService.deleteNotebookByReadableId(readableId, "ops-team-1");
+
+    verify(storageService).deleteNotebook(notebookEntity.getStorageUrl());
+    verify(notebookRepository).deleteById(notebookId);
+  }
+
+  @Test
+  void testDeleteNotebook_NotFound() {
+    when(notebookRepository.findById(notebookId)).thenReturn(Optional.empty());
+
+    assertThrows(
+        NotebookNotFoundException.class,
+        () -> notebookService.deleteNotebook(notebookId, "ops-team-1"));
+  }
+
+  @Test
+  void testDeleteNotebook_StorageFileMissing_StillDeletesMetadata() {
+    JupyterNotebookEntity notebookEntity = createSampleNotebookEntity();
+    when(notebookRepository.findById(notebookId)).thenReturn(Optional.of(notebookEntity));
+    doThrow(new NotebookNotFoundException("File not found"))
+        .when(storageService)
+        .deleteNotebook(notebookEntity.getStorageUrl());
+
+    notebookService.deleteNotebook(notebookId, "ops-team-1");
+
+    verify(notebookRepository).deleteById(notebookId);
+  }
+
+  @Test
+  void testDeleteNotebook_StorageError_Propagates() {
+    JupyterNotebookEntity notebookEntity = createSampleNotebookEntity();
+    when(notebookRepository.findById(notebookId)).thenReturn(Optional.of(notebookEntity));
+    doThrow(new NotebookStorageException("Storage error"))
+        .when(storageService)
+        .deleteNotebook(notebookEntity.getStorageUrl());
+
+    assertThrows(
+        NotebookStorageException.class,
+        () -> notebookService.deleteNotebook(notebookId, "ops-team-1"));
   }
 
   @Test

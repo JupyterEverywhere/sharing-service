@@ -1,6 +1,7 @@
 package org.jupytereverywhere.filter;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -19,6 +20,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.FilterChain;
@@ -169,6 +171,59 @@ class JwtRequestFilterTest {
     assertTrue(errorMessage != null && errorMessage.contains("JWT Token has expired"));
 
     verify(filterChain, never()).doFilter(request, response);
+  }
+
+  // Admin Role Authority Tests
+
+  @Test
+  void testDoFilterInternal_AdminToken_PopulatesRoleAdmin() throws ServletException, IOException {
+    String adminToken = "adminTokenString";
+    UUID sessionId = UUID.randomUUID();
+    MockHttpServletRequest request = new MockHttpServletRequest();
+    request.addHeader("Authorization", "Bearer " + adminToken);
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    FilterChain filterChain = mock(FilterChain.class);
+
+    when(jwtExtractor.extractJwtFromRequest(request)).thenReturn(adminToken);
+    when(jwtValidator.isValid(adminToken)).thenReturn(true);
+    when(jwtTokenService.extractSessionIdFromToken(adminToken)).thenReturn(sessionId);
+    when(jwtTokenService.extractRoleFromToken(adminToken)).thenReturn("ADMIN");
+
+    jwtRequestFilter.doFilterInternal(request, response, filterChain);
+
+    verify(filterChain).doFilter(request, response);
+    assertEquals(200, response.getStatus());
+
+    var auth = SecurityContextHolder.getContext().getAuthentication();
+    assertNotNull(auth);
+    assertTrue(auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN")));
+
+    SecurityContextHolder.clearContext();
+  }
+
+  @Test
+  void testDoFilterInternal_RegularToken_EmptyAuthorities() throws ServletException, IOException {
+    String regularToken = "regularTokenString";
+    UUID sessionId = UUID.randomUUID();
+    MockHttpServletRequest request = new MockHttpServletRequest();
+    request.addHeader("Authorization", "Bearer " + regularToken);
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    FilterChain filterChain = mock(FilterChain.class);
+
+    when(jwtExtractor.extractJwtFromRequest(request)).thenReturn(regularToken);
+    when(jwtValidator.isValid(regularToken)).thenReturn(true);
+    when(jwtTokenService.extractSessionIdFromToken(regularToken)).thenReturn(sessionId);
+    when(jwtTokenService.extractRoleFromToken(regularToken)).thenReturn(null);
+
+    jwtRequestFilter.doFilterInternal(request, response, filterChain);
+
+    verify(filterChain).doFilter(request, response);
+
+    var auth = SecurityContextHolder.getContext().getAuthentication();
+    assertNotNull(auth);
+    assertTrue(auth.getAuthorities().isEmpty());
+
+    SecurityContextHolder.clearContext();
   }
 
   // Extra Auth Header Tests

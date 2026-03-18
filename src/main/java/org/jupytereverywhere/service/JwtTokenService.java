@@ -26,6 +26,9 @@ public class JwtTokenService {
   public static final String SESSION_ID = "session_id";
   public static final String NOTEBOOK_ID = "notebook_id";
   public static final String NOTEBOOK_PASSWORD = "notebook_password";
+  public static final String ROLE = "role";
+  public static final String TOKEN_NAME = "token_name";
+  public static final String ADMIN_ROLE = "ADMIN";
   private final SecretKey secretKey;
   private final int expirationMinutes;
 
@@ -59,6 +62,43 @@ public class JwtTokenService {
     }
 
     return jwtBuilder.compact();
+  }
+
+  public String generateAdminToken(String sessionId, String tokenName) {
+    return Jwts.builder()
+        .claim(SESSION_ID, sessionId)
+        .claim(ROLE, ADMIN_ROLE)
+        .claim(TOKEN_NAME, tokenName)
+        .setIssuedAt(new Date())
+        .setExpiration(new Date(System.currentTimeMillis() + expirationMinutes * 60 * 1000L))
+        .signWith(secretKey, SignatureAlgorithm.HS256)
+        .compact();
+  }
+
+  public String extractRoleFromToken(String token) {
+    if (token == null || token.trim().isEmpty()) {
+      return null;
+    }
+    try {
+      Claims claims = extractAllClaims(token);
+      return claims.get(ROLE, String.class);
+    } catch (JwtException e) {
+      log.error("Invalid JWT token: {}", e.getMessage());
+      return null;
+    }
+  }
+
+  public String extractTokenNameFromToken(String token) {
+    if (token == null || token.trim().isEmpty()) {
+      return null;
+    }
+    try {
+      Claims claims = extractAllClaims(token);
+      return claims.get(TOKEN_NAME, String.class);
+    } catch (JwtException e) {
+      log.error("Invalid JWT token: {}", e.getMessage());
+      return null;
+    }
   }
 
   public UUID extractSessionIdFromToken(String token) {
