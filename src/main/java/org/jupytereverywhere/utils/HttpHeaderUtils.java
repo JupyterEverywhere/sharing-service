@@ -4,6 +4,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 
 import org.apache.logging.log4j.message.StringMapMessage;
+import org.jupytereverywhere.service.JwtTokenService;
 import org.springframework.http.HttpHeaders;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -76,6 +77,12 @@ public class HttpHeaderUtils {
     } catch (UnknownHostException e) {
       return false;
     }
+  }
+
+  public static String extractAdminTokenName(
+      HttpServletRequest request, JwtTokenService jwtTokenService) {
+    String token = getTokenFromRequest(request);
+    return jwtTokenService.extractTokenNameFromToken(token);
   }
 
   public static String getTokenFromRequest(HttpServletRequest request) {

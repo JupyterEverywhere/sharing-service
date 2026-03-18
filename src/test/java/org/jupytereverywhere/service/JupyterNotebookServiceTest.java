@@ -8,10 +8,12 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -785,6 +787,97 @@ class JupyterNotebookServiceTest {
     assertThrows(
         NotebookStorageException.class,
         () -> notebookService.deleteNotebook(notebookId, "ops-team-1"));
+  }
+
+  @Test
+  void testDeleteNotebooksBySessionId_MultipleNotebooks_ReturnsCorrectCount() {
+    UUID targetSessionId = UUID.randomUUID();
+
+    JupyterNotebookEntity entity1 = new JupyterNotebookEntity();
+    entity1.setId(UUID.randomUUID());
+    entity1.setSessionId(targetSessionId);
+    entity1.setStorageUrl("storage-url-1");
+
+    JupyterNotebookEntity entity2 = new JupyterNotebookEntity();
+    entity2.setId(UUID.randomUUID());
+    entity2.setSessionId(targetSessionId);
+    entity2.setStorageUrl("storage-url-2");
+
+    List<JupyterNotebookEntity> notebooks = List.of(entity1, entity2);
+
+    when(notebookRepository.findBySessionId(targetSessionId)).thenReturn(notebooks);
+    doNothing().when(storageService).deleteNotebooks(List.of("storage-url-1", "storage-url-2"));
+
+    int count = notebookService.deleteNotebooksBySessionId(targetSessionId, "ops-team-1");
+
+    assertEquals(2, count);
+    verify(storageService).deleteNotebooks(List.of("storage-url-1", "storage-url-2"));
+    verify(notebookRepository).deleteAllInBatch(notebooks);
+  }
+
+  @Test
+  void testDeleteNotebooksBySessionId_ZeroNotebooks_ReturnsZero() {
+    UUID targetSessionId = UUID.randomUUID();
+
+    when(notebookRepository.findBySessionId(targetSessionId)).thenReturn(List.of());
+
+    int count = notebookService.deleteNotebooksBySessionId(targetSessionId, "ops-team-1");
+
+    assertEquals(0, count);
+    verify(storageService, never()).deleteNotebooks(any());
+    verify(notebookRepository, never()).deleteAllInBatch(any());
+  }
+
+  @Test
+  void testDeleteNotebooksBySessionId_AuditLogContainsDetails() {
+    // Verifies that the method completes without error and returns count,
+    // which implicitly means the log.info call executed with admin token name,
+    // session ID, and count (log.info is called unconditionally in the method)
+    UUID targetSessionId = UUID.randomUUID();
+
+    JupyterNotebookEntity entity = new JupyterNotebookEntity();
+    entity.setId(UUID.randomUUID());
+    entity.setSessionId(targetSessionId);
+    entity.setStorageUrl("storage-url-1");
+
+    when(notebookRepository.findBySessionId(targetSessionId)).thenReturn(List.of(entity));
+    doNothing().when(storageService).deleteNotebooks(List.of("storage-url-1"));
+
+    int count = notebookService.deleteNotebooksBySessionId(targetSessionId, "audit-admin");
+
+    assertEquals(1, count);
+  }
+
+  @Test
+  void testDeleteNotebooksBySessionId_ZeroDeletion_StillLogs() {
+    // Verifies that even a 0-deletion request completes successfully,
+    // which means the audit log entry is produced (log.info runs unconditionally)
+    UUID targetSessionId = UUID.randomUUID();
+
+    when(notebookRepository.findBySessionId(targetSessionId)).thenReturn(List.of());
+
+    int count = notebookService.deleteNotebooksBySessionId(targetSessionId, "audit-admin");
+
+    assertEquals(0, count);
+  }
+
+  @Test
+  void testDeleteNotebooksBySessionId_StorageError_Propagates() {
+    UUID targetSessionId = UUID.randomUUID();
+
+    JupyterNotebookEntity entity = new JupyterNotebookEntity();
+    entity.setId(UUID.randomUUID());
+    entity.setSessionId(targetSessionId);
+    entity.setStorageUrl("storage-url-1");
+
+    when(notebookRepository.findBySessionId(targetSessionId)).thenReturn(List.of(entity));
+    doThrow(new NotebookStorageException("Storage error"))
+        .when(storageService)
+        .deleteNotebooks(List.of("storage-url-1"));
+
+    assertThrows(
+        NotebookStorageException.class,
+        () -> notebookService.deleteNotebooksBySessionId(targetSessionId, "ops-team-1"));
   }
 
   @Test

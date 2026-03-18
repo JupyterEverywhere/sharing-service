@@ -183,8 +183,7 @@ public class JupyterNotebookController {
   }
 
   private String extractAdminTokenName(HttpServletRequest request) {
-    String token = HttpHeaderUtils.getTokenFromRequest(request);
-    return jwtTokenService.extractTokenNameFromToken(token);
+    return HttpHeaderUtils.extractAdminTokenName(request, jwtTokenService);
   }
 
   @PostMapping

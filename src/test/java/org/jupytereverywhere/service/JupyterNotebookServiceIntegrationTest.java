@@ -212,6 +212,55 @@ class JupyterNotebookServiceIntegrationTest {
   }
 
   @Test
+  void testDeleteNotebooksBySessionId_FullFlow() throws IOException {
+    String notebookJson = Files.readString(Path.of("scripts/example-notebooks/py.ipynb"));
+    JupyterNotebookDTO notebook = objectMapper.readValue(notebookJson, JupyterNotebookDTO.class);
+
+    UUID sessionId = UUID.randomUUID();
+
+    // Create multiple notebooks under the same session
+    JupyterNotebookRequest request1 = new JupyterNotebookRequest();
+    request1.setNotebook(notebook);
+    request1.setPassword("");
+    JupyterNotebookSaved saved1 =
+        notebookService.uploadNotebook(request1, sessionId, "test.example.com", notebookJson);
+
+    JupyterNotebookRequest request2 = new JupyterNotebookRequest();
+    request2.setNotebook(notebook);
+    request2.setPassword("");
+    JupyterNotebookSaved saved2 =
+        notebookService.uploadNotebook(request2, sessionId, "test.example.com", notebookJson);
+
+    // Verify both exist
+    assertNotNull(notebookService.getNotebookContent(saved1.getId()));
+    assertNotNull(notebookService.getNotebookContent(saved2.getId()));
+
+    // Delete all notebooks for the session
+    int deletedCount = notebookService.deleteNotebooksBySessionId(sessionId, "integration-test");
+
+    assertEquals(2, deletedCount);
+
+    // Verify both are gone
+    assertThrows(
+        NotebookNotFoundException.class, () -> notebookService.getNotebookContent(saved1.getId()));
+    assertThrows(
+        NotebookNotFoundException.class, () -> notebookService.getNotebookContent(saved2.getId()));
+
+    // Verify metadata rows are removed
+    assertTrue(notebookRepository.findBySessionId(sessionId).isEmpty());
+  }
+
+  @Test
+  void testDeleteNotebooksBySessionId_EmptySession_ReturnsZero() {
+    UUID emptySessionId = UUID.randomUUID();
+
+    int deletedCount =
+        notebookService.deleteNotebooksBySessionId(emptySessionId, "integration-test");
+
+    assertEquals(0, deletedCount);
+  }
+
+  @Test
   void testDeleteNotebook_ReadableIdRemainsConsumed() throws IOException {
     String notebookJson = Files.readString(Path.of("scripts/example-notebooks/py.ipynb"));
     JupyterNotebookDTO notebook = objectMapper.readValue(notebookJson, JupyterNotebookDTO.class);

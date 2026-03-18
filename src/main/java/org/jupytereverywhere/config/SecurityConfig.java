@@ -107,6 +107,8 @@ public class SecurityConfig {
                     .permitAll()
                     .requestMatchers(HttpMethod.DELETE, ApiConstants.API_BASE_URL + "/notebooks/**")
                     .hasRole("ADMIN")
+                    .requestMatchers(HttpMethod.DELETE, ApiConstants.API_BASE_URL + "/sessions/**")
+                    .hasRole("ADMIN")
                     .anyRequest()
                     .authenticated())
         .sessionManagement(

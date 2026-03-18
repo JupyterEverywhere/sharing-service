@@ -98,6 +98,9 @@ class JupyterNotebookControllerTest {
     mockedStaticHttpHeaderUtils
         .when(() -> HttpHeaderUtils.getTokenFromRequest(request))
         .thenReturn(token);
+    mockedStaticHttpHeaderUtils
+        .when(() -> HttpHeaderUtils.extractAdminTokenName(request, jwtTokenService))
+        .thenCallRealMethod();
   }
 
   private void mockCachedBody(String rawNotebookJson) {

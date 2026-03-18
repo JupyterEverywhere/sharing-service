@@ -434,6 +434,109 @@ admin_delete_by_readable_id() {
   fi
 }
 
+# Admin delete all notebooks by session
+admin_delete_by_session() {
+  log_step "Testing admin delete by session..."
+
+  # Issue a fresh token so this test gets its own session and doesn't delete
+  # notebooks created by earlier tests
+  local session_token
+  local session_response
+  session_response=$(curl -sf -X POST "${API_URL}/auth/issue" \
+    -H "${EXTRA_AUTH_HEADER_NAME}: ${EXTRA_AUTH_HEADER_SECRET}" 2>/dev/null)
+  session_token=$(echo "${session_response}" | jq -r '.token' 2>/dev/null || echo "")
+
+  if [[ -z "${session_token}" || "${session_token}" == "null" ]]; then
+    log_error "Failed to issue session token for session delete test"
+    exit 1
+  fi
+
+  # Save and swap token for notebook creation
+  local saved_token="${API_TOKEN}"
+  API_TOKEN="${session_token}"
+
+  local nb1_id
+  local nb2_id
+  nb1_id=$(share_notebook "SessionDelete1" "scripts/example-notebooks/py.ipynb")
+  nb2_id=$(share_notebook "SessionDelete2" "scripts/example-notebooks/r.ipynb")
+
+  # Restore original token
+  API_TOKEN="${saved_token}"
+
+  # Extract session ID from the dedicated token (portable base64 decode)
+  local session_id
+  local jwt_payload
+  jwt_payload=$(echo "${session_token}" | cut -d. -f2 | tr '_-' '/+' | base64 -d 2>/dev/null || echo "${session_token}" | cut -d. -f2 | tr '_-' '/+' | base64 -D 2>/dev/null)
+  session_id=$(echo "${jwt_payload}" | jq -r '.sub' 2>/dev/null || echo "")
+
+  if [[ -z "${session_id}" || "${session_id}" == "null" ]]; then
+    log_error "Could not extract session ID from token"
+    exit 1
+  fi
+
+  log_info "Session ID: ${YELLOW}${session_id}${NC}"
+  log_info "Created notebooks: ${YELLOW}${nb1_id}${NC}, ${YELLOW}${nb2_id}${NC}"
+
+  # Delete all notebooks for this session
+  local response
+  local http_status
+  local start_time
+  start_time=$(date +%s)
+
+  response=$(curl -s -w "HTTPSTATUS:%{http_code}" -X DELETE \
+    "${API_URL}/sessions/${session_id}/notebooks" \
+    -H "Authorization: Bearer ${ADMIN_TOKEN}" \
+    -H "${EXTRA_AUTH_HEADER_NAME}: ${EXTRA_AUTH_HEADER_SECRET}" 2>/dev/null)
+
+  local end_time
+  end_time=$(date +%s)
+  local duration=$((end_time - start_time))
+
+  http_status=$(echo "$response" | grep -o "HTTPSTATUS:[0-9]*" | cut -d: -f2)
+  response="${response//HTTPSTATUS:[0-9]*}"
+
+  if [[ "${http_status}" == "200" ]]; then
+    local deleted_count
+    deleted_count=$(echo "${response}" | jq -r '.deletedCount' 2>/dev/null || echo "")
+
+    if [[ "${deleted_count}" -eq 2 ]]; then
+      log_success "Session notebooks deleted (HTTP 200, deletedCount=${deleted_count})"
+    else
+      log_error "Expected deletedCount == 2 but got ${deleted_count}"
+      exit 1
+    fi
+
+    # Verify performance gate (SC-005: under 30 seconds)
+    if [[ "${duration}" -lt 30 ]]; then
+      log_success "Response completed in ${duration}s (< 30s performance gate)"
+    else
+      log_error "Response took ${duration}s, exceeds 30s performance gate"
+      exit 1
+    fi
+  else
+    log_error "Expected HTTP 200 but got ${http_status}"
+    log_error "Response: ${response}"
+    exit 1
+  fi
+
+  # Verify notebooks return 404
+  for nb_id in "${nb1_id}" "${nb2_id}"; do
+    response=$(curl -s -w "HTTPSTATUS:%{http_code}" -X GET \
+      "${API_URL}/notebooks/${nb_id}" \
+      -H "Authorization: Bearer ${API_TOKEN}" \
+      -H "${EXTRA_AUTH_HEADER_NAME}: ${EXTRA_AUTH_HEADER_SECRET}" 2>/dev/null)
+
+    http_status=$(echo "$response" | grep -o "HTTPSTATUS:[0-9]*" | cut -d: -f2)
+
+    if [[ "${http_status}" == "404" ]]; then
+      log_success "Notebook ${nb_id} returns 404 as expected"
+    else
+      log_error "Expected HTTP 404 for deleted notebook ${nb_id} but got ${http_status}"
+      exit 1
+    fi
+  done
+}
+
 # Verify non-admin cannot delete
 admin_delete_unauthorized() {
   log_step "Testing unauthorized delete rejection..."
@@ -499,6 +602,7 @@ main() {
     "admin_delete_by_uuid"
     "admin_delete_by_readable_id"
     "admin_delete_unauthorized"
+    "admin_delete_by_session"
   )
 
   local failed_tests=()

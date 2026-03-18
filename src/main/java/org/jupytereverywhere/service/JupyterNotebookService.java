@@ -3,6 +3,7 @@ package org.jupytereverywhere.service;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -420,6 +421,29 @@ public class JupyterNotebookService {
 
     return new JupyterNotebookSaved(
         notebookEntity.getId(), notebookEntity.getDomain(), notebookEntity.getReadableId());
+  }
+
+  @Transactional
+  public int deleteNotebooksBySessionId(UUID sessionId, String adminTokenName) {
+    List<JupyterNotebookEntity> notebooks = notebookRepository.findBySessionId(sessionId);
+    int count = notebooks.size();
+
+    if (count > 0) {
+      List<String> storageUrls =
+          notebooks.stream().map(JupyterNotebookEntity::getStorageUrl).toList();
+
+      storageService.deleteNotebooks(storageUrls);
+      notebookRepository.deleteAllInBatch(notebooks);
+    }
+
+    log.info(
+        new StringMapMessage()
+            .with(MESSAGE_KEY, "Bulk session notebooks deleted by admin")
+            .with(SESSION_ID_MESSAGE_KEY, sessionId.toString())
+            .with("AdminTokenName", adminTokenName)
+            .with("DeletedCount", String.valueOf(count)));
+
+    return count;
   }
 
   @Transactional
