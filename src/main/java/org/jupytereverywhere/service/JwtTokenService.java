@@ -15,6 +15,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtBuilder;
 import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.JwtParser;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import lombok.extern.log4j.Log4j2;
@@ -30,6 +31,7 @@ public class JwtTokenService {
   public static final String TOKEN_NAME = "token_name";
   public static final String ADMIN_ROLE = "ADMIN";
   private final SecretKey secretKey;
+  private final JwtParser jwtParser;
   private final int expirationMinutes;
 
   public JwtTokenService(
@@ -37,6 +39,8 @@ public class JwtTokenService {
       @Value("${security.jwt.token.expiration-minutes}") int expirationMinutes,
       PasswordEncoder passwordEncoder) {
     this.secretKey = createSecretKey(secretKey);
+    this.jwtParser =
+        Jwts.parserBuilder().setSigningKey(this.secretKey).setAllowedClockSkewSeconds(60).build();
     this.expirationMinutes = expirationMinutes;
   }
 
@@ -179,12 +183,7 @@ public class JwtTokenService {
 
   Claims extractAllClaims(String token) {
     try {
-      return Jwts.parserBuilder()
-          .setSigningKey(secretKey)
-          .setAllowedClockSkewSeconds(60)
-          .build()
-          .parseClaimsJws(token)
-          .getBody();
+      return jwtParser.parseClaimsJws(token).getBody();
     } catch (ExpiredJwtException e) {
       log.warn("Token has expired, returning claims: {}", e.getClaims());
       return e.getClaims();
