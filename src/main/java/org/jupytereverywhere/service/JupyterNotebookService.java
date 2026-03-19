@@ -25,6 +25,8 @@ import org.jupytereverywhere.utils.DateUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 
@@ -48,6 +50,7 @@ public class JupyterNotebookService {
   private final JupyterNotebookValidator jupyterNotebookValidator;
   private final JupyterNotebookRepository notebookRepository;
   private final EntityManager entityManager;
+  private final TransactionTemplate transactionTemplate;
 
   private final JwtTokenService jwtTokenService;
   private final PasswordEncoder passwordEncoder;
@@ -61,13 +64,15 @@ public class JupyterNotebookService {
       JupyterNotebookRepository notebookRepository,
       EntityManager entityManager,
       JwtTokenService jwtTokenService,
-      PasswordEncoder passwordEncoder) {
+      PasswordEncoder passwordEncoder,
+      PlatformTransactionManager transactionManager) {
     this.storageService = storageService;
     this.jupyterNotebookValidator = jupyterNotebookValidator;
     this.notebookRepository = notebookRepository;
     this.entityManager = entityManager;
     this.jwtTokenService = jwtTokenService;
     this.passwordEncoder = passwordEncoder;
+    this.transactionTemplate = new TransactionTemplate(transactionManager);
   }
 
   public JupyterNotebookRetrieved getNotebookContent(UUID notebookId) {
@@ -423,18 +428,39 @@ public class JupyterNotebookService {
         notebookEntity.getId(), notebookEntity.getDomain(), notebookEntity.getReadableId());
   }
 
-  @Transactional
   public int deleteNotebooksBySessionId(UUID sessionId, String adminTokenName) {
-    List<JupyterNotebookEntity> notebooks = notebookRepository.findBySessionId(sessionId);
-    int count = notebooks.size();
+    // Phase 1: Find and delete metadata within a transaction
+    Map<UUID, String> deletedNotebooks =
+        transactionTemplate.execute(
+            status -> {
+              List<JupyterNotebookEntity> notebooks = notebookRepository.findBySessionId(sessionId);
+              Map<UUID, String> entries = new java.util.LinkedHashMap<>();
+              for (JupyterNotebookEntity notebook : notebooks) {
+                entries.put(notebook.getId(), notebook.getStorageUrl());
+              }
+              if (!notebooks.isEmpty()) {
+                notebookRepository.deleteAllInBatch(notebooks);
+              }
+              return entries;
+            });
 
-    if (count > 0) {
-      List<String> storageUrls =
-          notebooks.stream().map(JupyterNotebookEntity::getStorageUrl).toList();
+    int count = deletedNotebooks.size();
 
-      storageService.deleteNotebooks(storageUrls);
-      notebookRepository.deleteAllInBatch(notebooks);
-    }
+    // Phase 2: Best-effort storage cleanup after DB transaction commits
+    deletedNotebooks.forEach(
+        (notebookId, storageUrl) -> {
+          try {
+            storageService.deleteNotebook(storageUrl);
+          } catch (Exception e) {
+            log.warn(
+                new StringMapMessage()
+                    .with(
+                        MESSAGE_KEY,
+                        "Failed to delete storage file after successful metadata deletion")
+                    .with(NOTEBOOK_ID_MESSAGE_KEY, notebookId.toString())
+                    .with("StorageUrl", storageUrl));
+          }
+        });
 
     log.info(
         new StringMapMessage()
@@ -446,71 +472,78 @@ public class JupyterNotebookService {
     return count;
   }
 
-  @Transactional
   public void deleteNotebook(UUID notebookId, String adminTokenName) {
-    JupyterNotebookEntity notebookEntity =
-        notebookRepository
-            .findById(notebookId)
-            .orElseThrow(
-                () -> {
-                  log.error(
-                      new StringMapMessage()
-                          .with(MESSAGE_KEY, NOTEBOOK_NOT_FOUND_MESSAGE)
-                          .with(NOTEBOOK_ID_MESSAGE_KEY, notebookId.toString()));
-                  return new NotebookNotFoundException(NOTEBOOK_NOT_FOUND_MESSAGE);
-                });
+    // Phase 1: Find and delete metadata within a transaction
+    JupyterNotebookEntity deletedEntity =
+        transactionTemplate.execute(
+            status -> {
+              JupyterNotebookEntity entity =
+                  notebookRepository
+                      .findById(notebookId)
+                      .orElseThrow(
+                          () -> {
+                            log.error(
+                                new StringMapMessage()
+                                    .with(MESSAGE_KEY, NOTEBOOK_NOT_FOUND_MESSAGE)
+                                    .with(NOTEBOOK_ID_MESSAGE_KEY, notebookId.toString()));
+                            return new NotebookNotFoundException(NOTEBOOK_NOT_FOUND_MESSAGE);
+                          });
+              notebookRepository.deleteById(notebookId);
+              return entity;
+            });
 
-    deleteNotebookInternal(notebookEntity, adminTokenName);
-  }
-
-  @Transactional
-  public void deleteNotebookByReadableId(String readableId, String adminTokenName) {
-    JupyterNotebookEntity notebookEntity =
-        notebookRepository
-            .findByReadableId(readableId)
-            .orElseThrow(
-                () -> {
-                  log.error(
-                      new StringMapMessage()
-                          .with(MESSAGE_KEY, NOTEBOOK_NOT_FOUND_MESSAGE)
-                          .with("ReadableId", readableId));
-                  return new NotebookNotFoundException(NOTEBOOK_NOT_FOUND_MESSAGE);
-                });
-
-    deleteNotebookInternal(notebookEntity, adminTokenName);
-  }
-
-  private void deleteNotebookInternal(JupyterNotebookEntity notebookEntity, String adminTokenName) {
-    UUID notebookId = notebookEntity.getId();
-    String readableId = notebookEntity.getReadableId();
-    String storageUrl = notebookEntity.getStorageUrl();
-
-    try {
-      storageService.deleteNotebook(storageUrl);
-    } catch (NotebookNotFoundException e) {
-      log.warn(
-          new StringMapMessage()
-              .with(MESSAGE_KEY, "Storage file already missing, proceeding with metadata deletion")
-              .with(NOTEBOOK_ID_MESSAGE_KEY, notebookId.toString())
-              .with("StorageUrl", storageUrl));
-    } catch (NotebookStorageException e) {
-      log.error(
-          new StringMapMessage()
-              .with(MESSAGE_KEY, "Failed to delete notebook from storage")
-              .with(NOTEBOOK_ID_MESSAGE_KEY, notebookId.toString())
-              .with("StorageUrl", storageUrl),
-          e);
-      throw e;
-    }
-
-    notebookRepository.deleteById(notebookId);
+    // Phase 2: Best-effort storage cleanup after DB transaction commits
+    cleanupStorageAfterDelete(deletedEntity.getStorageUrl(), notebookId.toString());
 
     log.info(
         new StringMapMessage()
             .with(MESSAGE_KEY, "Notebook deleted by admin")
             .with(NOTEBOOK_ID_MESSAGE_KEY, notebookId.toString())
+            .with("ReadableId", deletedEntity.getReadableId())
+            .with("AdminTokenName", adminTokenName));
+  }
+
+  public void deleteNotebookByReadableId(String readableId, String adminTokenName) {
+    // Phase 1: Find and delete metadata within a transaction
+    JupyterNotebookEntity deletedEntity =
+        transactionTemplate.execute(
+            status -> {
+              JupyterNotebookEntity entity =
+                  notebookRepository
+                      .findByReadableId(readableId)
+                      .orElseThrow(
+                          () -> {
+                            log.error(
+                                new StringMapMessage()
+                                    .with(MESSAGE_KEY, NOTEBOOK_NOT_FOUND_MESSAGE)
+                                    .with("ReadableId", readableId));
+                            return new NotebookNotFoundException(NOTEBOOK_NOT_FOUND_MESSAGE);
+                          });
+              notebookRepository.deleteById(entity.getId());
+              return entity;
+            });
+
+    // Phase 2: Best-effort storage cleanup after DB transaction commits
+    cleanupStorageAfterDelete(deletedEntity.getStorageUrl(), deletedEntity.getId().toString());
+
+    log.info(
+        new StringMapMessage()
+            .with(MESSAGE_KEY, "Notebook deleted by admin")
+            .with(NOTEBOOK_ID_MESSAGE_KEY, deletedEntity.getId().toString())
             .with("ReadableId", readableId)
             .with("AdminTokenName", adminTokenName));
+  }
+
+  private void cleanupStorageAfterDelete(String storageUrl, String notebookId) {
+    try {
+      storageService.deleteNotebook(storageUrl);
+    } catch (Exception e) {
+      log.warn(
+          new StringMapMessage()
+              .with(MESSAGE_KEY, "Failed to delete storage file after successful metadata deletion")
+              .with(NOTEBOOK_ID_MESSAGE_KEY, notebookId)
+              .with("StorageUrl", storageUrl));
+    }
   }
 
   public JupyterNotebookEntity getNotebookById(UUID notebookId) {

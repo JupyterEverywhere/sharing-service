@@ -467,7 +467,7 @@ admin_delete_by_session() {
   local session_id
   local jwt_payload
   jwt_payload=$(echo "${session_token}" | cut -d. -f2 | tr '_-' '/+' | base64 -d 2>/dev/null || echo "${session_token}" | cut -d. -f2 | tr '_-' '/+' | base64 -D 2>/dev/null)
-  session_id=$(echo "${jwt_payload}" | jq -r '.sub' 2>/dev/null || echo "")
+  session_id=$(echo "${jwt_payload}" | jq -r '.session_id' 2>/dev/null || echo "")
 
   if [[ -z "${session_id}" || "${session_id}" == "null" ]]; then
     log_error "Could not extract session ID from token"

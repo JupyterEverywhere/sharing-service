@@ -48,6 +48,9 @@ start:
 	docker compose up -d db localstack
 	@echo "Waiting for services to be ready..."
 	@sleep 10
+	@echo "Ensuring S3 bucket exists..."
+	@AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test \
+		aws --endpoint-url=http://localhost:4567 s3 mb s3://test-bucket --region us-east-1 2>/dev/null || true
 	@echo "Starting Spring Boot application..."
 	DB_USERNAME=jupytereverywhere \
 	DB_PASSWORD=jupytereverywhere \
@@ -61,6 +64,7 @@ start:
 	AWS_S3_SECRET_KEY=test \
 	STORAGE_TYPE=s3 \
 	JWT_SECRET_KEY=test-secret-key-for-local-development-only \
+	ADMIN_SECRET=admin-secret-for-dev \
 	./gradlew bootRun
 
 stop:

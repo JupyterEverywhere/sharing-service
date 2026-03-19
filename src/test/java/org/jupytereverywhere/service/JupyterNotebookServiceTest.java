@@ -35,12 +35,16 @@ import org.jupytereverywhere.model.response.JupyterNotebookRetrieved;
 import org.jupytereverywhere.model.response.JupyterNotebookSaved;
 import org.jupytereverywhere.repository.JupyterNotebookRepository;
 import org.jupytereverywhere.service.utils.JupyterNotebookValidator;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionStatus;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -65,6 +69,8 @@ class JupyterNotebookServiceTest {
 
   @Mock private PasswordEncoder passwordEncoder;
 
+  @Mock private PlatformTransactionManager transactionManager;
+
   private UUID notebookId;
   private UUID sessionId;
   private String domain;
@@ -85,6 +91,11 @@ class JupyterNotebookServiceTest {
 
     // Set the maxNotebookSizeBytes field to 10MB (same as application.properties default)
     ReflectionTestUtils.setField(notebookService, "maxNotebookSizeBytes", 10485760L);
+
+    // Configure PlatformTransactionManager so TransactionTemplate executes callbacks
+    // Use lenient() since not all tests exercise transactional delete paths
+    TransactionStatus mockStatus = Mockito.mock(TransactionStatus.class);
+    Mockito.lenient().when(transactionManager.getTransaction(any())).thenReturn(mockStatus);
   }
 
   private JupyterNotebookDTO createSampleNotebookDTO() {
@@ -738,8 +749,10 @@ class JupyterNotebookServiceTest {
 
     notebookService.deleteNotebook(notebookId, "ops-team-1");
 
-    verify(storageService).deleteNotebook(notebookEntity.getStorageUrl());
-    verify(notebookRepository).deleteById(notebookId);
+    // Verify DB-first ordering: repository delete before storage delete
+    InOrder inOrder = Mockito.inOrder(notebookRepository, storageService);
+    inOrder.verify(notebookRepository).deleteById(notebookId);
+    inOrder.verify(storageService).deleteNotebook(notebookEntity.getStorageUrl());
   }
 
   @Test
@@ -750,8 +763,10 @@ class JupyterNotebookServiceTest {
 
     notebookService.deleteNotebookByReadableId(readableId, "ops-team-1");
 
-    verify(storageService).deleteNotebook(notebookEntity.getStorageUrl());
-    verify(notebookRepository).deleteById(notebookId);
+    // Verify DB-first ordering: repository delete before storage delete
+    InOrder inOrder = Mockito.inOrder(notebookRepository, storageService);
+    inOrder.verify(notebookRepository).deleteById(notebookId);
+    inOrder.verify(storageService).deleteNotebook(notebookEntity.getStorageUrl());
   }
 
   @Test
@@ -764,29 +779,32 @@ class JupyterNotebookServiceTest {
   }
 
   @Test
-  void testDeleteNotebook_StorageFileMissing_StillDeletesMetadata() {
-    JupyterNotebookEntity notebookEntity = createSampleNotebookEntity();
-    when(notebookRepository.findById(notebookId)).thenReturn(Optional.of(notebookEntity));
-    doThrow(new NotebookNotFoundException("File not found"))
-        .when(storageService)
-        .deleteNotebook(notebookEntity.getStorageUrl());
-
-    notebookService.deleteNotebook(notebookId, "ops-team-1");
-
-    verify(notebookRepository).deleteById(notebookId);
-  }
-
-  @Test
-  void testDeleteNotebook_StorageError_Propagates() {
+  void testDeleteNotebook_StorageFailureAfterDBCommit_StillSucceeds() {
     JupyterNotebookEntity notebookEntity = createSampleNotebookEntity();
     when(notebookRepository.findById(notebookId)).thenReturn(Optional.of(notebookEntity));
     doThrow(new NotebookStorageException("Storage error"))
         .when(storageService)
         .deleteNotebook(notebookEntity.getStorageUrl());
 
-    assertThrows(
-        NotebookStorageException.class,
-        () -> notebookService.deleteNotebook(notebookId, "ops-team-1"));
+    // Should NOT throw — storage failures after DB commit are swallowed
+    notebookService.deleteNotebook(notebookId, "ops-team-1");
+
+    verify(notebookRepository).deleteById(notebookId);
+    verify(storageService).deleteNotebook(notebookEntity.getStorageUrl());
+  }
+
+  @Test
+  void testDeleteNotebook_MissingStorageFileAfterDBCommit_StillSucceeds() {
+    JupyterNotebookEntity notebookEntity = createSampleNotebookEntity();
+    when(notebookRepository.findById(notebookId)).thenReturn(Optional.of(notebookEntity));
+    doThrow(new NotebookNotFoundException("File not found"))
+        .when(storageService)
+        .deleteNotebook(notebookEntity.getStorageUrl());
+
+    // Should NOT throw — missing storage file after DB commit is logged and swallowed
+    notebookService.deleteNotebook(notebookId, "ops-team-1");
+
+    verify(notebookRepository).deleteById(notebookId);
   }
 
   @Test
@@ -806,13 +824,16 @@ class JupyterNotebookServiceTest {
     List<JupyterNotebookEntity> notebooks = List.of(entity1, entity2);
 
     when(notebookRepository.findBySessionId(targetSessionId)).thenReturn(notebooks);
-    doNothing().when(storageService).deleteNotebooks(List.of("storage-url-1", "storage-url-2"));
+    doNothing().when(storageService).deleteNotebook(anyString());
 
     int count = notebookService.deleteNotebooksBySessionId(targetSessionId, "ops-team-1");
 
     assertEquals(2, count);
-    verify(storageService).deleteNotebooks(List.of("storage-url-1", "storage-url-2"));
-    verify(notebookRepository).deleteAllInBatch(notebooks);
+    // Verify DB-first ordering: batch delete before any storage deletes
+    InOrder inOrder = Mockito.inOrder(notebookRepository, storageService);
+    inOrder.verify(notebookRepository).deleteAllInBatch(notebooks);
+    inOrder.verify(storageService).deleteNotebook("storage-url-1");
+    inOrder.verify(storageService).deleteNotebook("storage-url-2");
   }
 
   @Test
@@ -824,15 +845,12 @@ class JupyterNotebookServiceTest {
     int count = notebookService.deleteNotebooksBySessionId(targetSessionId, "ops-team-1");
 
     assertEquals(0, count);
-    verify(storageService, never()).deleteNotebooks(any());
+    verify(storageService, never()).deleteNotebook(anyString());
     verify(notebookRepository, never()).deleteAllInBatch(any());
   }
 
   @Test
   void testDeleteNotebooksBySessionId_AuditLogContainsDetails() {
-    // Verifies that the method completes without error and returns count,
-    // which implicitly means the log.info call executed with admin token name,
-    // session ID, and count (log.info is called unconditionally in the method)
     UUID targetSessionId = UUID.randomUUID();
 
     JupyterNotebookEntity entity = new JupyterNotebookEntity();
@@ -841,7 +859,7 @@ class JupyterNotebookServiceTest {
     entity.setStorageUrl("storage-url-1");
 
     when(notebookRepository.findBySessionId(targetSessionId)).thenReturn(List.of(entity));
-    doNothing().when(storageService).deleteNotebooks(List.of("storage-url-1"));
+    doNothing().when(storageService).deleteNotebook(anyString());
 
     int count = notebookService.deleteNotebooksBySessionId(targetSessionId, "audit-admin");
 
@@ -850,8 +868,6 @@ class JupyterNotebookServiceTest {
 
   @Test
   void testDeleteNotebooksBySessionId_ZeroDeletion_StillLogs() {
-    // Verifies that even a 0-deletion request completes successfully,
-    // which means the audit log entry is produced (log.info runs unconditionally)
     UUID targetSessionId = UUID.randomUUID();
 
     when(notebookRepository.findBySessionId(targetSessionId)).thenReturn(List.of());
@@ -862,7 +878,39 @@ class JupyterNotebookServiceTest {
   }
 
   @Test
-  void testDeleteNotebooksBySessionId_StorageError_Propagates() {
+  void testDeleteNotebooksBySessionId_PartialStorageFailure_StillSucceeds() {
+    UUID targetSessionId = UUID.randomUUID();
+
+    JupyterNotebookEntity entity1 = new JupyterNotebookEntity();
+    entity1.setId(UUID.randomUUID());
+    entity1.setSessionId(targetSessionId);
+    entity1.setStorageUrl("storage-url-1");
+
+    JupyterNotebookEntity entity2 = new JupyterNotebookEntity();
+    entity2.setId(UUID.randomUUID());
+    entity2.setSessionId(targetSessionId);
+    entity2.setStorageUrl("storage-url-2");
+
+    List<JupyterNotebookEntity> notebooks = List.of(entity1, entity2);
+
+    when(notebookRepository.findBySessionId(targetSessionId)).thenReturn(notebooks);
+    // First file fails, second succeeds
+    doThrow(new NotebookStorageException("Storage error"))
+        .when(storageService)
+        .deleteNotebook("storage-url-1");
+    doNothing().when(storageService).deleteNotebook("storage-url-2");
+
+    // Should NOT throw — partial storage failures are swallowed
+    int count = notebookService.deleteNotebooksBySessionId(targetSessionId, "ops-team-1");
+
+    assertEquals(2, count);
+    verify(notebookRepository).deleteAllInBatch(notebooks);
+    verify(storageService).deleteNotebook("storage-url-1");
+    verify(storageService).deleteNotebook("storage-url-2");
+  }
+
+  @Test
+  void testDeleteNotebooksBySessionId_AllStorageMissing_StillSucceeds() {
     UUID targetSessionId = UUID.randomUUID();
 
     JupyterNotebookEntity entity = new JupyterNotebookEntity();
@@ -871,13 +919,15 @@ class JupyterNotebookServiceTest {
     entity.setStorageUrl("storage-url-1");
 
     when(notebookRepository.findBySessionId(targetSessionId)).thenReturn(List.of(entity));
-    doThrow(new NotebookStorageException("Storage error"))
+    doThrow(new NotebookNotFoundException("File not found"))
         .when(storageService)
-        .deleteNotebooks(List.of("storage-url-1"));
+        .deleteNotebook("storage-url-1");
 
-    assertThrows(
-        NotebookStorageException.class,
-        () -> notebookService.deleteNotebooksBySessionId(targetSessionId, "ops-team-1"));
+    // Should NOT throw — missing files after DB commit are logged and swallowed
+    int count = notebookService.deleteNotebooksBySessionId(targetSessionId, "ops-team-1");
+
+    assertEquals(1, count);
+    verify(notebookRepository).deleteAllInBatch(List.of(entity));
   }
 
   @Test
