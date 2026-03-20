@@ -48,19 +48,23 @@ start:
 	docker compose up -d db localstack
 	@echo "Waiting for services to be ready..."
 	@sleep 10
+	@echo "Ensuring S3 bucket exists..."
+	@AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test \
+		aws --endpoint-url=http://localhost:4567 s3 mb s3://test-bucket --region us-east-1 2>/dev/null || true
 	@echo "Starting Spring Boot application..."
 	DB_USERNAME=jupytereverywhere \
 	DB_PASSWORD=jupytereverywhere \
 	DB_HOST=localhost \
 	DB_PORT=5433 \
 	DB_NAME=sharingservice \
-	AWS_ACCESS_KEY_ID=test \
-	AWS_SECRET_ACCESS_KEY=test \
-	AWS_REGION=us-east-1 \
-	S3_BUCKET_NAME=test-bucket \
-	S3_ENDPOINT_OVERRIDE=http://localhost:4566 \
+	AWS_S3_REGION=us-east-1 \
+	AWS_S3_BUCKET=test-bucket \
+	AWS_S3_ENDPOINT_OVERRIDE=http://localhost:4567 \
+	AWS_S3_ACCESS_KEY=test \
+	AWS_S3_SECRET_KEY=test \
 	STORAGE_TYPE=s3 \
 	JWT_SECRET_KEY=test-secret-key-for-local-development-only \
+	ADMIN_SECRET=admin-secret-for-dev \
 	./gradlew bootRun
 
 stop:
@@ -85,14 +89,29 @@ docker-down:
 # Integration Testing
 #==========================================
 
-wait-for-health: docker-up
+# Detect if API_URL is set to a remote (non-localhost) URL
+# If remote, skip docker-up; if local or unset, run docker-up
+IS_REMOTE_URL := $(shell \
+	if [ -z "$(API_URL)" ]; then \
+		echo "false"; \
+	elif echo "$(API_URL)" | grep -qE "localhost|127\.0\.0\.1|0\.0\.0\.0"; then \
+		echo "false"; \
+	else \
+		echo "true"; \
+	fi)
+
+wait-for-health:
+ifeq ($(IS_REMOTE_URL),false)
+	@echo "Testing local service - starting Docker stack..."
+	@$(MAKE) docker-up
+endif
 	@echo
-	@./scripts/wait-for-health.sh
+	@API_URL="$(API_URL)" ./scripts/wait-for-health.sh
 
 smoke-test: wait-for-health
 	@echo
-	@./scripts/smoke-test.sh
+	@API_URL="$(API_URL)" ./scripts/smoke-test.sh
 
 stress-test: wait-for-health
 	@echo
-	@CONTAINER_ID=$$(docker compose ps -q api) ./scripts/stress-test-battery.sh
+	@API_URL="$(API_URL)" CONTAINER_ID=$$(docker compose ps -q api) ./scripts/stress-test-battery.sh

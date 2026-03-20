@@ -176,6 +176,53 @@ class JwtTokenServiceTest {
   }
 
   @Test
+  void testGenerateAdminToken_ContainsRoleAndTokenNameClaims() {
+    String tokenName = "ops-team-1";
+    String token = jwtTokenService.generateAdminToken(sessionId.toString(), tokenName);
+
+    assertNotNull(token);
+
+    Claims claims = jwtTokenService.extractAllClaims(token);
+    assertEquals("ADMIN", claims.get("role", String.class));
+    assertEquals(tokenName, claims.get("token_name", String.class));
+    assertEquals(sessionId.toString(), claims.get("session_id", String.class));
+  }
+
+  @Test
+  void testExtractRoleFromToken_AdminToken() {
+    String token = jwtTokenService.generateAdminToken(sessionId.toString(), "ops-team-1");
+    String role = jwtTokenService.extractRoleFromToken(token);
+    assertEquals("ADMIN", role);
+  }
+
+  @Test
+  void testExtractRoleFromToken_RegularToken() {
+    String token = jwtTokenService.generateToken(sessionId.toString());
+    String role = jwtTokenService.extractRoleFromToken(token);
+    assertNull(role);
+  }
+
+  @Test
+  void testExtractTokenNameFromToken_AdminToken() {
+    String token = jwtTokenService.generateAdminToken(sessionId.toString(), "ops-team-1");
+    String tokenName = jwtTokenService.extractTokenNameFromToken(token);
+    assertEquals("ops-team-1", tokenName);
+  }
+
+  @Test
+  void testExtractTokenNameFromToken_RegularToken() {
+    String token = jwtTokenService.generateToken(sessionId.toString());
+    String tokenName = jwtTokenService.extractTokenNameFromToken(token);
+    assertNull(tokenName);
+  }
+
+  @Test
+  void testExtractRoleFromToken_NullToken() {
+    String role = jwtTokenService.extractRoleFromToken(null);
+    assertNull(role);
+  }
+
+  @Test
   void testExtractExpiration() {
     Date expirationDate = jwtTokenService.extractExpiration(validToken);
     assertNotNull(expirationDate);

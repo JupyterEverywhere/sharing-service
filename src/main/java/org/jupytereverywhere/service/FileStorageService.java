@@ -5,6 +5,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 
 import org.apache.logging.log4j.message.StringMapMessage;
 import org.jupytereverywhere.exception.NotebookNotFoundException;
@@ -100,6 +101,41 @@ public class FileStorageService implements StorageService {
       log.error(errorLog, e);
       throw new NotebookStorageException(
           "Error loading notebook from local storage: " + fullPath, e);
+    }
+  }
+
+  @Override
+  public void deleteNotebooks(List<String> fileNames) {
+    for (String fileName : fileNames) {
+      Path notebookPath = Paths.get(localStoragePath, fileName);
+      try {
+        if (Files.exists(notebookPath)) {
+          Files.delete(notebookPath);
+
+          StringMapMessage deleteLog =
+              new StringMapMessage()
+                  .with(MESSAGE, "Notebook deleted in batch")
+                  .with(NOTEBOOK_NAME, fileName)
+                  .with(NOTEBOOK_PATH, notebookPath.toString());
+          log.info(deleteLog);
+        } else {
+          StringMapMessage warnLog =
+              new StringMapMessage()
+                  .with(MESSAGE, "Notebook not found during batch delete, skipping")
+                  .with(NOTEBOOK_PATH, notebookPath.toString());
+          log.warn(warnLog);
+        }
+      } catch (IOException e) {
+        StringMapMessage errorLog =
+            new StringMapMessage()
+                .with(MESSAGE, "Error deleting notebook in batch")
+                .with(NOTEBOOK_NAME, fileName)
+                .with(NOTEBOOK_PATH, notebookPath.toString())
+                .with(ERROR, e.getMessage());
+        log.error(errorLog, e);
+        throw new NotebookStorageException(
+            "Error deleting notebook: " + fileName + " at path: " + notebookPath, e);
+      }
     }
   }
 

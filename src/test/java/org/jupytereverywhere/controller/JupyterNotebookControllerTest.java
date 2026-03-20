@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
@@ -28,6 +30,7 @@ import org.jupytereverywhere.model.response.JupyterNotebookRetrieved;
 import org.jupytereverywhere.model.response.JupyterNotebookSaved;
 import org.jupytereverywhere.model.response.JupyterNotebookSavedResponse;
 import org.jupytereverywhere.service.JupyterNotebookService;
+import org.jupytereverywhere.service.JwtTokenService;
 import org.jupytereverywhere.utils.HttpHeaderUtils;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -48,6 +51,8 @@ class JupyterNotebookControllerTest {
   @InjectMocks private JupyterNotebookController controller;
 
   @Mock private JupyterNotebookService notebookService;
+
+  @Mock private JwtTokenService jwtTokenService;
 
   @Mock private ObjectMapper objectMapper;
 
@@ -93,12 +98,97 @@ class JupyterNotebookControllerTest {
     mockedStaticHttpHeaderUtils
         .when(() -> HttpHeaderUtils.getTokenFromRequest(request))
         .thenReturn(token);
+    mockedStaticHttpHeaderUtils
+        .when(() -> HttpHeaderUtils.extractAdminTokenName(request, jwtTokenService))
+        .thenCallRealMethod();
   }
 
   private void mockCachedBody(String rawNotebookJson) {
     when(request.getAttribute(org.jupytereverywhere.filter.CachedBodyFilter.CACHED_BODY_ATTRIBUTE))
         .thenReturn(rawNotebookJson);
   }
+
+  // DELETE endpoint tests
+
+  @Test
+  void testDeleteNotebookByUUID_Success() {
+    UUID notebookId = UUID.randomUUID();
+    mockTokenExtraction("admin-token");
+    when(jwtTokenService.extractTokenNameFromToken("admin-token")).thenReturn("ops-team-1");
+    doNothing().when(notebookService).deleteNotebook(notebookId, "ops-team-1");
+
+    ResponseEntity<JupyterNotebookResponse> response =
+        controller.deleteNotebook(notebookId, request);
+
+    assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
+  }
+
+  @Test
+  void testDeleteNotebookByReadableId_Success() {
+    mockTokenExtraction("admin-token");
+    when(jwtTokenService.extractTokenNameFromToken("admin-token")).thenReturn("ops-team-1");
+    doNothing().when(notebookService).deleteNotebookByReadableId(readableId, "ops-team-1");
+
+    ResponseEntity<JupyterNotebookResponse> response =
+        controller.deleteNotebookByReadableId(readableId, request);
+
+    assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
+  }
+
+  @Test
+  void testDeleteNotebookByUUID_NotFound() {
+    UUID notebookId = UUID.randomUUID();
+    mockTokenExtraction("admin-token");
+    when(jwtTokenService.extractTokenNameFromToken("admin-token")).thenReturn("ops-team-1");
+    doThrow(new NotebookNotFoundException("Notebook not found"))
+        .when(notebookService)
+        .deleteNotebook(notebookId, "ops-team-1");
+
+    ResponseEntity<JupyterNotebookResponse> response =
+        controller.deleteNotebook(notebookId, request);
+
+    assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+    JupyterNotebookErrorResponse errorResponse = (JupyterNotebookErrorResponse) response.getBody();
+    assertNotNull(errorResponse);
+    assertEquals("Notebook not found", errorResponse.getMessage());
+  }
+
+  @Test
+  void testDeleteNotebookByReadableId_NotFound() {
+    mockTokenExtraction("admin-token");
+    when(jwtTokenService.extractTokenNameFromToken("admin-token")).thenReturn("ops-team-1");
+    doThrow(new NotebookNotFoundException("Notebook not found"))
+        .when(notebookService)
+        .deleteNotebookByReadableId(readableId, "ops-team-1");
+
+    ResponseEntity<JupyterNotebookResponse> response =
+        controller.deleteNotebookByReadableId(readableId, request);
+
+    assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+    JupyterNotebookErrorResponse errorResponse = (JupyterNotebookErrorResponse) response.getBody();
+    assertNotNull(errorResponse);
+    assertEquals("Notebook not found", errorResponse.getMessage());
+  }
+
+  @Test
+  void testDeleteNotebookByUUID_InternalError() {
+    UUID notebookId = UUID.randomUUID();
+    mockTokenExtraction("admin-token");
+    when(jwtTokenService.extractTokenNameFromToken("admin-token")).thenReturn("ops-team-1");
+    doThrow(new RuntimeException("Storage failure"))
+        .when(notebookService)
+        .deleteNotebook(notebookId, "ops-team-1");
+
+    ResponseEntity<JupyterNotebookResponse> response =
+        controller.deleteNotebook(notebookId, request);
+
+    assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+    JupyterNotebookErrorResponse errorResponse = (JupyterNotebookErrorResponse) response.getBody();
+    assertNotNull(errorResponse);
+    assertEquals("Failed to delete notebook", errorResponse.getMessage());
+  }
+
+  // GET endpoint tests
 
   @Test
   void testGetNotebookById_Success() {

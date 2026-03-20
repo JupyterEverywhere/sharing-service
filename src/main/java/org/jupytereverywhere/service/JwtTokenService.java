@@ -15,6 +15,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtBuilder;
 import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.JwtParser;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import lombok.extern.log4j.Log4j2;
@@ -26,7 +27,11 @@ public class JwtTokenService {
   public static final String SESSION_ID = "session_id";
   public static final String NOTEBOOK_ID = "notebook_id";
   public static final String NOTEBOOK_PASSWORD = "notebook_password";
+  public static final String ROLE = "role";
+  public static final String TOKEN_NAME = "token_name";
+  public static final String ADMIN_ROLE = "ADMIN";
   private final SecretKey secretKey;
+  private final JwtParser jwtParser;
   private final int expirationMinutes;
 
   public JwtTokenService(
@@ -34,6 +39,8 @@ public class JwtTokenService {
       @Value("${security.jwt.token.expiration-minutes}") int expirationMinutes,
       PasswordEncoder passwordEncoder) {
     this.secretKey = createSecretKey(secretKey);
+    this.jwtParser =
+        Jwts.parserBuilder().setSigningKey(this.secretKey).setAllowedClockSkewSeconds(60).build();
     this.expirationMinutes = expirationMinutes;
   }
 
@@ -59,6 +66,43 @@ public class JwtTokenService {
     }
 
     return jwtBuilder.compact();
+  }
+
+  public String generateAdminToken(String sessionId, String tokenName) {
+    return Jwts.builder()
+        .claim(SESSION_ID, sessionId)
+        .claim(ROLE, ADMIN_ROLE)
+        .claim(TOKEN_NAME, tokenName)
+        .setIssuedAt(new Date())
+        .setExpiration(new Date(System.currentTimeMillis() + expirationMinutes * 60 * 1000L))
+        .signWith(secretKey, SignatureAlgorithm.HS256)
+        .compact();
+  }
+
+  public String extractRoleFromToken(String token) {
+    if (token == null || token.trim().isEmpty()) {
+      return null;
+    }
+    try {
+      Claims claims = extractAllClaims(token);
+      return claims.get(ROLE, String.class);
+    } catch (JwtException e) {
+      log.error("Invalid JWT token: {}", e.getMessage());
+      return null;
+    }
+  }
+
+  public String extractTokenNameFromToken(String token) {
+    if (token == null || token.trim().isEmpty()) {
+      return null;
+    }
+    try {
+      Claims claims = extractAllClaims(token);
+      return claims.get(TOKEN_NAME, String.class);
+    } catch (JwtException e) {
+      log.error("Invalid JWT token: {}", e.getMessage());
+      return null;
+    }
   }
 
   public UUID extractSessionIdFromToken(String token) {
@@ -139,12 +183,7 @@ public class JwtTokenService {
 
   Claims extractAllClaims(String token) {
     try {
-      return Jwts.parserBuilder()
-          .setSigningKey(secretKey)
-          .setAllowedClockSkewSeconds(60)
-          .build()
-          .parseClaimsJws(token)
-          .getBody();
+      return jwtParser.parseClaimsJws(token).getBody();
     } catch (ExpiredJwtException e) {
       log.warn("Token has expired, returning claims: {}", e.getClaims());
       return e.getClaims();

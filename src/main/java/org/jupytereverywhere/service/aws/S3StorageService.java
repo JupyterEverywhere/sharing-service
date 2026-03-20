@@ -2,7 +2,9 @@ package org.jupytereverywhere.service.aws;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.logging.log4j.message.StringMapMessage;
@@ -21,8 +23,12 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.Delete;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
+import software.amazon.awssdk.services.s3.model.DeleteObjectsResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 @Log4j2
@@ -49,13 +55,16 @@ public class S3StorageService implements StorageService {
   @Value("${aws.s3.secret-key:}")
   private String configuredSecretKey;
 
+  @Value("${aws.s3.endpoint-override:}")
+  private String endpointOverride;
+
   private final SecretsService secretsService;
   private S3Client s3Client;
   private String bucketName;
   private String accessKey;
   private String secretKey;
 
-  public S3StorageService(SecretsService secretsService) {
+  public S3StorageService(@org.springframework.lang.Nullable SecretsService secretsService) {
     this.secretsService = secretsService;
   }
 
@@ -80,21 +89,25 @@ public class S3StorageService implements StorageService {
           "S3 region must be provided via aws.s3.region property/env var");
     }
 
-    // Use explicit credentials if both are present, otherwise use default provider chain
+    // Build S3 client
+    var builder = S3Client.builder().region(Region.of(region));
+
+    if (endpointOverride != null && !endpointOverride.isEmpty()) {
+      builder.endpointOverride(URI.create(endpointOverride));
+      builder.forcePathStyle(true);
+    }
+
     if (accessKey != null && !accessKey.isEmpty() && secretKey != null && !secretKey.isEmpty()) {
       AwsBasicCredentials awsCreds = AwsBasicCredentials.create(accessKey, secretKey);
-      this.s3Client =
-          S3Client.builder()
-              .region(Region.of(region))
-              .credentialsProvider(StaticCredentialsProvider.create(awsCreds))
-              .build();
+      builder.credentialsProvider(StaticCredentialsProvider.create(awsCreds));
       log.info(
           "S3 client initialized with explicit credentials from Secrets Manager or properties");
     } else {
-      this.s3Client = S3Client.builder().region(Region.of(region)).build();
       log.info(
           "S3 client initialized with default AWS credentials provider chain (IAM role, EC2/ECS metadata, etc.)");
     }
+
+    this.s3Client = builder.build();
 
     StringMapMessage initLog =
         new StringMapMessage()
@@ -113,6 +126,10 @@ public class S3StorageService implements StorageService {
    * Loads secret values if available. Returns true if secret was found and used, false otherwise.
    */
   private boolean loadSecretValues() {
+    if (secretsService == null) {
+      log.info("No SecretsService configured, will use env/properties for S3 config");
+      return false;
+    }
     String effectiveSecretName = (s3SecretName != null) ? s3SecretName : "jupyter-s3";
     Map<String, String> secretValues = null;
     try {
@@ -142,12 +159,12 @@ public class S3StorageService implements StorageService {
   @Override
   public String uploadNotebook(String notebookJson, String fileName) {
     try {
-      PutObjectRequest putObjectRequest =
-          PutObjectRequest.builder()
-              .bucket(bucketName)
-              .key(fileName)
-              .serverSideEncryption("aws:kms")
-              .build();
+      PutObjectRequest.Builder putBuilder =
+          PutObjectRequest.builder().bucket(bucketName).key(fileName);
+      if (endpointOverride == null || endpointOverride.isEmpty()) {
+        putBuilder.serverSideEncryption("aws:kms");
+      }
+      PutObjectRequest putObjectRequest = putBuilder.build();
 
       s3Client.putObject(putObjectRequest, RequestBody.fromString(notebookJson));
 
@@ -217,6 +234,62 @@ public class S3StorageService implements StorageService {
 
       log.error(generalErrorLog, e);
       throw new S3DownloadException("Error downloading notebook from S3", e);
+    }
+  }
+
+  @Override
+  public void deleteNotebooks(List<String> fileNames) {
+    if (fileNames.isEmpty()) {
+      return;
+    }
+
+    try {
+      List<ObjectIdentifier> keys =
+          fileNames.stream().map(name -> ObjectIdentifier.builder().key(name).build()).toList();
+
+      DeleteObjectsRequest deleteObjectsRequest =
+          DeleteObjectsRequest.builder()
+              .bucket(bucketName)
+              .delete(Delete.builder().objects(keys).build())
+              .build();
+
+      DeleteObjectsResponse response = s3Client.deleteObjects(deleteObjectsRequest);
+
+      if (response.hasErrors() && !response.errors().isEmpty()) {
+        StringMapMessage errorLog =
+            new StringMapMessage()
+                .with("action", "deleteNotebooks")
+                .with("status", "partial_failure")
+                .with("errorCount", String.valueOf(response.errors().size()))
+                .with("bucketName", bucketName != null ? bucketName : "N/A");
+
+        log.error(errorLog);
+        throw new S3DeleteException(
+            "Failed to delete " + response.errors().size() + " objects from S3",
+            new RuntimeException(response.errors().toString()));
+      }
+
+      StringMapMessage successLog =
+          new StringMapMessage()
+              .with("action", "deleteNotebooks")
+              .with("status", "success")
+              .with("fileCount", String.valueOf(fileNames.size()))
+              .with("bucketName", bucketName != null ? bucketName : "N/A");
+
+      log.info(successLog);
+    } catch (S3DeleteException e) {
+      throw e;
+    } catch (Exception e) {
+      StringMapMessage errorLog =
+          new StringMapMessage()
+              .with("action", "deleteNotebooks")
+              .with("status", "failure")
+              .with("fileCount", String.valueOf(fileNames.size()))
+              .with("bucketName", bucketName != null ? bucketName : "N/A")
+              .with("error", e.getMessage() != null ? e.getMessage() : "N/A");
+
+      log.error(errorLog, e);
+      throw new S3DeleteException("Error batch deleting notebooks from S3", e);
     }
   }
 

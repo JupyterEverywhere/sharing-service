@@ -16,10 +16,12 @@ import org.jupytereverywhere.model.response.JupyterNotebookRetrieved;
 import org.jupytereverywhere.model.response.JupyterNotebookSaved;
 import org.jupytereverywhere.model.response.JupyterNotebookSavedResponse;
 import org.jupytereverywhere.service.JupyterNotebookService;
+import org.jupytereverywhere.service.JwtTokenService;
 import org.jupytereverywhere.utils.HttpHeaderUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -46,11 +48,15 @@ public class JupyterNotebookController {
   private static final String READABLE_ID_MESSAGE_KEY = "ReadableID";
 
   private final JupyterNotebookService notebookService;
+  private final JwtTokenService jwtTokenService;
   private final ObjectMapper objectMapper;
 
   public JupyterNotebookController(
-      JupyterNotebookService notebookService, ObjectMapper objectMapper) {
+      JupyterNotebookService notebookService,
+      JwtTokenService jwtTokenService,
+      ObjectMapper objectMapper) {
     this.notebookService = notebookService;
+    this.jwtTokenService = jwtTokenService;
     this.objectMapper = objectMapper;
   }
 
@@ -138,6 +144,46 @@ public class JupyterNotebookController {
       return handleException(
           HttpStatus.INTERNAL_SERVER_ERROR, "Error fetching notebook", e, readableId);
     }
+  }
+
+  @DeleteMapping("/{uuid}")
+  public ResponseEntity<JupyterNotebookResponse> deleteNotebook(
+      @PathVariable UUID uuid, HttpServletRequest request) {
+    String adminTokenName = extractAdminTokenName(request);
+    logInfo("Received admin delete request", NOTEBOOK_ID_MESSAGE_KEY, uuid.toString());
+
+    try {
+      notebookService.deleteNotebook(uuid, adminTokenName);
+      logInfo("Notebook deleted successfully", NOTEBOOK_ID_MESSAGE_KEY, uuid.toString());
+      return ResponseEntity.noContent().build();
+    } catch (NotebookNotFoundException e) {
+      return handleException(HttpStatus.NOT_FOUND, "Notebook not found", e, uuid);
+    } catch (Exception e) {
+      return handleException(
+          HttpStatus.INTERNAL_SERVER_ERROR, "Failed to delete notebook", e, uuid);
+    }
+  }
+
+  @DeleteMapping("/readable/{readableId}")
+  public ResponseEntity<JupyterNotebookResponse> deleteNotebookByReadableId(
+      @PathVariable String readableId, HttpServletRequest request) {
+    String adminTokenName = extractAdminTokenName(request);
+    logInfo("Received admin delete request", READABLE_ID_MESSAGE_KEY, readableId);
+
+    try {
+      notebookService.deleteNotebookByReadableId(readableId, adminTokenName);
+      logInfo("Notebook deleted successfully", READABLE_ID_MESSAGE_KEY, readableId);
+      return ResponseEntity.noContent().build();
+    } catch (NotebookNotFoundException e) {
+      return handleException(HttpStatus.NOT_FOUND, "Notebook not found", e, readableId);
+    } catch (Exception e) {
+      return handleException(
+          HttpStatus.INTERNAL_SERVER_ERROR, "Failed to delete notebook", e, readableId);
+    }
+  }
+
+  private String extractAdminTokenName(HttpServletRequest request) {
+    return HttpHeaderUtils.extractAdminTokenName(request, jwtTokenService);
   }
 
   @PostMapping

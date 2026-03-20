@@ -59,8 +59,12 @@ R_NOTEBOOK_ID=""
 REAL_R_NOTEBOOK_ID=""
 NO_KERNEL_NOTEBOOK_ID=""
 API_TOKEN=""
+ADMIN_DELETE_NOTEBOOK_ID=""
+ADMIN_DELETE_NOTEBOOK_ID_2=""
+ADMIN_TOKEN=""
 EXTRA_AUTH_HEADER_NAME="${EXTRA_AUTH_HEADER_NAME:-X-Extra-Auth}"
 EXTRA_AUTH_HEADER_SECRET="${EXTRA_AUTH_HEADER_SECRET:-secret}"
+ADMIN_SECRET="${ADMIN_SECRET:-admin-secret-for-dev}"
 
 # Check required dependencies
 check_dependencies() {
@@ -301,6 +305,278 @@ retrieve_no_kernel_notebook() {
   retrieve_notebook "No-Kernel" "${NO_KERNEL_NOTEBOOK_ID}"
 }
 
+# Issue admin token
+issue_admin_token() {
+  log_step "Issuing admin token..."
+
+  local response
+  response=$(curl -s -w "HTTPSTATUS:%{http_code}" -X POST "${API_URL}/auth/admin/token" \
+    -H "Content-Type: application/json" \
+    -H "${EXTRA_AUTH_HEADER_NAME}: ${EXTRA_AUTH_HEADER_SECRET}" \
+    -d "{\"secret\":\"${ADMIN_SECRET}\",\"tokenName\":\"smoke-test\"}" 2>/dev/null)
+
+  local http_status
+  http_status=$(echo "$response" | grep -o "HTTPSTATUS:[0-9]*" | cut -d: -f2)
+  response="${response//HTTPSTATUS:[0-9]*}"
+
+  if [[ "${http_status}" == "200" ]]; then
+    ADMIN_TOKEN=$(echo "${response}" | jq -r '.token' 2>/dev/null || echo "")
+    if [[ -n "${ADMIN_TOKEN}" && "${ADMIN_TOKEN}" != "null" ]]; then
+      log_success "Admin token issued successfully"
+    else
+      log_error "Failed to parse admin token from response"
+      exit 1
+    fi
+  else
+    log_error "Failed to issue admin token (HTTP ${http_status})"
+    log_error "Response: ${response}"
+    exit 1
+  fi
+}
+
+# Admin delete notebook by UUID
+admin_delete_by_uuid() {
+  log_step "Testing admin delete by UUID..."
+
+  # Create a notebook to delete
+  ADMIN_DELETE_NOTEBOOK_ID=$(share_notebook "AdminDelete" "scripts/example-notebooks/py.ipynb")
+
+  # Delete it
+  local response
+  local http_status
+  response=$(curl -s -w "HTTPSTATUS:%{http_code}" -X DELETE \
+    "${API_URL}/notebooks/${ADMIN_DELETE_NOTEBOOK_ID}" \
+    -H "Authorization: Bearer ${ADMIN_TOKEN}" \
+    -H "${EXTRA_AUTH_HEADER_NAME}: ${EXTRA_AUTH_HEADER_SECRET}" 2>/dev/null)
+
+  http_status=$(echo "$response" | grep -o "HTTPSTATUS:[0-9]*" | cut -d: -f2)
+
+  if [[ "${http_status}" == "204" ]]; then
+    log_success "Notebook deleted by UUID (HTTP 204)"
+  else
+    log_error "Expected HTTP 204 but got ${http_status}"
+    exit 1
+  fi
+
+  # Verify it's gone (expect 404)
+  response=$(curl -s -w "HTTPSTATUS:%{http_code}" -X GET \
+    "${API_URL}/notebooks/${ADMIN_DELETE_NOTEBOOK_ID}" \
+    -H "Authorization: Bearer ${API_TOKEN}" \
+    -H "${EXTRA_AUTH_HEADER_NAME}: ${EXTRA_AUTH_HEADER_SECRET}" 2>/dev/null)
+
+  http_status=$(echo "$response" | grep -o "HTTPSTATUS:[0-9]*" | cut -d: -f2)
+
+  if [[ "${http_status}" == "404" ]]; then
+    log_success "Deleted notebook returns 404 as expected"
+  else
+    log_error "Expected HTTP 404 for deleted notebook but got ${http_status}"
+    exit 1
+  fi
+}
+
+# Admin delete notebook by readable ID
+admin_delete_by_readable_id() {
+  log_step "Testing admin delete by readable ID..."
+
+  # Create a notebook to delete and capture its readable ID
+  local notebook_id
+  notebook_id=$(share_notebook "AdminDeleteReadable" "scripts/example-notebooks/r.ipynb")
+
+  # Get readable ID by fetching the notebook
+  local response
+  local http_status
+  response=$(curl -s -w "HTTPSTATUS:%{http_code}" -X GET \
+    "${API_URL}/notebooks/${notebook_id}" \
+    -H "Authorization: Bearer ${API_TOKEN}" \
+    -H "${EXTRA_AUTH_HEADER_NAME}: ${EXTRA_AUTH_HEADER_SECRET}" 2>/dev/null)
+
+  http_status=$(echo "$response" | grep -o "HTTPSTATUS:[0-9]*" | cut -d: -f2)
+  response="${response//HTTPSTATUS:[0-9]*}"
+
+  local readable_id
+  readable_id=$(echo "${response}" | jq -r '.readable_id' 2>/dev/null || echo "")
+
+  if [[ -z "${readable_id}" || "${readable_id}" == "null" ]]; then
+    log_error "Could not get readable ID for notebook"
+    exit 1
+  fi
+
+  log_info "Deleting by readable ID: ${YELLOW}${readable_id}${NC}"
+
+  # Delete by readable ID
+  response=$(curl -s -w "HTTPSTATUS:%{http_code}" -X DELETE \
+    "${API_URL}/notebooks/readable/${readable_id}" \
+    -H "Authorization: Bearer ${ADMIN_TOKEN}" \
+    -H "${EXTRA_AUTH_HEADER_NAME}: ${EXTRA_AUTH_HEADER_SECRET}" 2>/dev/null)
+
+  http_status=$(echo "$response" | grep -o "HTTPSTATUS:[0-9]*" | cut -d: -f2)
+
+  if [[ "${http_status}" == "204" ]]; then
+    log_success "Notebook deleted by readable ID (HTTP 204)"
+  else
+    log_error "Expected HTTP 204 but got ${http_status}"
+    exit 1
+  fi
+
+  # Verify it's gone
+  response=$(curl -s -w "HTTPSTATUS:%{http_code}" -X GET \
+    "${API_URL}/notebooks/${notebook_id}" \
+    -H "Authorization: Bearer ${API_TOKEN}" \
+    -H "${EXTRA_AUTH_HEADER_NAME}: ${EXTRA_AUTH_HEADER_SECRET}" 2>/dev/null)
+
+  http_status=$(echo "$response" | grep -o "HTTPSTATUS:[0-9]*" | cut -d: -f2)
+
+  if [[ "${http_status}" == "404" ]]; then
+    log_success "Deleted notebook returns 404 as expected"
+  else
+    log_error "Expected HTTP 404 for deleted notebook but got ${http_status}"
+    exit 1
+  fi
+}
+
+# Admin delete all notebooks by session
+admin_delete_by_session() {
+  log_step "Testing admin delete by session..."
+
+  # Issue a fresh token so this test gets its own session and doesn't delete
+  # notebooks created by earlier tests
+  local session_token
+  local session_response
+  session_response=$(curl -sf -X POST "${API_URL}/auth/issue" \
+    -H "${EXTRA_AUTH_HEADER_NAME}: ${EXTRA_AUTH_HEADER_SECRET}" 2>/dev/null)
+  session_token=$(echo "${session_response}" | jq -r '.token' 2>/dev/null || echo "")
+
+  if [[ -z "${session_token}" || "${session_token}" == "null" ]]; then
+    log_error "Failed to issue session token for session delete test"
+    exit 1
+  fi
+
+  # Save and swap token for notebook creation
+  local saved_token="${API_TOKEN}"
+  API_TOKEN="${session_token}"
+
+  local nb1_id
+  local nb2_id
+  nb1_id=$(share_notebook "SessionDelete1" "scripts/example-notebooks/py.ipynb")
+  nb2_id=$(share_notebook "SessionDelete2" "scripts/example-notebooks/r.ipynb")
+
+  # Restore original token
+  API_TOKEN="${saved_token}"
+
+  # Extract session ID from the dedicated token (portable base64 decode)
+  local session_id
+  local jwt_payload
+  jwt_payload=$(echo "${session_token}" | cut -d. -f2 | tr '_-' '/+' | base64 -d 2>/dev/null || echo "${session_token}" | cut -d. -f2 | tr '_-' '/+' | base64 -D 2>/dev/null)
+  session_id=$(echo "${jwt_payload}" | jq -r '.session_id' 2>/dev/null || echo "")
+
+  if [[ -z "${session_id}" || "${session_id}" == "null" ]]; then
+    log_error "Could not extract session ID from token"
+    exit 1
+  fi
+
+  log_info "Session ID: ${YELLOW}${session_id}${NC}"
+  log_info "Created notebooks: ${YELLOW}${nb1_id}${NC}, ${YELLOW}${nb2_id}${NC}"
+
+  # Delete all notebooks for this session
+  local response
+  local http_status
+  local start_time
+  start_time=$(date +%s)
+
+  response=$(curl -s -w "HTTPSTATUS:%{http_code}" -X DELETE \
+    "${API_URL}/sessions/${session_id}/notebooks" \
+    -H "Authorization: Bearer ${ADMIN_TOKEN}" \
+    -H "${EXTRA_AUTH_HEADER_NAME}: ${EXTRA_AUTH_HEADER_SECRET}" 2>/dev/null)
+
+  local end_time
+  end_time=$(date +%s)
+  local duration=$((end_time - start_time))
+
+  http_status=$(echo "$response" | grep -o "HTTPSTATUS:[0-9]*" | cut -d: -f2)
+  response="${response//HTTPSTATUS:[0-9]*}"
+
+  if [[ "${http_status}" == "200" ]]; then
+    local deleted_count
+    deleted_count=$(echo "${response}" | jq -r '.deletedCount' 2>/dev/null || echo "")
+
+    if [[ "${deleted_count}" -eq 2 ]]; then
+      log_success "Session notebooks deleted (HTTP 200, deletedCount=${deleted_count})"
+    else
+      log_error "Expected deletedCount == 2 but got ${deleted_count}"
+      exit 1
+    fi
+
+    # Verify performance gate (SC-005: under 30 seconds)
+    if [[ "${duration}" -lt 30 ]]; then
+      log_success "Response completed in ${duration}s (< 30s performance gate)"
+    else
+      log_error "Response took ${duration}s, exceeds 30s performance gate"
+      exit 1
+    fi
+  else
+    log_error "Expected HTTP 200 but got ${http_status}"
+    log_error "Response: ${response}"
+    exit 1
+  fi
+
+  # Verify notebooks return 404
+  for nb_id in "${nb1_id}" "${nb2_id}"; do
+    response=$(curl -s -w "HTTPSTATUS:%{http_code}" -X GET \
+      "${API_URL}/notebooks/${nb_id}" \
+      -H "Authorization: Bearer ${API_TOKEN}" \
+      -H "${EXTRA_AUTH_HEADER_NAME}: ${EXTRA_AUTH_HEADER_SECRET}" 2>/dev/null)
+
+    http_status=$(echo "$response" | grep -o "HTTPSTATUS:[0-9]*" | cut -d: -f2)
+
+    if [[ "${http_status}" == "404" ]]; then
+      log_success "Notebook ${nb_id} returns 404 as expected"
+    else
+      log_error "Expected HTTP 404 for deleted notebook ${nb_id} but got ${http_status}"
+      exit 1
+    fi
+  done
+}
+
+# Verify non-admin cannot delete
+admin_delete_unauthorized() {
+  log_step "Testing unauthorized delete rejection..."
+
+  # Create a notebook
+  ADMIN_DELETE_NOTEBOOK_ID_2=$(share_notebook "AdminDeleteUnauth" "scripts/example-notebooks/py.ipynb")
+
+  # Try to delete with regular (non-admin) token — should be rejected
+  local response
+  local http_status
+  response=$(curl -s -w "HTTPSTATUS:%{http_code}" -X DELETE \
+    "${API_URL}/notebooks/${ADMIN_DELETE_NOTEBOOK_ID_2}" \
+    -H "Authorization: Bearer ${API_TOKEN}" \
+    -H "${EXTRA_AUTH_HEADER_NAME}: ${EXTRA_AUTH_HEADER_SECRET}" 2>/dev/null)
+
+  http_status=$(echo "$response" | grep -o "HTTPSTATUS:[0-9]*" | cut -d: -f2)
+
+  if [[ "${http_status}" == "403" ]]; then
+    log_success "Non-admin delete correctly rejected (HTTP 403)"
+  else
+    log_error "Expected HTTP 403 for non-admin delete but got ${http_status}"
+    exit 1
+  fi
+
+  # Verify notebook still exists
+  response=$(curl -s -w "HTTPSTATUS:%{http_code}" -X GET \
+    "${API_URL}/notebooks/${ADMIN_DELETE_NOTEBOOK_ID_2}" \
+    -H "Authorization: Bearer ${API_TOKEN}" \
+    -H "${EXTRA_AUTH_HEADER_NAME}: ${EXTRA_AUTH_HEADER_SECRET}" 2>/dev/null)
+
+  http_status=$(echo "$response" | grep -o "HTTPSTATUS:[0-9]*" | cut -d: -f2)
+
+  if [[ "${http_status}" == "200" ]]; then
+    log_success "Notebook still exists after unauthorized delete attempt"
+  else
+    log_error "Expected notebook to still exist (HTTP 200) but got ${http_status}"
+    exit 1
+  fi
+}
+
 # Main execution function
 main() {
   local start_time
@@ -322,6 +598,11 @@ main() {
     "retrieve_real_r_notebook"
     "share_no_kernel_notebook"
     "retrieve_no_kernel_notebook"
+    "issue_admin_token"
+    "admin_delete_by_uuid"
+    "admin_delete_by_readable_id"
+    "admin_delete_unauthorized"
+    "admin_delete_by_session"
   )
 
   local failed_tests=()

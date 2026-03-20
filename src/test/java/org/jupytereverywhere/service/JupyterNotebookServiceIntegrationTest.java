@@ -1,6 +1,9 @@
 package org.jupytereverywhere.service;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.reset;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -10,14 +13,17 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.jupytereverywhere.dto.JupyterNotebookDTO;
+import org.jupytereverywhere.exception.NotebookNotFoundException;
 import org.jupytereverywhere.model.request.JupyterNotebookRequest;
 import org.jupytereverywhere.model.response.JupyterNotebookRetrieved;
 import org.jupytereverywhere.model.response.JupyterNotebookSaved;
+import org.jupytereverywhere.repository.JupyterNotebookRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -62,6 +68,8 @@ class JupyterNotebookServiceIntegrationTest {
   }
 
   @Autowired private JupyterNotebookService notebookService;
+
+  @MockitoSpyBean private JupyterNotebookRepository notebookRepository;
 
   @Autowired private ObjectMapper objectMapper;
 
@@ -160,5 +168,217 @@ class JupyterNotebookServiceIntegrationTest {
     assertNotNull(parsedNotebook.getMetadata());
     assertNotNull(parsedNotebook.getMetadata().getLanguageInfo());
     // Note: empty string in language_info.name is preserved in the file but not stored in DB
+  }
+
+  @Test
+  void testDeleteNotebook_ByUUID_FullFlow() throws IOException {
+    String notebookJson = Files.readString(Path.of("scripts/example-notebooks/py.ipynb"));
+    JupyterNotebookDTO notebook = objectMapper.readValue(notebookJson, JupyterNotebookDTO.class);
+
+    JupyterNotebookRequest request = new JupyterNotebookRequest();
+    request.setNotebook(notebook);
+    request.setPassword("");
+
+    UUID sessionId = UUID.randomUUID();
+    JupyterNotebookSaved saved =
+        notebookService.uploadNotebook(request, sessionId, "test.example.com", notebookJson);
+
+    assertNotNull(saved.getId());
+    assertNotNull(notebookService.getNotebookContent(saved.getId()));
+
+    notebookService.deleteNotebook(saved.getId(), "integration-test");
+
+    assertThrows(
+        NotebookNotFoundException.class, () -> notebookService.getNotebookContent(saved.getId()));
+  }
+
+  @Test
+  void testDeleteNotebook_ByReadableId_FullFlow() throws IOException {
+    String notebookJson = Files.readString(Path.of("scripts/example-notebooks/py.ipynb"));
+    JupyterNotebookDTO notebook = objectMapper.readValue(notebookJson, JupyterNotebookDTO.class);
+
+    JupyterNotebookRequest request = new JupyterNotebookRequest();
+    request.setNotebook(notebook);
+    request.setPassword("");
+
+    UUID sessionId = UUID.randomUUID();
+    JupyterNotebookSaved saved =
+        notebookService.uploadNotebook(request, sessionId, "test.example.com", notebookJson);
+
+    String readableId = saved.getReadableId();
+    assertNotNull(readableId);
+    assertNotNull(notebookService.getNotebookContent(readableId));
+
+    notebookService.deleteNotebookByReadableId(readableId, "integration-test");
+
+    assertThrows(
+        NotebookNotFoundException.class, () -> notebookService.getNotebookContent(saved.getId()));
+  }
+
+  @Test
+  void testDeleteNotebooksBySessionId_FullFlow() throws IOException {
+    String notebookJson = Files.readString(Path.of("scripts/example-notebooks/py.ipynb"));
+    JupyterNotebookDTO notebook = objectMapper.readValue(notebookJson, JupyterNotebookDTO.class);
+
+    UUID sessionId = UUID.randomUUID();
+
+    // Create multiple notebooks under the same session
+    JupyterNotebookRequest request1 = new JupyterNotebookRequest();
+    request1.setNotebook(notebook);
+    request1.setPassword("");
+    JupyterNotebookSaved saved1 =
+        notebookService.uploadNotebook(request1, sessionId, "test.example.com", notebookJson);
+
+    JupyterNotebookRequest request2 = new JupyterNotebookRequest();
+    request2.setNotebook(notebook);
+    request2.setPassword("");
+    JupyterNotebookSaved saved2 =
+        notebookService.uploadNotebook(request2, sessionId, "test.example.com", notebookJson);
+
+    // Verify both exist
+    assertNotNull(notebookService.getNotebookContent(saved1.getId()));
+    assertNotNull(notebookService.getNotebookContent(saved2.getId()));
+
+    // Delete all notebooks for the session
+    int deletedCount = notebookService.deleteNotebooksBySessionId(sessionId, "integration-test");
+
+    assertEquals(2, deletedCount);
+
+    // Verify both are gone
+    assertThrows(
+        NotebookNotFoundException.class, () -> notebookService.getNotebookContent(saved1.getId()));
+    assertThrows(
+        NotebookNotFoundException.class, () -> notebookService.getNotebookContent(saved2.getId()));
+
+    // Verify metadata rows are removed
+    assertTrue(notebookRepository.findBySessionId(sessionId).isEmpty());
+  }
+
+  @Test
+  void testDeleteNotebooksBySessionId_EmptySession_ReturnsZero() {
+    UUID emptySessionId = UUID.randomUUID();
+
+    int deletedCount =
+        notebookService.deleteNotebooksBySessionId(emptySessionId, "integration-test");
+
+    assertEquals(0, deletedCount);
+  }
+
+  @Test
+  void testDeleteNotebook_ReadableIdRemainsConsumed() throws IOException {
+    String notebookJson = Files.readString(Path.of("scripts/example-notebooks/py.ipynb"));
+    JupyterNotebookDTO notebook = objectMapper.readValue(notebookJson, JupyterNotebookDTO.class);
+
+    JupyterNotebookRequest request = new JupyterNotebookRequest();
+    request.setNotebook(notebook);
+    request.setPassword("");
+
+    UUID sessionId = UUID.randomUUID();
+    JupyterNotebookSaved saved =
+        notebookService.uploadNotebook(request, sessionId, "test.example.com", notebookJson);
+
+    String deletedReadableId = saved.getReadableId();
+    notebookService.deleteNotebook(saved.getId(), "integration-test");
+
+    // Create another notebook and verify it gets a different readable ID
+    JupyterNotebookRequest request2 = new JupyterNotebookRequest();
+    request2.setNotebook(notebook);
+    request2.setPassword("");
+    JupyterNotebookSaved saved2 =
+        notebookService.uploadNotebook(
+            request2, UUID.randomUUID(), "test.example.com", notebookJson);
+
+    assertNotEquals(
+        deletedReadableId,
+        saved2.getReadableId(),
+        "Deleted notebook's readable ID should not be reused");
+  }
+
+  @Test
+  void testDeleteNotebook_DBFailure_StorageFileAndMetadataPreserved() throws IOException {
+    String notebookJson = Files.readString(Path.of("scripts/example-notebooks/py.ipynb"));
+    JupyterNotebookDTO notebook = objectMapper.readValue(notebookJson, JupyterNotebookDTO.class);
+
+    JupyterNotebookRequest request = new JupyterNotebookRequest();
+    request.setNotebook(notebook);
+    request.setPassword("");
+
+    UUID sessionId = UUID.randomUUID();
+    JupyterNotebookSaved saved =
+        notebookService.uploadNotebook(request, sessionId, "test.example.com", notebookJson);
+
+    // Verify notebook exists
+    assertNotNull(notebookService.getNotebookContent(saved.getId()));
+
+    // Simulate DB failure on deleteById
+    doThrow(new RuntimeException("Simulated DB failure"))
+        .when(notebookRepository)
+        .deleteById(saved.getId());
+
+    try {
+      // Attempt to delete — should fail due to DB error
+      assertThrows(
+          RuntimeException.class,
+          () -> notebookService.deleteNotebook(saved.getId(), "integration-test"));
+
+      // Verify both metadata and storage file still exist (consistency guarantee)
+      JupyterNotebookRetrieved retrieved = notebookService.getNotebookContent(saved.getId());
+      assertNotNull(retrieved, "Metadata should still exist after DB failure");
+      assertNotNull(
+          retrieved.getNotebookContent(), "Storage file should still exist after DB failure");
+    } finally {
+      reset(notebookRepository);
+    }
+  }
+
+  @Test
+  void testDeleteNotebooksBySessionId_DBFailure_AllDataPreserved() throws IOException {
+    String notebookJson = Files.readString(Path.of("scripts/example-notebooks/py.ipynb"));
+    JupyterNotebookDTO notebook = objectMapper.readValue(notebookJson, JupyterNotebookDTO.class);
+
+    UUID sessionId = UUID.randomUUID();
+
+    // Create multiple notebooks under the same session
+    JupyterNotebookRequest request1 = new JupyterNotebookRequest();
+    request1.setNotebook(notebook);
+    request1.setPassword("");
+    JupyterNotebookSaved saved1 =
+        notebookService.uploadNotebook(request1, sessionId, "test.example.com", notebookJson);
+
+    JupyterNotebookRequest request2 = new JupyterNotebookRequest();
+    request2.setNotebook(notebook);
+    request2.setPassword("");
+    JupyterNotebookSaved saved2 =
+        notebookService.uploadNotebook(request2, sessionId, "test.example.com", notebookJson);
+
+    // Verify both exist
+    assertNotNull(notebookService.getNotebookContent(saved1.getId()));
+    assertNotNull(notebookService.getNotebookContent(saved2.getId()));
+
+    // Simulate DB failure on batch delete
+    doThrow(new RuntimeException("Simulated DB failure"))
+        .when(notebookRepository)
+        .deleteAllInBatch(any());
+
+    try {
+      // Attempt to delete — should fail due to DB error
+      assertThrows(
+          RuntimeException.class,
+          () -> notebookService.deleteNotebooksBySessionId(sessionId, "integration-test"));
+
+      // Verify all metadata and storage files still exist (consistency guarantee)
+      assertNotNull(
+          notebookService.getNotebookContent(saved1.getId()),
+          "First notebook should still exist after DB failure");
+      assertNotNull(
+          notebookService.getNotebookContent(saved2.getId()),
+          "Second notebook should still exist after DB failure");
+      assertEquals(
+          2,
+          notebookRepository.findBySessionId(sessionId).size(),
+          "All metadata rows should remain intact");
+    } finally {
+      reset(notebookRepository);
+    }
   }
 }

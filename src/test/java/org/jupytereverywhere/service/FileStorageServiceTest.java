@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 
 import java.io.IOException;
@@ -14,6 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -228,6 +230,68 @@ class FileStorageServiceTest {
 
       assertThrows(
           NotebookStorageException.class, () -> fileStorageService.deleteNotebook(fileName));
+    }
+  }
+
+  @Test
+  void testDeleteNotebooks_BatchSuccess() {
+    ReflectionTestUtils.setField(fileStorageService, "localStoragePath", "/path/to/notebooks");
+
+    String file1 = "notebook1.ipynb";
+    String file2 = "notebook2.ipynb";
+    Path path1 = Paths.get("/path/to/notebooks", file1);
+    Path path2 = Paths.get("/path/to/notebooks", file2);
+
+    try (MockedStatic<Files> filesMock = mockStatic(Files.class)) {
+      filesMock.when(() -> Files.exists(path1)).thenReturn(true);
+      filesMock.when(() -> Files.exists(path2)).thenReturn(true);
+      filesMock.when(() -> Files.delete(path1)).thenAnswer(invocation -> null);
+      filesMock.when(() -> Files.delete(path2)).thenAnswer(invocation -> null);
+
+      fileStorageService.deleteNotebooks(List.of(file1, file2));
+
+      filesMock.verify(() -> Files.delete(path1), times(1));
+      filesMock.verify(() -> Files.delete(path2), times(1));
+    }
+  }
+
+  @Test
+  void testDeleteNotebooks_BatchWithMissingFileSkips() {
+    ReflectionTestUtils.setField(fileStorageService, "localStoragePath", "/path/to/notebooks");
+
+    String existingFile = "exists.ipynb";
+    String missingFile = "missing.ipynb";
+    Path existingPath = Paths.get("/path/to/notebooks", existingFile);
+    Path missingPath = Paths.get("/path/to/notebooks", missingFile);
+
+    try (MockedStatic<Files> filesMock = mockStatic(Files.class)) {
+      filesMock.when(() -> Files.exists(existingPath)).thenReturn(true);
+      filesMock.when(() -> Files.exists(missingPath)).thenReturn(false);
+      filesMock.when(() -> Files.delete(existingPath)).thenAnswer(invocation -> null);
+
+      fileStorageService.deleteNotebooks(List.of(existingFile, missingFile));
+
+      filesMock.verify(() -> Files.delete(existingPath), times(1));
+      filesMock.verify(() -> Files.delete(missingPath), never());
+    }
+  }
+
+  @Test
+  void testDeleteNotebooks_BatchWithIOErrorThrows() {
+    ReflectionTestUtils.setField(fileStorageService, "localStoragePath", "/path/to/notebooks");
+
+    String fileName = "error.ipynb";
+    Path notebookPath = Paths.get("/path/to/notebooks", fileName);
+
+    try (MockedStatic<Files> filesMock = mockStatic(Files.class)) {
+      filesMock.when(() -> Files.exists(notebookPath)).thenReturn(true);
+      filesMock
+          .when(() -> Files.delete(notebookPath))
+          .thenThrow(new IOException("Simulated IO Exception"));
+
+      assertThrows(
+          NotebookStorageException.class,
+          () -> fileStorageService.deleteNotebooks(List.of(fileName)));
     }
   }
 }

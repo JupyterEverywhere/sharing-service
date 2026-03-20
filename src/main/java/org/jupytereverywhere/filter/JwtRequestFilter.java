@@ -1,7 +1,8 @@
 package org.jupytereverywhere.filter;
 
 import java.io.IOException;
-import java.util.Collections;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import org.apache.logging.log4j.message.StringMapMessage;
@@ -9,6 +10,8 @@ import org.jupytereverywhere.service.JwtTokenService;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -67,7 +70,7 @@ public class JwtRequestFilter extends OncePerRequestFilter {
       try {
         if (jwtValidator.isValid(jwt)) {
           UUID sessionId = jwtTokenService.extractSessionIdFromToken(jwt);
-          setAuthentication(request, sessionId);
+          setAuthentication(request, sessionId, jwt);
         } else {
           handleInvalidToken(response);
           return;
@@ -84,15 +87,21 @@ public class JwtRequestFilter extends OncePerRequestFilter {
     chain.doFilter(request, response);
   }
 
-  private void setAuthentication(HttpServletRequest request, UUID sessionId) {
+  private void setAuthentication(HttpServletRequest request, UUID sessionId, String jwt) {
     log.info(
         new StringMapMessage()
             .with(MESSAGE_KEY, "Valid session detected")
             .with("sessionId", sessionId.toString()));
     request.setAttribute("sessionId", sessionId);
 
+    List<GrantedAuthority> authorities = new ArrayList<>();
+    String role = jwtTokenService.extractRoleFromToken(jwt);
+    if (JwtTokenService.ADMIN_ROLE.equals(role)) {
+      authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
+    }
+
     Authentication authentication =
-        new UsernamePasswordAuthenticationToken(sessionId, null, Collections.emptyList());
+        new UsernamePasswordAuthenticationToken(sessionId, null, authorities);
     SecurityContextHolder.getContext().setAuthentication(authentication);
   }
 

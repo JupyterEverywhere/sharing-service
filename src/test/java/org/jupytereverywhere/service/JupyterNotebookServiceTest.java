@@ -7,9 +7,13 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -31,12 +35,17 @@ import org.jupytereverywhere.model.response.JupyterNotebookRetrieved;
 import org.jupytereverywhere.model.response.JupyterNotebookSaved;
 import org.jupytereverywhere.repository.JupyterNotebookRepository;
 import org.jupytereverywhere.service.utils.JupyterNotebookValidator;
+import org.jupytereverywhere.service.utils.ValidationResult;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionStatus;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -61,6 +70,8 @@ class JupyterNotebookServiceTest {
 
   @Mock private PasswordEncoder passwordEncoder;
 
+  @Mock private PlatformTransactionManager transactionManager;
+
   private UUID notebookId;
   private UUID sessionId;
   private String domain;
@@ -81,6 +92,11 @@ class JupyterNotebookServiceTest {
 
     // Set the maxNotebookSizeBytes field to 10MB (same as application.properties default)
     ReflectionTestUtils.setField(notebookService, "maxNotebookSizeBytes", 10485760L);
+
+    // Configure PlatformTransactionManager so TransactionTemplate executes callbacks
+    // Use lenient() since not all tests exercise transactional delete paths
+    TransactionStatus mockStatus = Mockito.mock(TransactionStatus.class);
+    Mockito.lenient().when(transactionManager.getTransaction(any())).thenReturn(mockStatus);
   }
 
   private JupyterNotebookDTO createSampleNotebookDTO() {
@@ -195,7 +211,8 @@ class JupyterNotebookServiceTest {
     notebookRequest.setNotebook(createSampleNotebookDTO());
     notebookRequest.setPassword("password");
 
-    when(jupyterNotebookValidator.validateNotebook(anyString())).thenReturn(true);
+    when(jupyterNotebookValidator.validateNotebook(anyString()))
+        .thenReturn(ValidationResult.success());
     when(storageService.uploadNotebook(anyString(), anyString())).thenReturn("storage-url");
     when(notebookRepository.saveAndFlush(any(JupyterNotebookEntity.class)))
         .thenAnswer(
@@ -222,7 +239,8 @@ class JupyterNotebookServiceTest {
     JupyterNotebookRequest notebookRequest = new JupyterNotebookRequest();
     notebookRequest.setNotebook(createSampleNotebookDTO());
 
-    when(jupyterNotebookValidator.validateNotebook(anyString())).thenReturn(false);
+    when(jupyterNotebookValidator.validateNotebook(anyString()))
+        .thenReturn(ValidationResult.failure("Invalid notebook: validation failed"));
 
     InvalidNotebookException exception =
         assertThrows(
@@ -232,7 +250,7 @@ class JupyterNotebookServiceTest {
                   notebookRequest, sessionId, domain, SAMPLE_NOTEBOOK_JSON);
             });
 
-    assertEquals("Notebook validation failed", exception.getMessage());
+    assertEquals("Invalid notebook: validation failed", exception.getMessage());
   }
 
   @Test
@@ -241,7 +259,8 @@ class JupyterNotebookServiceTest {
     JupyterNotebookEntity notebookEntity = createSampleNotebookEntity();
 
     when(notebookRepository.findById(notebookId)).thenReturn(Optional.of(notebookEntity));
-    when(jupyterNotebookValidator.validateNotebook(anyString())).thenReturn(true);
+    when(jupyterNotebookValidator.validateNotebook(anyString()))
+        .thenReturn(ValidationResult.success());
     when(storageService.uploadNotebook(anyString(), anyString())).thenReturn("storage-url");
 
     JupyterNotebookSaved result =
@@ -269,7 +288,8 @@ class JupyterNotebookServiceTest {
 
     when(notebookRepository.findById(notebookId)).thenReturn(Optional.of(notebookEntity));
     when(jwtTokenService.extractNotebookIdFromToken(token)).thenReturn(notebookId.toString());
-    when(jupyterNotebookValidator.validateNotebook(anyString())).thenReturn(true);
+    when(jupyterNotebookValidator.validateNotebook(anyString()))
+        .thenReturn(ValidationResult.success());
     when(storageService.uploadNotebook(anyString(), anyString())).thenReturn("storage-url");
 
     JupyterNotebookSaved result =
@@ -336,7 +356,8 @@ class JupyterNotebookServiceTest {
     when(notebookRepository.findById(notebookEntity.getId()))
         .thenReturn(Optional.of(notebookEntity));
 
-    when(jupyterNotebookValidator.validateNotebook(anyString())).thenReturn(true);
+    when(jupyterNotebookValidator.validateNotebook(anyString()))
+        .thenReturn(ValidationResult.success());
     when(storageService.uploadNotebook(anyString(), anyString())).thenReturn("storage-url");
 
     JupyterNotebookSaved result =
@@ -373,7 +394,8 @@ class JupyterNotebookServiceTest {
     notebookDto.setMetadata(new MetadataDTO()); // DTO has metadata but JSON doesn't
 
     // Mock validator to reject the invalid JSON
-    when(jupyterNotebookValidator.validateNotebook(anyString())).thenReturn(false);
+    when(jupyterNotebookValidator.validateNotebook(anyString()))
+        .thenReturn(ValidationResult.failure("Invalid notebook: validation failed"));
 
     InvalidNotebookException exception =
         assertThrows(
@@ -383,7 +405,7 @@ class JupyterNotebookServiceTest {
                   notebookDto, sessionId, domain, "password", invalidNotebookJson);
             });
 
-    assertEquals("Notebook validation failed", exception.getMessage());
+    assertEquals("Invalid notebook: validation failed", exception.getMessage());
   }
 
   @Test
@@ -434,7 +456,8 @@ class JupyterNotebookServiceTest {
     notebookRequest.setNotebook(notebookDto);
     notebookRequest.setPassword("password");
 
-    when(jupyterNotebookValidator.validateNotebook(anyString())).thenReturn(true);
+    when(jupyterNotebookValidator.validateNotebook(anyString()))
+        .thenReturn(ValidationResult.success());
     when(storageService.uploadNotebook(anyString(), anyString())).thenReturn("storage-url");
     when(passwordEncoder.encode(anyString())).thenReturn("encoded-password");
     when(notebookRepository.saveAndFlush(any(JupyterNotebookEntity.class)))
@@ -471,7 +494,8 @@ class JupyterNotebookServiceTest {
     existingEntity.setStorageUrl("existing-storage-url");
 
     when(notebookRepository.findById(notebookId)).thenReturn(Optional.of(existingEntity));
-    when(jupyterNotebookValidator.validateNotebook(anyString())).thenReturn(true);
+    when(jupyterNotebookValidator.validateNotebook(anyString()))
+        .thenReturn(ValidationResult.success());
     when(storageService.uploadNotebook(anyString(), anyString())).thenReturn("updated-storage-url");
     when(notebookRepository.save(any(JupyterNotebookEntity.class))).thenReturn(existingEntity);
 
@@ -496,7 +520,8 @@ class JupyterNotebookServiceTest {
     when(notebookRepository.findByReadableId("original-readable-id"))
         .thenReturn(Optional.of(existingEntity));
     when(notebookRepository.findById(notebookId)).thenReturn(Optional.of(existingEntity));
-    when(jupyterNotebookValidator.validateNotebook(anyString())).thenReturn(true);
+    when(jupyterNotebookValidator.validateNotebook(anyString()))
+        .thenReturn(ValidationResult.success());
     when(storageService.uploadNotebook(anyString(), anyString())).thenReturn("updated-storage-url");
     when(notebookRepository.save(any(JupyterNotebookEntity.class))).thenReturn(existingEntity);
 
@@ -724,6 +749,195 @@ class JupyterNotebookServiceTest {
     assertEquals("1.0.0", entity.getLanguageVersion());
     assertEquals("custom", entity.getKernelName());
     assertEquals("Custom Kernel", entity.getKernelDisplayName());
+  }
+
+  @Test
+  void testDeleteNotebook_ByUUID_Success() {
+    JupyterNotebookEntity notebookEntity = createSampleNotebookEntity();
+    when(notebookRepository.findById(notebookId)).thenReturn(Optional.of(notebookEntity));
+    doNothing().when(storageService).deleteNotebook(notebookEntity.getStorageUrl());
+
+    notebookService.deleteNotebook(notebookId, "ops-team-1");
+
+    // Verify DB-first ordering: repository delete before storage delete
+    InOrder inOrder = Mockito.inOrder(notebookRepository, storageService);
+    inOrder.verify(notebookRepository).deleteById(notebookId);
+    inOrder.verify(storageService).deleteNotebook(notebookEntity.getStorageUrl());
+  }
+
+  @Test
+  void testDeleteNotebook_ByReadableId_Success() {
+    JupyterNotebookEntity notebookEntity = createSampleNotebookEntity();
+    when(notebookRepository.findByReadableId(readableId)).thenReturn(Optional.of(notebookEntity));
+    doNothing().when(storageService).deleteNotebook(notebookEntity.getStorageUrl());
+
+    notebookService.deleteNotebookByReadableId(readableId, "ops-team-1");
+
+    // Verify DB-first ordering: repository delete before storage delete
+    InOrder inOrder = Mockito.inOrder(notebookRepository, storageService);
+    inOrder.verify(notebookRepository).deleteById(notebookId);
+    inOrder.verify(storageService).deleteNotebook(notebookEntity.getStorageUrl());
+  }
+
+  @Test
+  void testDeleteNotebook_NotFound() {
+    when(notebookRepository.findById(notebookId)).thenReturn(Optional.empty());
+
+    assertThrows(
+        NotebookNotFoundException.class,
+        () -> notebookService.deleteNotebook(notebookId, "ops-team-1"));
+  }
+
+  @Test
+  void testDeleteNotebook_StorageFailureAfterDBCommit_StillSucceeds() {
+    JupyterNotebookEntity notebookEntity = createSampleNotebookEntity();
+    when(notebookRepository.findById(notebookId)).thenReturn(Optional.of(notebookEntity));
+    doThrow(new NotebookStorageException("Storage error"))
+        .when(storageService)
+        .deleteNotebook(notebookEntity.getStorageUrl());
+
+    // Should NOT throw — storage failures after DB commit are swallowed
+    notebookService.deleteNotebook(notebookId, "ops-team-1");
+
+    verify(notebookRepository).deleteById(notebookId);
+    verify(storageService).deleteNotebook(notebookEntity.getStorageUrl());
+  }
+
+  @Test
+  void testDeleteNotebook_MissingStorageFileAfterDBCommit_StillSucceeds() {
+    JupyterNotebookEntity notebookEntity = createSampleNotebookEntity();
+    when(notebookRepository.findById(notebookId)).thenReturn(Optional.of(notebookEntity));
+    doThrow(new NotebookNotFoundException("File not found"))
+        .when(storageService)
+        .deleteNotebook(notebookEntity.getStorageUrl());
+
+    // Should NOT throw — missing storage file after DB commit is logged and swallowed
+    notebookService.deleteNotebook(notebookId, "ops-team-1");
+
+    verify(notebookRepository).deleteById(notebookId);
+  }
+
+  @Test
+  void testDeleteNotebooksBySessionId_MultipleNotebooks_ReturnsCorrectCount() {
+    UUID targetSessionId = UUID.randomUUID();
+
+    JupyterNotebookEntity entity1 = new JupyterNotebookEntity();
+    entity1.setId(UUID.randomUUID());
+    entity1.setSessionId(targetSessionId);
+    entity1.setStorageUrl("storage-url-1");
+
+    JupyterNotebookEntity entity2 = new JupyterNotebookEntity();
+    entity2.setId(UUID.randomUUID());
+    entity2.setSessionId(targetSessionId);
+    entity2.setStorageUrl("storage-url-2");
+
+    List<JupyterNotebookEntity> notebooks = List.of(entity1, entity2);
+
+    when(notebookRepository.findBySessionId(targetSessionId)).thenReturn(notebooks);
+    doNothing().when(storageService).deleteNotebook(anyString());
+
+    int count = notebookService.deleteNotebooksBySessionId(targetSessionId, "ops-team-1");
+
+    assertEquals(2, count);
+    // Verify DB-first ordering: batch delete before any storage deletes
+    InOrder inOrder = Mockito.inOrder(notebookRepository, storageService);
+    inOrder.verify(notebookRepository).deleteAllInBatch(notebooks);
+    inOrder.verify(storageService).deleteNotebook("storage-url-1");
+    inOrder.verify(storageService).deleteNotebook("storage-url-2");
+  }
+
+  @Test
+  void testDeleteNotebooksBySessionId_ZeroNotebooks_ReturnsZero() {
+    UUID targetSessionId = UUID.randomUUID();
+
+    when(notebookRepository.findBySessionId(targetSessionId)).thenReturn(List.of());
+
+    int count = notebookService.deleteNotebooksBySessionId(targetSessionId, "ops-team-1");
+
+    assertEquals(0, count);
+    verify(storageService, never()).deleteNotebook(anyString());
+    verify(notebookRepository, never()).deleteAllInBatch(any());
+  }
+
+  @Test
+  void testDeleteNotebooksBySessionId_AuditLogContainsDetails() {
+    UUID targetSessionId = UUID.randomUUID();
+
+    JupyterNotebookEntity entity = new JupyterNotebookEntity();
+    entity.setId(UUID.randomUUID());
+    entity.setSessionId(targetSessionId);
+    entity.setStorageUrl("storage-url-1");
+
+    when(notebookRepository.findBySessionId(targetSessionId)).thenReturn(List.of(entity));
+    doNothing().when(storageService).deleteNotebook(anyString());
+
+    int count = notebookService.deleteNotebooksBySessionId(targetSessionId, "audit-admin");
+
+    assertEquals(1, count);
+  }
+
+  @Test
+  void testDeleteNotebooksBySessionId_ZeroDeletion_StillLogs() {
+    UUID targetSessionId = UUID.randomUUID();
+
+    when(notebookRepository.findBySessionId(targetSessionId)).thenReturn(List.of());
+
+    int count = notebookService.deleteNotebooksBySessionId(targetSessionId, "audit-admin");
+
+    assertEquals(0, count);
+  }
+
+  @Test
+  void testDeleteNotebooksBySessionId_PartialStorageFailure_StillSucceeds() {
+    UUID targetSessionId = UUID.randomUUID();
+
+    JupyterNotebookEntity entity1 = new JupyterNotebookEntity();
+    entity1.setId(UUID.randomUUID());
+    entity1.setSessionId(targetSessionId);
+    entity1.setStorageUrl("storage-url-1");
+
+    JupyterNotebookEntity entity2 = new JupyterNotebookEntity();
+    entity2.setId(UUID.randomUUID());
+    entity2.setSessionId(targetSessionId);
+    entity2.setStorageUrl("storage-url-2");
+
+    List<JupyterNotebookEntity> notebooks = List.of(entity1, entity2);
+
+    when(notebookRepository.findBySessionId(targetSessionId)).thenReturn(notebooks);
+    // First file fails, second succeeds
+    doThrow(new NotebookStorageException("Storage error"))
+        .when(storageService)
+        .deleteNotebook("storage-url-1");
+    doNothing().when(storageService).deleteNotebook("storage-url-2");
+
+    // Should NOT throw — partial storage failures are swallowed
+    int count = notebookService.deleteNotebooksBySessionId(targetSessionId, "ops-team-1");
+
+    assertEquals(2, count);
+    verify(notebookRepository).deleteAllInBatch(notebooks);
+    verify(storageService).deleteNotebook("storage-url-1");
+    verify(storageService).deleteNotebook("storage-url-2");
+  }
+
+  @Test
+  void testDeleteNotebooksBySessionId_AllStorageMissing_StillSucceeds() {
+    UUID targetSessionId = UUID.randomUUID();
+
+    JupyterNotebookEntity entity = new JupyterNotebookEntity();
+    entity.setId(UUID.randomUUID());
+    entity.setSessionId(targetSessionId);
+    entity.setStorageUrl("storage-url-1");
+
+    when(notebookRepository.findBySessionId(targetSessionId)).thenReturn(List.of(entity));
+    doThrow(new NotebookNotFoundException("File not found"))
+        .when(storageService)
+        .deleteNotebook("storage-url-1");
+
+    // Should NOT throw — missing files after DB commit are logged and swallowed
+    int count = notebookService.deleteNotebooksBySessionId(targetSessionId, "ops-team-1");
+
+    assertEquals(1, count);
+    verify(notebookRepository).deleteAllInBatch(List.of(entity));
   }
 
   @Test
