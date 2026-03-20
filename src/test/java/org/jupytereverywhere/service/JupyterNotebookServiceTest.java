@@ -35,6 +35,7 @@ import org.jupytereverywhere.model.response.JupyterNotebookRetrieved;
 import org.jupytereverywhere.model.response.JupyterNotebookSaved;
 import org.jupytereverywhere.repository.JupyterNotebookRepository;
 import org.jupytereverywhere.service.utils.JupyterNotebookValidator;
+import org.jupytereverywhere.service.utils.ValidationResult;
 import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -210,7 +211,8 @@ class JupyterNotebookServiceTest {
     notebookRequest.setNotebook(createSampleNotebookDTO());
     notebookRequest.setPassword("password");
 
-    when(jupyterNotebookValidator.validateNotebook(anyString())).thenReturn(true);
+    when(jupyterNotebookValidator.validateNotebook(anyString()))
+        .thenReturn(ValidationResult.success());
     when(storageService.uploadNotebook(anyString(), anyString())).thenReturn("storage-url");
     when(notebookRepository.saveAndFlush(any(JupyterNotebookEntity.class)))
         .thenAnswer(
@@ -237,7 +239,8 @@ class JupyterNotebookServiceTest {
     JupyterNotebookRequest notebookRequest = new JupyterNotebookRequest();
     notebookRequest.setNotebook(createSampleNotebookDTO());
 
-    when(jupyterNotebookValidator.validateNotebook(anyString())).thenReturn(false);
+    when(jupyterNotebookValidator.validateNotebook(anyString()))
+        .thenReturn(ValidationResult.failure("Invalid notebook: validation failed"));
 
     InvalidNotebookException exception =
         assertThrows(
@@ -247,7 +250,7 @@ class JupyterNotebookServiceTest {
                   notebookRequest, sessionId, domain, SAMPLE_NOTEBOOK_JSON);
             });
 
-    assertEquals("Notebook validation failed", exception.getMessage());
+    assertEquals("Invalid notebook: validation failed", exception.getMessage());
   }
 
   @Test
@@ -256,7 +259,8 @@ class JupyterNotebookServiceTest {
     JupyterNotebookEntity notebookEntity = createSampleNotebookEntity();
 
     when(notebookRepository.findById(notebookId)).thenReturn(Optional.of(notebookEntity));
-    when(jupyterNotebookValidator.validateNotebook(anyString())).thenReturn(true);
+    when(jupyterNotebookValidator.validateNotebook(anyString()))
+        .thenReturn(ValidationResult.success());
     when(storageService.uploadNotebook(anyString(), anyString())).thenReturn("storage-url");
 
     JupyterNotebookSaved result =
@@ -284,7 +288,8 @@ class JupyterNotebookServiceTest {
 
     when(notebookRepository.findById(notebookId)).thenReturn(Optional.of(notebookEntity));
     when(jwtTokenService.extractNotebookIdFromToken(token)).thenReturn(notebookId.toString());
-    when(jupyterNotebookValidator.validateNotebook(anyString())).thenReturn(true);
+    when(jupyterNotebookValidator.validateNotebook(anyString()))
+        .thenReturn(ValidationResult.success());
     when(storageService.uploadNotebook(anyString(), anyString())).thenReturn("storage-url");
 
     JupyterNotebookSaved result =
@@ -351,7 +356,8 @@ class JupyterNotebookServiceTest {
     when(notebookRepository.findById(notebookEntity.getId()))
         .thenReturn(Optional.of(notebookEntity));
 
-    when(jupyterNotebookValidator.validateNotebook(anyString())).thenReturn(true);
+    when(jupyterNotebookValidator.validateNotebook(anyString()))
+        .thenReturn(ValidationResult.success());
     when(storageService.uploadNotebook(anyString(), anyString())).thenReturn("storage-url");
 
     JupyterNotebookSaved result =
@@ -388,7 +394,8 @@ class JupyterNotebookServiceTest {
     notebookDto.setMetadata(new MetadataDTO()); // DTO has metadata but JSON doesn't
 
     // Mock validator to reject the invalid JSON
-    when(jupyterNotebookValidator.validateNotebook(anyString())).thenReturn(false);
+    when(jupyterNotebookValidator.validateNotebook(anyString()))
+        .thenReturn(ValidationResult.failure("Invalid notebook: validation failed"));
 
     InvalidNotebookException exception =
         assertThrows(
@@ -398,7 +405,7 @@ class JupyterNotebookServiceTest {
                   notebookDto, sessionId, domain, "password", invalidNotebookJson);
             });
 
-    assertEquals("Notebook validation failed", exception.getMessage());
+    assertEquals("Invalid notebook: validation failed", exception.getMessage());
   }
 
   @Test
@@ -449,7 +456,8 @@ class JupyterNotebookServiceTest {
     notebookRequest.setNotebook(notebookDto);
     notebookRequest.setPassword("password");
 
-    when(jupyterNotebookValidator.validateNotebook(anyString())).thenReturn(true);
+    when(jupyterNotebookValidator.validateNotebook(anyString()))
+        .thenReturn(ValidationResult.success());
     when(storageService.uploadNotebook(anyString(), anyString())).thenReturn("storage-url");
     when(passwordEncoder.encode(anyString())).thenReturn("encoded-password");
     when(notebookRepository.saveAndFlush(any(JupyterNotebookEntity.class)))
@@ -486,7 +494,8 @@ class JupyterNotebookServiceTest {
     existingEntity.setStorageUrl("existing-storage-url");
 
     when(notebookRepository.findById(notebookId)).thenReturn(Optional.of(existingEntity));
-    when(jupyterNotebookValidator.validateNotebook(anyString())).thenReturn(true);
+    when(jupyterNotebookValidator.validateNotebook(anyString()))
+        .thenReturn(ValidationResult.success());
     when(storageService.uploadNotebook(anyString(), anyString())).thenReturn("updated-storage-url");
     when(notebookRepository.save(any(JupyterNotebookEntity.class))).thenReturn(existingEntity);
 
@@ -511,7 +520,8 @@ class JupyterNotebookServiceTest {
     when(notebookRepository.findByReadableId("original-readable-id"))
         .thenReturn(Optional.of(existingEntity));
     when(notebookRepository.findById(notebookId)).thenReturn(Optional.of(existingEntity));
-    when(jupyterNotebookValidator.validateNotebook(anyString())).thenReturn(true);
+    when(jupyterNotebookValidator.validateNotebook(anyString()))
+        .thenReturn(ValidationResult.success());
     when(storageService.uploadNotebook(anyString(), anyString())).thenReturn("updated-storage-url");
     when(notebookRepository.save(any(JupyterNotebookEntity.class))).thenReturn(existingEntity);
 

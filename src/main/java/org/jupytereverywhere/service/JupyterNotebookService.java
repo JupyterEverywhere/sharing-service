@@ -21,6 +21,7 @@ import org.jupytereverywhere.model.response.JupyterNotebookRetrieved;
 import org.jupytereverywhere.model.response.JupyterNotebookSaved;
 import org.jupytereverywhere.repository.JupyterNotebookRepository;
 import org.jupytereverywhere.service.utils.JupyterNotebookValidator;
+import org.jupytereverywhere.service.utils.ValidationResult;
 import org.jupytereverywhere.utils.DateUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -182,12 +183,14 @@ public class JupyterNotebookService {
     // Validate the raw incoming JSON (not re-serialized DTO) to preserve user's exact input
     validateNotebookSize(rawNotebookJson, sessionId);
 
-    if (!jupyterNotebookValidator.validateNotebook(rawNotebookJson)) {
+    ValidationResult validationResult = jupyterNotebookValidator.validateNotebook(rawNotebookJson);
+    if (!validationResult.valid()) {
       log.error(
           new StringMapMessage()
               .with(MESSAGE_KEY, NOTEBOOK_VALIDATION_FAILED_MESSAGE)
-              .with(SESSION_ID_MESSAGE_KEY, sessionId.toString()));
-      throw new InvalidNotebookException(NOTEBOOK_VALIDATION_FAILED_MESSAGE);
+              .with(SESSION_ID_MESSAGE_KEY, sessionId.toString())
+              .with("ValidationError", validationResult.errorMessage()));
+      throw new InvalidNotebookException(validationResult.errorMessage());
     }
 
     JupyterNotebookEntity notebookEntity =
@@ -264,8 +267,9 @@ public class JupyterNotebookService {
     // Validate the raw incoming JSON (not re-serialized DTO) to preserve user's exact input
     validateNotebookSize(rawNotebookJson, sessionId);
 
-    if (!jupyterNotebookValidator.validateNotebook(rawNotebookJson)) {
-      throw new InvalidNotebookException(NOTEBOOK_VALIDATION_FAILED_MESSAGE);
+    ValidationResult validationResult = jupyterNotebookValidator.validateNotebook(rawNotebookJson);
+    if (!validationResult.valid()) {
+      throw new InvalidNotebookException(validationResult.errorMessage());
     }
 
     String fileName = storedNotebook.getId().toString() + ".ipynb";
