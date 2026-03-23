@@ -187,7 +187,11 @@ class DatabaseCredentialsEnvironmentPostProcessorTest {
     assertTrue(ex.getMessage().contains("DB_IAM_USERNAME"));
     assertTrue(ex.getMessage().contains("DB_IAM_ADMIN_SECRET"));
     assertTrue(ex.getMessage().contains("DB_HOST"));
-    assertTrue(ex.getMessage().contains("AWS_REGION"));
+    // AWS_REGION may already be set in CI environments, so only assert it's
+    // mentioned when we know it's absent
+    if (System.getenv("AWS_REGION") == null) {
+      assertTrue(ex.getMessage().contains("AWS_REGION"));
+    }
   }
 
   @Test

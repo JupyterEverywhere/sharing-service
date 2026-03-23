@@ -111,7 +111,7 @@ jobs:
 
       # find all vulnerabilities for GitHub Security, but don't fail the job
       - name: Run Trivy vulnerability scanner (SARIF)
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@0.35.0
         with:
           image-ref: sharing-service:scan-${{ steps.meta.outputs.COMMIT_SHA }}
           format: "sarif"
@@ -128,7 +128,7 @@ jobs:
       # fail the job if CRITICAL/HIGH vulnerabilities are found
       # do this in JSON so that it is easier for a human to read in the logs
       - name: Run Trivy vulnerability scanner (JSON)
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@0.35.0
         with:
           image-ref: sharing-service:scan-${{ steps.meta.outputs.COMMIT_SHA }}
           format: "json"
@@ -138,7 +138,7 @@ jobs:
           exit-code: "1"
 
       - name: Generate SBOM
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@0.35.0
         with:
           image-ref: sharing-service:scan-${{ steps.meta.outputs.COMMIT_SHA }}
           format: "cyclonedx"
