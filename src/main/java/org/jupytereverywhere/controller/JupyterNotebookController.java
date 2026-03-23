@@ -61,17 +61,17 @@ public class JupyterNotebookController {
   }
 
   /**
-   * Extracts the raw notebook JSON from a POST request body. For POST requests, the body contains a
-   * JupyterNotebookRequest wrapper with a "notebook" field that needs to be extracted.
+   * Extracts the raw notebook bytes from a POST request body. For POST requests, the body contains
+   * a JupyterNotebookRequest wrapper with a "notebook" field that needs to be extracted.
    *
    * @param request the HTTP servlet request
    * @param notebookRequest the deserialized request object (used as fallback)
-   * @return raw notebook JSON string
+   * @return raw notebook bytes
    */
-  private String extractRawNotebookJsonFromRequest(
+  private byte[] extractRawNotebookBytesFromRequest(
       HttpServletRequest request, JupyterNotebookRequest notebookRequest) {
-    String rawBody =
-        (String)
+    byte[] rawBody =
+        (byte[])
             request.getAttribute(
                 org.jupytereverywhere.filter.CachedBodyFilter.CACHED_BODY_ATTRIBUTE);
 
@@ -85,29 +85,29 @@ public class JupyterNotebookController {
       JsonNode rootNode = objectMapper.readTree(rawBody);
       JsonNode notebookNode = rootNode.get("notebook");
       if (notebookNode != null) {
-        return objectMapper.writeValueAsString(notebookNode);
+        return objectMapper.writeValueAsBytes(notebookNode);
       }
       throw new InvalidNotebookException("No 'notebook' field found in request body");
     } catch (InvalidNotebookException e) {
       throw e;
     } catch (Exception e) {
-      log.error("Failed to extract raw notebook JSON from cached body", e);
+      log.error("Failed to extract raw notebook bytes from cached body", e);
       throw new InvalidNotebookException("Failed to extract notebook from request");
     }
   }
 
   /**
-   * Extracts the raw notebook JSON from a PUT request body. For PUT requests, the body is directly
+   * Extracts the raw notebook bytes from a PUT request body. For PUT requests, the body is directly
    * the notebook DTO, so we can use the entire cached body.
    *
    * @param request the HTTP servlet request
    * @param notebookDto the deserialized notebook DTO (used as fallback)
-   * @return raw notebook JSON string
+   * @return raw notebook bytes
    */
-  private String extractRawNotebookJsonFromDto(
+  private byte[] extractRawNotebookBytesFromDto(
       HttpServletRequest request, JupyterNotebookDTO notebookDto) {
-    String rawBody =
-        (String)
+    byte[] rawBody =
+        (byte[])
             request.getAttribute(
                 org.jupytereverywhere.filter.CachedBodyFilter.CACHED_BODY_ATTRIBUTE);
 
@@ -198,9 +198,9 @@ public class JupyterNotebookController {
     logInfo("Received notebook upload request", SESSION_ID_MESSAGE_KEY, sessionId.toString());
 
     try {
-      String rawNotebookJson = extractRawNotebookJsonFromRequest(request, notebookRequest);
+      byte[] rawNotebookBytes = extractRawNotebookBytesFromRequest(request, notebookRequest);
       JupyterNotebookSaved notebookSaved =
-          notebookService.uploadNotebook(notebookRequest, sessionId, domain, rawNotebookJson);
+          notebookService.uploadNotebook(notebookRequest, sessionId, domain, rawNotebookBytes);
       logInfo(
           "Notebook uploaded and validated successfully",
           SESSION_ID_MESSAGE_KEY,
@@ -239,10 +239,10 @@ public class JupyterNotebookController {
 
     try {
       String token = HttpHeaderUtils.getTokenFromRequest(request);
-      String rawNotebookJson = extractRawNotebookJsonFromDto(request, notebookDto);
+      byte[] rawNotebookBytes = extractRawNotebookBytesFromDto(request, notebookDto);
 
       JupyterNotebookSaved notebookUpdated =
-          notebookService.updateNotebook(uuid, notebookDto, sessionId, token, rawNotebookJson);
+          notebookService.updateNotebook(uuid, notebookDto, sessionId, token, rawNotebookBytes);
 
       logInfo(
           "Notebook updated successfully",
@@ -285,11 +285,11 @@ public class JupyterNotebookController {
 
     try {
       String token = HttpHeaderUtils.getTokenFromRequest(request);
-      String rawNotebookJson = extractRawNotebookJsonFromDto(request, notebookDto);
+      byte[] rawNotebookBytes = extractRawNotebookBytesFromDto(request, notebookDto);
 
       JupyterNotebookSaved notebookUpdated =
           notebookService.updateNotebook(
-              readableId, notebookDto, sessionId, token, rawNotebookJson);
+              readableId, notebookDto, sessionId, token, rawNotebookBytes);
       logInfo(
           "Notebook updated successfully",
           NOTEBOOK_ID_MESSAGE_KEY,

@@ -1,14 +1,17 @@
 package org.jupytereverywhere.service.utils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.nio.charset.StandardCharsets;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.jupytereverywhere.exception.InvalidNotebookException;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 class JupyterNotebookValidatorTest {
@@ -43,9 +46,10 @@ class JupyterNotebookValidatorTest {
           ]
         }
         """;
-    ValidationResult result = validator.validateNotebook(notebook);
-    assertTrue(result.valid(), "Minimal notebook with code cell should pass");
-    assertNull(result.errorMessage());
+    JsonNode result = validator.validateNotebook(notebook.getBytes(StandardCharsets.UTF_8));
+    assertNotNull(result);
+    assertTrue(result.isObject());
+    assertEquals(4, result.get("nbformat").intValue());
   }
 
   @Test
@@ -64,8 +68,8 @@ class JupyterNotebookValidatorTest {
           ]
         }
         """;
-    ValidationResult result = validator.validateNotebook(notebook);
-    assertTrue(result.valid());
+    JsonNode result = validator.validateNotebook(notebook.getBytes(StandardCharsets.UTF_8));
+    assertNotNull(result);
   }
 
   @Test
@@ -84,8 +88,8 @@ class JupyterNotebookValidatorTest {
           ]
         }
         """;
-    ValidationResult result = validator.validateNotebook(notebook);
-    assertTrue(result.valid());
+    JsonNode result = validator.validateNotebook(notebook.getBytes(StandardCharsets.UTF_8));
+    assertNotNull(result);
   }
 
   @Test
@@ -99,8 +103,8 @@ class JupyterNotebookValidatorTest {
           "cells": []
         }
         """;
-    ValidationResult result = validator.validateNotebook(notebook);
-    assertTrue(result.valid(), "Empty cells array should be accepted");
+    JsonNode result = validator.validateNotebook(notebook.getBytes(StandardCharsets.UTF_8));
+    assertNotNull(result, "Empty cells array should be accepted");
   }
 
   @Test
@@ -119,8 +123,8 @@ class JupyterNotebookValidatorTest {
           ]
         }
         """;
-    ValidationResult result = validator.validateNotebook(notebook);
-    assertTrue(result.valid(), "Empty source string should be accepted");
+    JsonNode result = validator.validateNotebook(notebook.getBytes(StandardCharsets.UTF_8));
+    assertNotNull(result, "Empty source string should be accepted");
   }
 
   @Test
@@ -139,8 +143,8 @@ class JupyterNotebookValidatorTest {
           ]
         }
         """;
-    ValidationResult result = validator.validateNotebook(notebook);
-    assertTrue(result.valid(), "Empty source array should be accepted");
+    JsonNode result = validator.validateNotebook(notebook.getBytes(StandardCharsets.UTF_8));
+    assertNotNull(result, "Empty source array should be accepted");
   }
 
   @Test
@@ -156,8 +160,8 @@ class JupyterNotebookValidatorTest {
           "another_field": 42
         }
         """;
-    ValidationResult result = validator.validateNotebook(notebook);
-    assertTrue(result.valid(), "Extra top-level fields should be accepted");
+    JsonNode result = validator.validateNotebook(notebook.getBytes(StandardCharsets.UTF_8));
+    assertNotNull(result, "Extra top-level fields should be accepted");
   }
 
   @Test
@@ -174,8 +178,8 @@ class JupyterNotebookValidatorTest {
               }
               """,
               minor);
-      ValidationResult result = validator.validateNotebook(notebook);
-      assertTrue(result.valid(), "v4." + minor + " should pass");
+      JsonNode result = validator.validateNotebook(notebook.getBytes(StandardCharsets.UTF_8));
+      assertNotNull(result, "v4." + minor + " should pass");
     }
   }
 
@@ -197,8 +201,8 @@ class JupyterNotebookValidatorTest {
           ]
         }
         """;
-    ValidationResult result = validator.validateNotebook(notebook);
-    assertTrue(result.valid());
+    JsonNode result = validator.validateNotebook(notebook.getBytes(StandardCharsets.UTF_8));
+    assertNotNull(result);
   }
 
   // ── Rejection: invalid notebooks (US2) ──
@@ -213,9 +217,11 @@ class JupyterNotebookValidatorTest {
           "cells": []
         }
         """;
-    ValidationResult result = validator.validateNotebook(notebook);
-    assertFalse(result.valid());
-    assertTrue(result.errorMessage().contains("nbformat"));
+    InvalidNotebookException exception =
+        assertThrows(
+            InvalidNotebookException.class,
+            () -> validator.validateNotebook(notebook.getBytes(StandardCharsets.UTF_8)));
+    assertTrue(exception.getMessage().contains("nbformat"));
   }
 
   @Test
@@ -229,10 +235,12 @@ class JupyterNotebookValidatorTest {
           "cells": []
         }
         """;
-    ValidationResult result = validator.validateNotebook(notebook);
-    assertFalse(result.valid());
-    assertTrue(result.errorMessage().contains("nbformat must be 4"));
-    assertTrue(result.errorMessage().contains("got 3"));
+    InvalidNotebookException exception =
+        assertThrows(
+            InvalidNotebookException.class,
+            () -> validator.validateNotebook(notebook.getBytes(StandardCharsets.UTF_8)));
+    assertTrue(exception.getMessage().contains("nbformat must be 4"));
+    assertTrue(exception.getMessage().contains("got 3"));
   }
 
   @Test
@@ -246,9 +254,11 @@ class JupyterNotebookValidatorTest {
           "cells": []
         }
         """;
-    ValidationResult result = validator.validateNotebook(notebook);
-    assertFalse(result.valid());
-    assertTrue(result.errorMessage().contains("nbformat_minor"));
+    InvalidNotebookException exception =
+        assertThrows(
+            InvalidNotebookException.class,
+            () -> validator.validateNotebook(notebook.getBytes(StandardCharsets.UTF_8)));
+    assertTrue(exception.getMessage().contains("nbformat_minor"));
   }
 
   @Test
@@ -262,9 +272,11 @@ class JupyterNotebookValidatorTest {
           "cells": []
         }
         """;
-    ValidationResult result = validator.validateNotebook(notebook);
-    assertFalse(result.valid());
-    assertTrue(result.errorMessage().contains("nbformat_minor"));
+    InvalidNotebookException exception =
+        assertThrows(
+            InvalidNotebookException.class,
+            () -> validator.validateNotebook(notebook.getBytes(StandardCharsets.UTF_8)));
+    assertTrue(exception.getMessage().contains("nbformat_minor"));
   }
 
   @Test
@@ -277,9 +289,11 @@ class JupyterNotebookValidatorTest {
           "cells": []
         }
         """;
-    ValidationResult result = validator.validateNotebook(notebook);
-    assertFalse(result.valid());
-    assertTrue(result.errorMessage().contains("nbformat_minor"));
+    InvalidNotebookException exception =
+        assertThrows(
+            InvalidNotebookException.class,
+            () -> validator.validateNotebook(notebook.getBytes(StandardCharsets.UTF_8)));
+    assertTrue(exception.getMessage().contains("nbformat_minor"));
   }
 
   @Test
@@ -292,9 +306,11 @@ class JupyterNotebookValidatorTest {
           "metadata": {}
         }
         """;
-    ValidationResult result = validator.validateNotebook(notebook);
-    assertFalse(result.valid());
-    assertTrue(result.errorMessage().contains("cells"));
+    InvalidNotebookException exception =
+        assertThrows(
+            InvalidNotebookException.class,
+            () -> validator.validateNotebook(notebook.getBytes(StandardCharsets.UTF_8)));
+    assertTrue(exception.getMessage().contains("cells"));
   }
 
   @Test
@@ -308,9 +324,11 @@ class JupyterNotebookValidatorTest {
           "cells": "not an array"
         }
         """;
-    ValidationResult result = validator.validateNotebook(notebook);
-    assertFalse(result.valid());
-    assertTrue(result.errorMessage().contains("cells"));
+    InvalidNotebookException exception =
+        assertThrows(
+            InvalidNotebookException.class,
+            () -> validator.validateNotebook(notebook.getBytes(StandardCharsets.UTF_8)));
+    assertTrue(exception.getMessage().contains("cells"));
   }
 
   @Test
@@ -326,9 +344,11 @@ class JupyterNotebookValidatorTest {
           ]
         }
         """;
-    ValidationResult result = validator.validateNotebook(notebook);
-    assertFalse(result.valid());
-    assertTrue(result.errorMessage().contains("invalid_type"));
+    InvalidNotebookException exception =
+        assertThrows(
+            InvalidNotebookException.class,
+            () -> validator.validateNotebook(notebook.getBytes(StandardCharsets.UTF_8)));
+    assertTrue(exception.getMessage().contains("invalid_type"));
   }
 
   @Test
@@ -344,9 +364,11 @@ class JupyterNotebookValidatorTest {
           ]
         }
         """;
-    ValidationResult result = validator.validateNotebook(notebook);
-    assertFalse(result.valid());
-    assertTrue(result.errorMessage().contains("cell_type"));
+    InvalidNotebookException exception =
+        assertThrows(
+            InvalidNotebookException.class,
+            () -> validator.validateNotebook(notebook.getBytes(StandardCharsets.UTF_8)));
+    assertTrue(exception.getMessage().contains("cell_type"));
   }
 
   @Test
@@ -362,9 +384,11 @@ class JupyterNotebookValidatorTest {
           ]
         }
         """;
-    ValidationResult result = validator.validateNotebook(notebook);
-    assertFalse(result.valid());
-    assertTrue(result.errorMessage().contains("source"));
+    InvalidNotebookException exception =
+        assertThrows(
+            InvalidNotebookException.class,
+            () -> validator.validateNotebook(notebook.getBytes(StandardCharsets.UTF_8)));
+    assertTrue(exception.getMessage().contains("source"));
   }
 
   @Test
@@ -377,9 +401,11 @@ class JupyterNotebookValidatorTest {
           "cells": []
         }
         """;
-    ValidationResult result = validator.validateNotebook(notebook);
-    assertFalse(result.valid());
-    assertTrue(result.errorMessage().contains("metadata"));
+    InvalidNotebookException exception =
+        assertThrows(
+            InvalidNotebookException.class,
+            () -> validator.validateNotebook(notebook.getBytes(StandardCharsets.UTF_8)));
+    assertTrue(exception.getMessage().contains("metadata"));
   }
 
   @Test
@@ -393,29 +419,38 @@ class JupyterNotebookValidatorTest {
           "cells": []
         }
         """;
-    ValidationResult result = validator.validateNotebook(notebook);
-    assertFalse(result.valid());
-    assertTrue(result.errorMessage().contains("metadata"));
+    InvalidNotebookException exception =
+        assertThrows(
+            InvalidNotebookException.class,
+            () -> validator.validateNotebook(notebook.getBytes(StandardCharsets.UTF_8)));
+    assertTrue(exception.getMessage().contains("metadata"));
   }
 
   @Test
   void testReject_NonJson() {
-    ValidationResult result = validator.validateNotebook("{ this is not valid json }");
-    assertFalse(result.valid());
-    assertTrue(result.errorMessage().contains("not valid JSON"));
+    InvalidNotebookException exception =
+        assertThrows(
+            InvalidNotebookException.class,
+            () ->
+                validator.validateNotebook(
+                    "{ this is not valid json }".getBytes(StandardCharsets.UTF_8)));
+    assertTrue(exception.getMessage().contains("not valid JSON"));
   }
 
   @Test
   void testReject_EmptyString() {
-    ValidationResult result = validator.validateNotebook("");
-    assertFalse(result.valid());
+    assertThrows(
+        InvalidNotebookException.class,
+        () -> validator.validateNotebook("".getBytes(StandardCharsets.UTF_8)));
   }
 
   @Test
   void testReject_NullJsonValue() {
-    ValidationResult result = validator.validateNotebook("null");
-    assertFalse(result.valid());
-    assertTrue(result.errorMessage().contains("root must be a JSON object"));
+    InvalidNotebookException exception =
+        assertThrows(
+            InvalidNotebookException.class,
+            () -> validator.validateNotebook("null".getBytes(StandardCharsets.UTF_8)));
+    assertTrue(exception.getMessage().contains("root must be a JSON object"));
   }
 
   @Test
@@ -429,10 +464,12 @@ class JupyterNotebookValidatorTest {
           "cells": []
         }
         """;
-    ValidationResult result = validator.validateNotebook(notebook);
-    assertFalse(result.valid());
-    assertTrue(result.errorMessage().contains("nbformat"));
-    assertTrue(result.errorMessage().contains("integer"));
+    InvalidNotebookException exception =
+        assertThrows(
+            InvalidNotebookException.class,
+            () -> validator.validateNotebook(notebook.getBytes(StandardCharsets.UTF_8)));
+    assertTrue(exception.getMessage().contains("nbformat"));
+    assertTrue(exception.getMessage().contains("integer"));
   }
 
   @Test
@@ -446,10 +483,12 @@ class JupyterNotebookValidatorTest {
           "cells": []
         }
         """;
-    ValidationResult result = validator.validateNotebook(notebook);
-    assertFalse(result.valid());
-    assertTrue(result.errorMessage().contains("nbformat_minor"));
-    assertTrue(result.errorMessage().contains("integer"));
+    InvalidNotebookException exception =
+        assertThrows(
+            InvalidNotebookException.class,
+            () -> validator.validateNotebook(notebook.getBytes(StandardCharsets.UTF_8)));
+    assertTrue(exception.getMessage().contains("nbformat_minor"));
+    assertTrue(exception.getMessage().contains("integer"));
   }
 
   @Test
@@ -465,9 +504,11 @@ class JupyterNotebookValidatorTest {
           ]
         }
         """;
-    ValidationResult result = validator.validateNotebook(notebook);
-    assertFalse(result.valid());
-    assertTrue(result.errorMessage().contains("source"));
+    InvalidNotebookException exception =
+        assertThrows(
+            InvalidNotebookException.class,
+            () -> validator.validateNotebook(notebook.getBytes(StandardCharsets.UTF_8)));
+    assertTrue(exception.getMessage().contains("source"));
   }
 
   // ── Backward compatibility (US3) ──
@@ -485,8 +526,8 @@ class JupyterNotebookValidatorTest {
           "cells": []
         }
         """;
-    ValidationResult result = validator.validateNotebook(notebook);
-    assertTrue(result.valid(), "Empty language_info.name should pass");
+    JsonNode result = validator.validateNotebook(notebook.getBytes(StandardCharsets.UTF_8));
+    assertNotNull(result, "Empty language_info.name should pass");
   }
 
   @Test
@@ -515,8 +556,8 @@ class JupyterNotebookValidatorTest {
           "cells": []
         }
         """;
-    ValidationResult result = validator.validateNotebook(notebook);
-    assertTrue(result.valid(), "Deep metadata should pass");
+    JsonNode result = validator.validateNotebook(notebook.getBytes(StandardCharsets.UTF_8));
+    assertNotNull(result, "Deep metadata should pass");
   }
 
   @Test
@@ -541,8 +582,8 @@ class JupyterNotebookValidatorTest {
           ]
         }
         """;
-    ValidationResult result = validator.validateNotebook(notebook);
-    assertTrue(result.valid(), "Diverse output types should pass (outputs not checked)");
+    JsonNode result = validator.validateNotebook(notebook.getBytes(StandardCharsets.UTF_8));
+    assertNotNull(result, "Diverse output types should pass (outputs not checked)");
   }
 
   @Test
@@ -559,8 +600,8 @@ class JupyterNotebookValidatorTest {
           ]
         }
         """;
-    ValidationResult result = validator.validateNotebook(notebook);
-    assertTrue(result.valid(), "Execution counts should pass (not checked)");
+    JsonNode result = validator.validateNotebook(notebook.getBytes(StandardCharsets.UTF_8));
+    assertNotNull(result, "Execution counts should pass (not checked)");
   }
 
   @Test
@@ -579,8 +620,8 @@ class JupyterNotebookValidatorTest {
           ]
         }
         """;
-    ValidationResult result = validator.validateNotebook(notebook);
-    assertTrue(result.valid(), "v4.0 notebook should pass");
+    JsonNode result = validator.validateNotebook(notebook.getBytes(StandardCharsets.UTF_8));
+    assertNotNull(result, "v4.0 notebook should pass");
   }
 
   @Test
@@ -599,8 +640,8 @@ class JupyterNotebookValidatorTest {
           ]
         }
         """;
-    ValidationResult result = validator.validateNotebook(notebook);
-    assertTrue(result.valid(), "v4.1 without cell IDs should pass");
+    JsonNode result = validator.validateNotebook(notebook.getBytes(StandardCharsets.UTF_8));
+    assertNotNull(result, "v4.1 without cell IDs should pass");
   }
 
   @Test
@@ -618,8 +659,8 @@ class JupyterNotebookValidatorTest {
           ]
         }
         """;
-    ValidationResult result = validator.validateNotebook(notebook);
-    assertTrue(result.valid(), "v4.5 without cell IDs should now pass structural validation");
+    JsonNode result = validator.validateNotebook(notebook.getBytes(StandardCharsets.UTF_8));
+    assertNotNull(result, "v4.5 without cell IDs should now pass structural validation");
   }
 
   @Test
@@ -648,8 +689,8 @@ class JupyterNotebookValidatorTest {
           ]
         }
         """;
-    ValidationResult result = validator.validateNotebook(notebook);
-    assertTrue(result.valid(), "Real R notebook should pass");
+    JsonNode result = validator.validateNotebook(notebook.getBytes(StandardCharsets.UTF_8));
+    assertNotNull(result, "Real R notebook should pass");
   }
 
   @Test
@@ -663,18 +704,18 @@ class JupyterNotebookValidatorTest {
       sb.append("{\"cell_type\":\"code\",\"source\":\"").append("x".repeat(1000)).append("\"}");
     }
     sb.append("]}");
-    String largeNotebook = sb.toString();
-    assertTrue(largeNotebook.length() > 5_000_000, "Notebook should be >5MB");
+    byte[] largeNotebook = sb.toString().getBytes(StandardCharsets.UTF_8);
+    assertTrue(largeNotebook.length > 5_000_000, "Notebook should be >5MB");
 
     // Warm up
     validator.validateNotebook(largeNotebook);
 
     // Timed run
     long start = System.nanoTime();
-    ValidationResult result = validator.validateNotebook(largeNotebook);
+    JsonNode result = validator.validateNotebook(largeNotebook);
     long elapsedMs = (System.nanoTime() - start) / 1_000_000;
 
-    assertTrue(result.valid());
+    assertNotNull(result);
     assertTrue(
         elapsedMs < 5000, "Structural validation should complete in <5s, took " + elapsedMs + "ms");
     // Log actual time for manual review
@@ -684,7 +725,7 @@ class JupyterNotebookValidatorTest {
             + "ms for "
             + cellCount
             + " cells (~"
-            + (largeNotebook.length() / 1_000_000)
+            + (largeNotebook.length / 1_000_000)
             + "MB)");
   }
 
@@ -692,10 +733,10 @@ class JupyterNotebookValidatorTest {
   void testValidationResultRecord() {
     ValidationResult success = ValidationResult.success();
     assertTrue(success.valid());
-    assertNull(success.errorMessage());
+    assertEquals(null, success.errorMessage());
 
     ValidationResult failure = ValidationResult.failure("test error");
-    assertFalse(failure.valid());
+    assertEquals(false, failure.valid());
     assertEquals("test error", failure.errorMessage());
   }
 }

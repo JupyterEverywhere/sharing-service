@@ -12,6 +12,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -35,7 +36,6 @@ import org.jupytereverywhere.model.response.JupyterNotebookRetrieved;
 import org.jupytereverywhere.model.response.JupyterNotebookSaved;
 import org.jupytereverywhere.repository.JupyterNotebookRepository;
 import org.jupytereverywhere.service.utils.JupyterNotebookValidator;
-import org.jupytereverywhere.service.utils.ValidationResult;
 import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -47,6 +47,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionStatus;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import jakarta.persistence.EntityManager;
@@ -81,6 +82,19 @@ class JupyterNotebookServiceTest {
   // Sample valid notebook JSON for testing
   private static final String SAMPLE_NOTEBOOK_JSON =
       "{\"nbformat\":4,\"nbformat_minor\":5,\"metadata\":{},\"cells\":[]}";
+
+  private static final byte[] SAMPLE_NOTEBOOK_BYTES =
+      SAMPLE_NOTEBOOK_JSON.getBytes(StandardCharsets.UTF_8);
+
+  private static final JsonNode SAMPLE_NOTEBOOK_NODE;
+
+  static {
+    try {
+      SAMPLE_NOTEBOOK_NODE = new ObjectMapper().readTree(SAMPLE_NOTEBOOK_BYTES);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
 
   @BeforeEach
   void setUp() {
@@ -211,9 +225,9 @@ class JupyterNotebookServiceTest {
     notebookRequest.setNotebook(createSampleNotebookDTO());
     notebookRequest.setPassword("password");
 
-    when(jupyterNotebookValidator.validateNotebook(anyString()))
-        .thenReturn(ValidationResult.success());
-    when(storageService.uploadNotebook(anyString(), anyString())).thenReturn("storage-url");
+    when(jupyterNotebookValidator.validateNotebook(any(byte[].class)))
+        .thenReturn(SAMPLE_NOTEBOOK_NODE);
+    when(storageService.uploadNotebook(any(byte[].class), anyString())).thenReturn("storage-url");
     when(notebookRepository.saveAndFlush(any(JupyterNotebookEntity.class)))
         .thenAnswer(
             invocation -> {
@@ -226,7 +240,7 @@ class JupyterNotebookServiceTest {
     doNothing().when(entityManager).refresh(any(JupyterNotebookEntity.class));
 
     JupyterNotebookSaved result =
-        notebookService.uploadNotebook(notebookRequest, sessionId, domain, SAMPLE_NOTEBOOK_JSON);
+        notebookService.uploadNotebook(notebookRequest, sessionId, domain, SAMPLE_NOTEBOOK_BYTES);
 
     assertNotNull(result);
     assertEquals(notebookId, result.getId());
@@ -239,15 +253,15 @@ class JupyterNotebookServiceTest {
     JupyterNotebookRequest notebookRequest = new JupyterNotebookRequest();
     notebookRequest.setNotebook(createSampleNotebookDTO());
 
-    when(jupyterNotebookValidator.validateNotebook(anyString()))
-        .thenReturn(ValidationResult.failure("Invalid notebook: validation failed"));
+    when(jupyterNotebookValidator.validateNotebook(any(byte[].class)))
+        .thenThrow(new InvalidNotebookException("Invalid notebook: validation failed"));
 
     InvalidNotebookException exception =
         assertThrows(
             InvalidNotebookException.class,
             () -> {
               notebookService.uploadNotebook(
-                  notebookRequest, sessionId, domain, SAMPLE_NOTEBOOK_JSON);
+                  notebookRequest, sessionId, domain, SAMPLE_NOTEBOOK_BYTES);
             });
 
     assertEquals("Invalid notebook: validation failed", exception.getMessage());
@@ -259,13 +273,13 @@ class JupyterNotebookServiceTest {
     JupyterNotebookEntity notebookEntity = createSampleNotebookEntity();
 
     when(notebookRepository.findById(notebookId)).thenReturn(Optional.of(notebookEntity));
-    when(jupyterNotebookValidator.validateNotebook(anyString()))
-        .thenReturn(ValidationResult.success());
-    when(storageService.uploadNotebook(anyString(), anyString())).thenReturn("storage-url");
+    when(jupyterNotebookValidator.validateNotebook(any(byte[].class)))
+        .thenReturn(SAMPLE_NOTEBOOK_NODE);
+    when(storageService.uploadNotebook(any(byte[].class), anyString())).thenReturn("storage-url");
 
     JupyterNotebookSaved result =
         notebookService.updateNotebook(
-            notebookId, notebookDto, sessionId, token, SAMPLE_NOTEBOOK_JSON);
+            notebookId, notebookDto, sessionId, token, SAMPLE_NOTEBOOK_BYTES);
 
     assertNotNull(result);
     assertEquals(notebookId, result.getId());
@@ -288,13 +302,13 @@ class JupyterNotebookServiceTest {
 
     when(notebookRepository.findById(notebookId)).thenReturn(Optional.of(notebookEntity));
     when(jwtTokenService.extractNotebookIdFromToken(token)).thenReturn(notebookId.toString());
-    when(jupyterNotebookValidator.validateNotebook(anyString()))
-        .thenReturn(ValidationResult.success());
-    when(storageService.uploadNotebook(anyString(), anyString())).thenReturn("storage-url");
+    when(jupyterNotebookValidator.validateNotebook(any(byte[].class)))
+        .thenReturn(SAMPLE_NOTEBOOK_NODE);
+    when(storageService.uploadNotebook(any(byte[].class), anyString())).thenReturn("storage-url");
 
     JupyterNotebookSaved result =
         notebookService.updateNotebook(
-            notebookId, notebookDto, sessionId, token, SAMPLE_NOTEBOOK_JSON);
+            notebookId, notebookDto, sessionId, token, SAMPLE_NOTEBOOK_BYTES);
 
     assertNotNull(result);
     assertEquals(notebookId, result.getId());
@@ -323,7 +337,7 @@ class JupyterNotebookServiceTest {
             UnauthorizedNotebookAccessException.class,
             () -> {
               notebookService.updateNotebook(
-                  notebookId, notebookDto, sessionId, token, SAMPLE_NOTEBOOK_JSON);
+                  notebookId, notebookDto, sessionId, token, SAMPLE_NOTEBOOK_BYTES);
             });
 
     assertEquals("You do not have permission to update this notebook", exception.getMessage());
@@ -340,7 +354,7 @@ class JupyterNotebookServiceTest {
             NotebookNotFoundException.class,
             () -> {
               notebookService.updateNotebook(
-                  notebookId, notebookDto, sessionId, token, SAMPLE_NOTEBOOK_JSON);
+                  notebookId, notebookDto, sessionId, token, SAMPLE_NOTEBOOK_BYTES);
             });
 
     assertEquals("Notebook not found with ID: " + notebookId, exception.getMessage());
@@ -356,13 +370,13 @@ class JupyterNotebookServiceTest {
     when(notebookRepository.findById(notebookEntity.getId()))
         .thenReturn(Optional.of(notebookEntity));
 
-    when(jupyterNotebookValidator.validateNotebook(anyString()))
-        .thenReturn(ValidationResult.success());
-    when(storageService.uploadNotebook(anyString(), anyString())).thenReturn("storage-url");
+    when(jupyterNotebookValidator.validateNotebook(any(byte[].class)))
+        .thenReturn(SAMPLE_NOTEBOOK_NODE);
+    when(storageService.uploadNotebook(any(byte[].class), anyString())).thenReturn("storage-url");
 
     JupyterNotebookSaved result =
         notebookService.updateNotebook(
-            readableId, notebookDto, sessionId, token, SAMPLE_NOTEBOOK_JSON);
+            readableId, notebookDto, sessionId, token, SAMPLE_NOTEBOOK_BYTES);
 
     assertNotNull(result);
     assertEquals(notebookId, result.getId());
@@ -380,7 +394,7 @@ class JupyterNotebookServiceTest {
             NotebookNotFoundException.class,
             () -> {
               notebookService.updateNotebook(
-                  readableId, notebookDto, sessionId, token, SAMPLE_NOTEBOOK_JSON);
+                  readableId, notebookDto, sessionId, token, SAMPLE_NOTEBOOK_BYTES);
             });
 
     assertEquals("Notebook not found", exception.getMessage());
@@ -389,20 +403,21 @@ class JupyterNotebookServiceTest {
   @Test
   void testValidateAndStoreNotebook_InvalidMetadata() {
     // Create notebook JSON with missing required metadata field
-    String invalidNotebookJson = "{\"cells\":[],\"nbformat\":4}"; // missing metadata
+    byte[] invalidNotebookBytes =
+        "{\"cells\":[],\"nbformat\":4}".getBytes(StandardCharsets.UTF_8); // missing metadata
     JupyterNotebookDTO notebookDto = new JupyterNotebookDTO();
     notebookDto.setMetadata(new MetadataDTO()); // DTO has metadata but JSON doesn't
 
     // Mock validator to reject the invalid JSON
-    when(jupyterNotebookValidator.validateNotebook(anyString()))
-        .thenReturn(ValidationResult.failure("Invalid notebook: validation failed"));
+    when(jupyterNotebookValidator.validateNotebook(any(byte[].class)))
+        .thenThrow(new InvalidNotebookException("Invalid notebook: validation failed"));
 
     InvalidNotebookException exception =
         assertThrows(
             InvalidNotebookException.class,
             () -> {
               notebookService.validateAndStoreNotebook(
-                  notebookDto, sessionId, domain, "password", invalidNotebookJson);
+                  notebookDto, sessionId, domain, "password", invalidNotebookBytes);
             });
 
     assertEquals("Invalid notebook: validation failed", exception.getMessage());
@@ -410,12 +425,13 @@ class JupyterNotebookServiceTest {
 
   @Test
   void testStoreNotebook_Success() throws Exception {
-    String notebookJsonString =
-        "{\"cells\":[],\"metadata\":{},\"nbformat\":4,\"nbformat_minor\":5}";
+    byte[] notebookBytes =
+        "{\"cells\":[],\"metadata\":{},\"nbformat\":4,\"nbformat_minor\":5}"
+            .getBytes(StandardCharsets.UTF_8);
 
-    when(storageService.uploadNotebook(anyString(), anyString())).thenReturn("storage-url");
+    when(storageService.uploadNotebook(any(byte[].class), anyString())).thenReturn("storage-url");
 
-    String result = notebookService.storeNotebook(notebookJsonString, "filename.ipynb");
+    String result = notebookService.storeNotebook(notebookBytes, "filename.ipynb");
 
     assertEquals("storage-url", result);
   }
@@ -456,9 +472,9 @@ class JupyterNotebookServiceTest {
     notebookRequest.setNotebook(notebookDto);
     notebookRequest.setPassword("password");
 
-    when(jupyterNotebookValidator.validateNotebook(anyString()))
-        .thenReturn(ValidationResult.success());
-    when(storageService.uploadNotebook(anyString(), anyString())).thenReturn("storage-url");
+    when(jupyterNotebookValidator.validateNotebook(any(byte[].class)))
+        .thenReturn(SAMPLE_NOTEBOOK_NODE);
+    when(storageService.uploadNotebook(any(byte[].class), anyString())).thenReturn("storage-url");
     when(passwordEncoder.encode(anyString())).thenReturn("encoded-password");
     when(notebookRepository.saveAndFlush(any(JupyterNotebookEntity.class)))
         .thenAnswer(
@@ -477,7 +493,7 @@ class JupyterNotebookServiceTest {
             });
 
     JupyterNotebookSaved result =
-        notebookService.uploadNotebook(notebookRequest, sessionId, domain, SAMPLE_NOTEBOOK_JSON);
+        notebookService.uploadNotebook(notebookRequest, sessionId, domain, SAMPLE_NOTEBOOK_BYTES);
     assertEquals("system-assigned-id", result.getReadableId());
     assertEquals(notebookId, result.getId());
     assertEquals(domain, result.getDomain());
@@ -494,14 +510,15 @@ class JupyterNotebookServiceTest {
     existingEntity.setStorageUrl("existing-storage-url");
 
     when(notebookRepository.findById(notebookId)).thenReturn(Optional.of(existingEntity));
-    when(jupyterNotebookValidator.validateNotebook(anyString()))
-        .thenReturn(ValidationResult.success());
-    when(storageService.uploadNotebook(anyString(), anyString())).thenReturn("updated-storage-url");
+    when(jupyterNotebookValidator.validateNotebook(any(byte[].class)))
+        .thenReturn(SAMPLE_NOTEBOOK_NODE);
+    when(storageService.uploadNotebook(any(byte[].class), anyString()))
+        .thenReturn("updated-storage-url");
     when(notebookRepository.save(any(JupyterNotebookEntity.class))).thenReturn(existingEntity);
 
     JupyterNotebookSaved result =
         notebookService.updateNotebook(
-            notebookId, notebookDto, sessionId, token, SAMPLE_NOTEBOOK_JSON);
+            notebookId, notebookDto, sessionId, token, SAMPLE_NOTEBOOK_BYTES);
     assertEquals("original-readable-id", result.getReadableId());
     assertEquals(notebookId, result.getId());
     assertEquals(domain, result.getDomain());
@@ -520,14 +537,15 @@ class JupyterNotebookServiceTest {
     when(notebookRepository.findByReadableId("original-readable-id"))
         .thenReturn(Optional.of(existingEntity));
     when(notebookRepository.findById(notebookId)).thenReturn(Optional.of(existingEntity));
-    when(jupyterNotebookValidator.validateNotebook(anyString()))
-        .thenReturn(ValidationResult.success());
-    when(storageService.uploadNotebook(anyString(), anyString())).thenReturn("updated-storage-url");
+    when(jupyterNotebookValidator.validateNotebook(any(byte[].class)))
+        .thenReturn(SAMPLE_NOTEBOOK_NODE);
+    when(storageService.uploadNotebook(any(byte[].class), anyString()))
+        .thenReturn("updated-storage-url");
     when(notebookRepository.save(any(JupyterNotebookEntity.class))).thenReturn(existingEntity);
 
     JupyterNotebookSaved result =
         notebookService.updateNotebook(
-            "original-readable-id", notebookDto, sessionId, token, SAMPLE_NOTEBOOK_JSON);
+            "original-readable-id", notebookDto, sessionId, token, SAMPLE_NOTEBOOK_BYTES);
     assertEquals("original-readable-id", result.getReadableId());
     assertEquals(notebookId, result.getId());
     assertEquals(domain, result.getDomain());
@@ -536,20 +554,14 @@ class JupyterNotebookServiceTest {
   @Test
   void testValidateNotebookSize_ExceedsLimit() throws Exception {
     // Create a large notebook that exceeds 10MB
-    StringBuilder largeContent = new StringBuilder();
-    // Create content larger than 10MB (10485760 bytes)
-    int targetSize = 11 * 1024 * 1024; // 11MB
-    for (int i = 0; i < targetSize; i++) {
-      largeContent.append("a");
-    }
-
-    String largeNotebookJson = largeContent.toString();
+    byte[] largeNotebookBytes = new byte[11 * 1024 * 1024]; // 11MB
+    java.util.Arrays.fill(largeNotebookBytes, (byte) 'a');
 
     NotebookTooLargeException exception =
         assertThrows(
             NotebookTooLargeException.class,
             () -> {
-              notebookService.validateNotebookSize(largeNotebookJson, sessionId);
+              notebookService.validateNotebookSize(largeNotebookBytes, sessionId);
             });
 
     assertNotNull(exception);
@@ -559,32 +571,27 @@ class JupyterNotebookServiceTest {
   @Test
   void testValidateNotebookSize_WithinLimit() throws Exception {
     // Create a small notebook well within the 10MB limit
-    String smallNotebookJson = "{\"nbformat\":4,\"cells\":[]}";
+    byte[] smallNotebookBytes = "{\"nbformat\":4,\"cells\":[]}".getBytes(StandardCharsets.UTF_8);
 
     // Should not throw any exception
-    notebookService.validateNotebookSize(smallNotebookJson, sessionId);
+    notebookService.validateNotebookSize(smallNotebookBytes, sessionId);
   }
 
   @Test
   void testUploadNotebook_TooLarge() throws Exception {
-    // Create a notebook that will exceed the size limit when serialized
+    // Create a notebook that will exceed the size limit
     JupyterNotebookDTO largeNotebookDto = createSampleNotebookDTO();
     JupyterNotebookRequest notebookRequest = new JupyterNotebookRequest();
     notebookRequest.setNotebook(largeNotebookDto);
 
-    // Mock the serialization to return a large JSON string
-    StringBuilder largeContent = new StringBuilder();
-    int targetSize = 11 * 1024 * 1024; // 11MB
-    for (int i = 0; i < targetSize; i++) {
-      largeContent.append("a");
-    }
-    String largeJson = largeContent.toString();
+    byte[] largeBytes = new byte[11 * 1024 * 1024]; // 11MB
+    java.util.Arrays.fill(largeBytes, (byte) 'a');
 
     NotebookTooLargeException exception =
         assertThrows(
             NotebookTooLargeException.class,
             () -> {
-              notebookService.uploadNotebook(notebookRequest, sessionId, domain, largeJson);
+              notebookService.uploadNotebook(notebookRequest, sessionId, domain, largeBytes);
             });
 
     assertNotNull(exception);
@@ -596,13 +603,8 @@ class JupyterNotebookServiceTest {
     JupyterNotebookDTO largeNotebookDto = createSampleNotebookDTO();
     JupyterNotebookEntity notebookEntity = createSampleNotebookEntity();
 
-    // Mock the serialization to return a large JSON string
-    StringBuilder largeContent = new StringBuilder();
-    int targetSize = 11 * 1024 * 1024; // 11MB
-    for (int i = 0; i < targetSize; i++) {
-      largeContent.append("a");
-    }
-    String largeJson = largeContent.toString();
+    byte[] largeBytes = new byte[11 * 1024 * 1024]; // 11MB
+    java.util.Arrays.fill(largeBytes, (byte) 'a');
 
     when(notebookRepository.findById(notebookId)).thenReturn(Optional.of(notebookEntity));
 
@@ -611,7 +613,7 @@ class JupyterNotebookServiceTest {
             NotebookTooLargeException.class,
             () -> {
               notebookService.updateNotebook(
-                  notebookId, largeNotebookDto, sessionId, token, largeJson);
+                  notebookId, largeNotebookDto, sessionId, token, largeBytes);
             });
 
     assertNotNull(exception);

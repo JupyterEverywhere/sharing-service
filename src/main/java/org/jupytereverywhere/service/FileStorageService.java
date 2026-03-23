@@ -39,7 +39,7 @@ public class FileStorageService implements StorageService {
   }
 
   @Override
-  public String uploadNotebook(String notebookJsonString, String notebookName) {
+  public String uploadNotebook(byte[] notebookBytes, String notebookName) {
     Path notebookPath = null;
     try {
       Path directoryPath = Paths.get(localStoragePath);
@@ -47,7 +47,7 @@ public class FileStorageService implements StorageService {
 
       ensureDirectoryExists(notebookPath.getParent());
 
-      Files.write(notebookPath, notebookJsonString.getBytes(StandardCharsets.UTF_8));
+      Files.write(notebookPath, notebookBytes);
 
       StringMapMessage logMessage =
           new StringMapMessage()

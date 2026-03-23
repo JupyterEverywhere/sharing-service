@@ -3,6 +3,7 @@ package org.jupytereverywhere.service.utils;
 import java.util.Set;
 
 import org.apache.logging.log4j.message.StringMapMessage;
+import org.jupytereverywhere.exception.InvalidNotebookException;
 import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -29,30 +30,30 @@ public class JupyterNotebookValidator {
             .with(MESSAGE, "JupyterNotebookValidator initialized (structural checks)"));
   }
 
-  public ValidationResult validateNotebook(String notebookJson) {
+  public JsonNode validateNotebook(byte[] notebookBytes) {
     JsonNode root;
     try {
-      root = objectMapper.readTree(notebookJson);
+      root = objectMapper.readTree(notebookBytes);
     } catch (Exception e) {
       log.warn(
           new StringMapMessage()
               .with(MESSAGE, "Notebook validation failed: invalid JSON")
               .with("Error", e.getMessage()));
-      return ValidationResult.failure("Invalid notebook: content is not valid JSON");
+      throw new InvalidNotebookException("Invalid notebook: content is not valid JSON");
     }
 
     if (root == null || !root.isObject()) {
-      return ValidationResult.failure("Invalid notebook: root must be a JSON object");
+      throw new InvalidNotebookException("Invalid notebook: root must be a JSON object");
     }
 
     // nbformat must exist and equal 4
     JsonNode nbformatNode = root.get("nbformat");
     if (nbformatNode == null || !nbformatNode.isInt()) {
-      return ValidationResult.failure(
+      throw new InvalidNotebookException(
           "Invalid notebook: nbformat field is required and must be an integer");
     }
     if (nbformatNode.intValue() != REQUIRED_NBFORMAT) {
-      return ValidationResult.failure(
+      throw new InvalidNotebookException(
           "Invalid notebook: nbformat must be "
               + REQUIRED_NBFORMAT
               + ", got "
@@ -62,12 +63,12 @@ public class JupyterNotebookValidator {
     // nbformat_minor must exist and be in range 0-5
     JsonNode minorNode = root.get("nbformat_minor");
     if (minorNode == null || !minorNode.isInt()) {
-      return ValidationResult.failure(
+      throw new InvalidNotebookException(
           "Invalid notebook: nbformat_minor field is required and must be an integer");
     }
     int minor = minorNode.intValue();
     if (minor < MIN_MINOR_VERSION || minor > MAX_MINOR_VERSION) {
-      return ValidationResult.failure(
+      throw new InvalidNotebookException(
           "Invalid notebook: nbformat_minor must be between "
               + MIN_MINOR_VERSION
               + " and "
@@ -79,14 +80,14 @@ public class JupyterNotebookValidator {
     // metadata must exist and be an object
     JsonNode metadataNode = root.get("metadata");
     if (metadataNode == null || !metadataNode.isObject()) {
-      return ValidationResult.failure(
+      throw new InvalidNotebookException(
           "Invalid notebook: metadata field is required and must be an object");
     }
 
     // cells must exist and be an array
     JsonNode cellsNode = root.get("cells");
     if (cellsNode == null || !cellsNode.isArray()) {
-      return ValidationResult.failure(
+      throw new InvalidNotebookException(
           "Invalid notebook: cells field is required and must be an array");
     }
 
@@ -96,11 +97,11 @@ public class JupyterNotebookValidator {
 
       JsonNode cellTypeNode = cell.get("cell_type");
       if (cellTypeNode == null || !cellTypeNode.isTextual()) {
-        return ValidationResult.failure(
+        throw new InvalidNotebookException(
             "Invalid notebook: cells[" + i + "] is missing cell_type or cell_type is not a string");
       }
       if (!VALID_CELL_TYPES.contains(cellTypeNode.textValue())) {
-        return ValidationResult.failure(
+        throw new InvalidNotebookException(
             "Invalid notebook: cells["
                 + i
                 + "] has invalid cell_type '"
@@ -110,11 +111,11 @@ public class JupyterNotebookValidator {
 
       JsonNode sourceNode = cell.get("source");
       if (sourceNode == null) {
-        return ValidationResult.failure(
+        throw new InvalidNotebookException(
             "Invalid notebook: cells[" + i + "] is missing source field");
       }
       if (!sourceNode.isTextual() && !sourceNode.isArray()) {
-        return ValidationResult.failure(
+        throw new InvalidNotebookException(
             "Invalid notebook: cells[" + i + "] source must be a string or array");
       }
     }
@@ -125,6 +126,6 @@ public class JupyterNotebookValidator {
             .with("NbformatMinor", String.valueOf(minor))
             .with("CellCount", String.valueOf(cellsNode.size())));
 
-    return ValidationResult.success();
+    return root;
   }
 }
