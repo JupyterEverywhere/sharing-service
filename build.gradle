@@ -23,7 +23,7 @@ ext {
 	lombokVersion = '1.18.42'
 	jjwtVersion = '0.11.5'
 	awsSdkBomVersion = '2.35.0'
-	awsJdbcWrapperVersion = '2.5.4'
+	awsJdbcWrapperVersion = '2.6.5'
 	springdocVersion = '1.8.0'
 	postgresVersion = '42.7.8'
 	classgraphVersion = '4.8.69'
