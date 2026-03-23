@@ -157,7 +157,7 @@ public class S3StorageService implements StorageService {
   }
 
   @Override
-  public String uploadNotebook(String notebookJson, String fileName) {
+  public String uploadNotebook(byte[] notebookBytes, String fileName) {
     try {
       PutObjectRequest.Builder putBuilder =
           PutObjectRequest.builder().bucket(bucketName).key(fileName);
@@ -166,7 +166,7 @@ public class S3StorageService implements StorageService {
       }
       PutObjectRequest putObjectRequest = putBuilder.build();
 
-      s3Client.putObject(putObjectRequest, RequestBody.fromString(notebookJson));
+      s3Client.putObject(putObjectRequest, RequestBody.fromBytes(notebookBytes));
 
       StringMapMessage successLog =
           new StringMapMessage()

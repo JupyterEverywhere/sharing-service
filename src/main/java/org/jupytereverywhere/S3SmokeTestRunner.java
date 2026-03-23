@@ -25,7 +25,7 @@ public class S3SmokeTestRunner implements ApplicationRunner {
       return;
     }
     String testKey = "smoke-test-object-" + System.currentTimeMillis() + ".txt";
-    String testContent = "s3 smoke test";
+    byte[] testContent = "s3 smoke test".getBytes(java.nio.charset.StandardCharsets.UTF_8);
     try {
       log.info("S3 smoke test: uploading test object {}", testKey);
       storageService.uploadNotebook(testContent, testKey);

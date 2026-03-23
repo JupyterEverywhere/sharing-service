@@ -41,8 +41,8 @@ public class CachedBodyFilter extends OncePerRequestFilter {
 
     if (shouldCacheBody(request)) {
       CachedBodyHttpServletRequest cachedRequest = new CachedBodyHttpServletRequest(request);
-      // Store cached body as request attribute so it survives wrapper layers
-      request.setAttribute(CACHED_BODY_ATTRIBUTE, cachedRequest.getCachedBody());
+      // Store cached body bytes as request attribute so it survives wrapper layers
+      request.setAttribute(CACHED_BODY_ATTRIBUTE, cachedRequest.getCachedBodyBytes());
       filterChain.doFilter(cachedRequest, response);
     } else {
       filterChain.doFilter(request, response);

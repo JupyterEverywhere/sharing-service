@@ -10,7 +10,7 @@ plugins {
 }
 
 group = 'org.jupytereverywhere'
-version = '0.9.0'
+version = '0.10.0'
 
 java {
 	toolchain {
@@ -23,6 +23,7 @@ ext {
 	lombokVersion = '1.18.42'
 	jjwtVersion = '0.11.5'
 	awsSdkBomVersion = '2.35.0'
+	awsJdbcWrapperVersion = '2.6.5'
 	springdocVersion = '1.8.0'
 	postgresVersion = '42.7.8'
 	classgraphVersion = '4.8.69'
@@ -67,6 +68,9 @@ dependencies {
 	implementation platform("software.amazon.awssdk:bom:${awsSdkBomVersion}")
 	implementation 'software.amazon.awssdk:s3'
 	implementation 'software.amazon.awssdk:secretsmanager'
+
+	// AWS Advanced JDBC Wrapper for IAM database authentication
+	implementation "software.amazon.jdbc:aws-advanced-jdbc-wrapper:${awsJdbcWrapperVersion}"
 
 	// Documentation (Springdoc OpenAPI)
 	implementation "org.springdoc:springdoc-openapi-ui:${springdocVersion}"

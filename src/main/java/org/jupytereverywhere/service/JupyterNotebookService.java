@@ -21,7 +21,6 @@ import org.jupytereverywhere.model.response.JupyterNotebookRetrieved;
 import org.jupytereverywhere.model.response.JupyterNotebookSaved;
 import org.jupytereverywhere.repository.JupyterNotebookRepository;
 import org.jupytereverywhere.service.utils.JupyterNotebookValidator;
-import org.jupytereverywhere.service.utils.ValidationResult;
 import org.jupytereverywhere.utils.DateUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -117,7 +116,7 @@ public class JupyterNotebookService {
       JupyterNotebookRequest jupyterNotebookRequest,
       UUID sessionId,
       String domain,
-      String rawNotebookJson)
+      byte[] rawNotebookBytes)
       throws InvalidNotebookException {
 
     JupyterNotebookDTO notebookDto = jupyterNotebookRequest.getNotebook();
@@ -141,7 +140,7 @@ public class JupyterNotebookService {
     try {
 
       JupyterNotebookEntity notebookEntity =
-          validateAndStoreNotebook(notebookDto, sessionId, domain, password, rawNotebookJson);
+          validateAndStoreNotebook(notebookDto, sessionId, domain, password, rawNotebookBytes);
 
       return new JupyterNotebookSaved(
           notebookEntity.getId(), notebookEntity.getDomain(), notebookEntity.getReadableId());
@@ -177,29 +176,22 @@ public class JupyterNotebookService {
       UUID sessionId,
       String domain,
       String password,
-      String rawNotebookJson)
+      byte[] rawNotebookBytes)
       throws InvalidNotebookException, JsonProcessingException {
 
-    // Validate the raw incoming JSON (not re-serialized DTO) to preserve user's exact input
-    validateNotebookSize(rawNotebookJson, sessionId);
+    // Validate the raw incoming bytes to preserve user's exact input
+    validateNotebookSize(rawNotebookBytes, sessionId);
 
-    ValidationResult validationResult = jupyterNotebookValidator.validateNotebook(rawNotebookJson);
-    if (!validationResult.valid()) {
-      log.error(
-          new StringMapMessage()
-              .with(MESSAGE_KEY, NOTEBOOK_VALIDATION_FAILED_MESSAGE)
-              .with(SESSION_ID_MESSAGE_KEY, sessionId.toString())
-              .with("ValidationError", validationResult.errorMessage()));
-      throw new InvalidNotebookException(validationResult.errorMessage());
-    }
+    // Validator throws InvalidNotebookException on failure, returns parsed JsonNode on success
+    jupyterNotebookValidator.validateNotebook(rawNotebookBytes);
 
     JupyterNotebookEntity notebookEntity =
         saveNotebookMetadata(sessionId, notebookDto.getMetadata(), domain, password);
 
     String fileName = notebookEntity.getId().toString() + ".ipynb";
 
-    // Store the raw JSON (not re-serialized) to preserve user's exact input
-    String storageUrl = storeNotebook(rawNotebookJson, fileName);
+    // Store the raw bytes (not re-serialized) to preserve user's exact input
+    String storageUrl = storeNotebook(rawNotebookBytes, fileName);
 
     notebookEntity.setStorageUrl(storageUrl);
     notebookRepository.save(notebookEntity);
@@ -213,7 +205,7 @@ public class JupyterNotebookService {
       JupyterNotebookDTO notebookDto,
       UUID sessionId,
       String token,
-      String rawNotebookJson)
+      byte[] rawNotebookBytes)
       throws UnauthorizedNotebookAccessException,
           InvalidNotebookException,
           JsonProcessingException {
@@ -264,17 +256,15 @@ public class JupyterNotebookService {
           Map.of(NOTEBOOK_ID_MESSAGE_KEY, notebookId.toString()));
     }
 
-    // Validate the raw incoming JSON (not re-serialized DTO) to preserve user's exact input
-    validateNotebookSize(rawNotebookJson, sessionId);
+    // Validate the raw incoming bytes to preserve user's exact input
+    validateNotebookSize(rawNotebookBytes, sessionId);
 
-    ValidationResult validationResult = jupyterNotebookValidator.validateNotebook(rawNotebookJson);
-    if (!validationResult.valid()) {
-      throw new InvalidNotebookException(validationResult.errorMessage());
-    }
+    // Validator throws InvalidNotebookException on failure
+    jupyterNotebookValidator.validateNotebook(rawNotebookBytes);
 
     String fileName = storedNotebook.getId().toString() + ".ipynb";
-    // Store the raw JSON (not re-serialized) to preserve user's exact input
-    storeNotebook(rawNotebookJson, fileName);
+    // Store the raw bytes (not re-serialized) to preserve user's exact input
+    storeNotebook(rawNotebookBytes, fileName);
 
     updateNotebookMetadata(storedNotebook, notebookDto, sessionId);
 
@@ -282,9 +272,8 @@ public class JupyterNotebookService {
         storedNotebook.getId(), storedNotebook.getDomain(), storedNotebook.getReadableId());
   }
 
-  void validateNotebookSize(String notebookJsonString, UUID sessionId) {
-    long notebookSizeBytes =
-        notebookJsonString.getBytes(java.nio.charset.StandardCharsets.UTF_8).length;
+  void validateNotebookSize(byte[] notebookBytes, UUID sessionId) {
+    long notebookSizeBytes = notebookBytes.length;
 
     if (notebookSizeBytes > maxNotebookSizeBytes) {
       long maxSizeMB = maxNotebookSizeBytes / (1024 * 1024);
@@ -304,8 +293,8 @@ public class JupyterNotebookService {
     }
   }
 
-  String storeNotebook(String notebookJsonString, String fileName) {
-    return storageService.uploadNotebook(notebookJsonString, fileName);
+  String storeNotebook(byte[] notebookBytes, String fileName) {
+    return storageService.uploadNotebook(notebookBytes, fileName);
   }
 
   JupyterNotebookEntity saveNotebookMetadata(
@@ -412,7 +401,7 @@ public class JupyterNotebookService {
       JupyterNotebookDTO notebookDto,
       UUID sessionId,
       String token,
-      String rawNotebookJson)
+      byte[] rawNotebookBytes)
       throws JsonProcessingException {
     JupyterNotebookEntity notebookEntity =
         notebookRepository
@@ -426,7 +415,7 @@ public class JupyterNotebookService {
                   return new NotebookNotFoundException(NOTEBOOK_NOT_FOUND_MESSAGE);
                 });
 
-    updateNotebook(notebookEntity.getId(), notebookDto, sessionId, token, rawNotebookJson);
+    updateNotebook(notebookEntity.getId(), notebookDto, sessionId, token, rawNotebookBytes);
 
     return new JupyterNotebookSaved(
         notebookEntity.getId(), notebookEntity.getDomain(), notebookEntity.getReadableId());
