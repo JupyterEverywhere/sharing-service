@@ -6,6 +6,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.reset;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.UUID;
@@ -96,7 +97,8 @@ class JupyterNotebookServiceIntegrationTest {
 
     // Upload the notebook
     JupyterNotebookSaved saved =
-        notebookService.uploadNotebook(request, sessionId, domain, rNotebookJson);
+        notebookService.uploadNotebook(
+            request, sessionId, domain, rNotebookJson.getBytes(StandardCharsets.UTF_8));
 
     assertNotNull(saved, "Saved notebook should not be null");
     assertNotNull(saved.getId(), "Notebook ID should not be null");
@@ -149,7 +151,8 @@ class JupyterNotebookServiceIntegrationTest {
 
     // Upload
     JupyterNotebookSaved saved =
-        notebookService.uploadNotebook(request, sessionId, domain, noKernelJson);
+        notebookService.uploadNotebook(
+            request, sessionId, domain, noKernelJson.getBytes(StandardCharsets.UTF_8));
 
     assertNotNull(saved);
 
@@ -181,7 +184,8 @@ class JupyterNotebookServiceIntegrationTest {
 
     UUID sessionId = UUID.randomUUID();
     JupyterNotebookSaved saved =
-        notebookService.uploadNotebook(request, sessionId, "test.example.com", notebookJson);
+        notebookService.uploadNotebook(
+            request, sessionId, "test.example.com", notebookJson.getBytes(StandardCharsets.UTF_8));
 
     assertNotNull(saved.getId());
     assertNotNull(notebookService.getNotebookContent(saved.getId()));
@@ -203,7 +207,8 @@ class JupyterNotebookServiceIntegrationTest {
 
     UUID sessionId = UUID.randomUUID();
     JupyterNotebookSaved saved =
-        notebookService.uploadNotebook(request, sessionId, "test.example.com", notebookJson);
+        notebookService.uploadNotebook(
+            request, sessionId, "test.example.com", notebookJson.getBytes(StandardCharsets.UTF_8));
 
     String readableId = saved.getReadableId();
     assertNotNull(readableId);
@@ -227,13 +232,15 @@ class JupyterNotebookServiceIntegrationTest {
     request1.setNotebook(notebook);
     request1.setPassword("");
     JupyterNotebookSaved saved1 =
-        notebookService.uploadNotebook(request1, sessionId, "test.example.com", notebookJson);
+        notebookService.uploadNotebook(
+            request1, sessionId, "test.example.com", notebookJson.getBytes(StandardCharsets.UTF_8));
 
     JupyterNotebookRequest request2 = new JupyterNotebookRequest();
     request2.setNotebook(notebook);
     request2.setPassword("");
     JupyterNotebookSaved saved2 =
-        notebookService.uploadNotebook(request2, sessionId, "test.example.com", notebookJson);
+        notebookService.uploadNotebook(
+            request2, sessionId, "test.example.com", notebookJson.getBytes(StandardCharsets.UTF_8));
 
     // Verify both exist
     assertNotNull(notebookService.getNotebookContent(saved1.getId()));
@@ -275,7 +282,8 @@ class JupyterNotebookServiceIntegrationTest {
 
     UUID sessionId = UUID.randomUUID();
     JupyterNotebookSaved saved =
-        notebookService.uploadNotebook(request, sessionId, "test.example.com", notebookJson);
+        notebookService.uploadNotebook(
+            request, sessionId, "test.example.com", notebookJson.getBytes(StandardCharsets.UTF_8));
 
     String deletedReadableId = saved.getReadableId();
     notebookService.deleteNotebook(saved.getId(), "integration-test");
@@ -286,7 +294,10 @@ class JupyterNotebookServiceIntegrationTest {
     request2.setPassword("");
     JupyterNotebookSaved saved2 =
         notebookService.uploadNotebook(
-            request2, UUID.randomUUID(), "test.example.com", notebookJson);
+            request2,
+            UUID.randomUUID(),
+            "test.example.com",
+            notebookJson.getBytes(StandardCharsets.UTF_8));
 
     assertNotEquals(
         deletedReadableId,
@@ -305,7 +316,8 @@ class JupyterNotebookServiceIntegrationTest {
 
     UUID sessionId = UUID.randomUUID();
     JupyterNotebookSaved saved =
-        notebookService.uploadNotebook(request, sessionId, "test.example.com", notebookJson);
+        notebookService.uploadNotebook(
+            request, sessionId, "test.example.com", notebookJson.getBytes(StandardCharsets.UTF_8));
 
     // Verify notebook exists
     assertNotNull(notebookService.getNotebookContent(saved.getId()));
@@ -343,13 +355,15 @@ class JupyterNotebookServiceIntegrationTest {
     request1.setNotebook(notebook);
     request1.setPassword("");
     JupyterNotebookSaved saved1 =
-        notebookService.uploadNotebook(request1, sessionId, "test.example.com", notebookJson);
+        notebookService.uploadNotebook(
+            request1, sessionId, "test.example.com", notebookJson.getBytes(StandardCharsets.UTF_8));
 
     JupyterNotebookRequest request2 = new JupyterNotebookRequest();
     request2.setNotebook(notebook);
     request2.setPassword("");
     JupyterNotebookSaved saved2 =
-        notebookService.uploadNotebook(request2, sessionId, "test.example.com", notebookJson);
+        notebookService.uploadNotebook(
+            request2, sessionId, "test.example.com", notebookJson.getBytes(StandardCharsets.UTF_8));
 
     // Verify both exist
     assertNotNull(notebookService.getNotebookContent(saved1.getId()));

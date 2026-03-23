@@ -6,7 +6,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 public interface StorageService {
-  String uploadNotebook(String notebookJson, String fileName);
+  String uploadNotebook(byte[] notebookBytes, String fileName);
 
   String downloadNotebookAsJson(String fileName);
 

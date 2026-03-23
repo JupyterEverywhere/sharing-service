@@ -73,7 +73,7 @@ class FileStorageServiceTest {
     String directoryPath = "/path/to/notebooks";
     Path testPath = Paths.get(directoryPath, fileName);
 
-    String jsonString = objectMapper.writeValueAsString(notebookDto);
+    byte[] jsonBytes = objectMapper.writeValueAsBytes(notebookDto);
 
     try (MockedStatic<Files> filesMock = mockStatic(Files.class)) {
       filesMock
@@ -81,13 +81,12 @@ class FileStorageServiceTest {
           .thenReturn(testPath.getParent());
       filesMock.when(() -> Files.write(eq(testPath), any(byte[].class))).thenReturn(testPath);
 
-      String resultPath = fileStorageService.uploadNotebook(jsonString, fileName);
+      String resultPath = fileStorageService.uploadNotebook(jsonBytes, fileName);
 
       assertNotNull(resultPath);
       assertEquals(testPath.toString(), resultPath);
 
-      filesMock.verify(
-          () -> Files.write(eq(testPath), eq(jsonString.getBytes(StandardCharsets.UTF_8))));
+      filesMock.verify(() -> Files.write(eq(testPath), eq(jsonBytes)));
     }
   }
 
@@ -118,9 +117,9 @@ class FileStorageServiceTest {
           .when(() -> Files.write(eq(testPath), any(byte[].class)))
           .thenThrow(new IOException("Simulated IO Exception"));
 
-      String jsonString = objectMapper.writeValueAsString(notebookDto);
+      byte[] jsonBytes = objectMapper.writeValueAsBytes(notebookDto);
       assertThrows(
-          RuntimeException.class, () -> fileStorageService.uploadNotebook(jsonString, fileName));
+          RuntimeException.class, () -> fileStorageService.uploadNotebook(jsonBytes, fileName));
     }
   }
 

@@ -70,12 +70,12 @@ public class CachedBodyHttpServletRequest extends HttpServletRequestWrapper {
   }
 
   /**
-   * Gets the cached request body as a String.
+   * Gets the cached request body as raw bytes.
    *
-   * @return the request body as UTF-8 string
+   * @return the request body as a byte array
    */
-  public String getCachedBody() {
-    return new String(cachedBody, StandardCharsets.UTF_8);
+  public byte[] getCachedBodyBytes() {
+    return cachedBody;
   }
 
   @Override
