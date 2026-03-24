@@ -63,15 +63,18 @@ public class DatabaseCredentialsEnvironmentPostProcessor implements EnvironmentP
 
   private void validateMutualExclusivity(
       boolean hasCredentialsJson, boolean hasUsername, boolean hasPassword, boolean hasIamAuth) {
+    // In IAM mode, DB_CREDENTIALS and DB_USERNAME/DB_PASSWORD are valid Flyway admin
+    // credential sources, not top-level conflicts. Validation handled in configureIamMode().
+    if (hasIamAuth) {
+      return;
+    }
+
     List<String> activeModes = new ArrayList<>();
     if (hasCredentialsJson) {
       activeModes.add("DB_CREDENTIALS");
     }
     if (hasUsername || hasPassword) {
       activeModes.add("DB_USERNAME/DB_PASSWORD");
-    }
-    if (hasIamAuth) {
-      activeModes.add("DB_IAM_AUTH");
     }
 
     if (activeModes.size() > 1) {
@@ -98,7 +101,6 @@ public class DatabaseCredentialsEnvironmentPostProcessor implements EnvironmentP
     log.info("Database credential mode selected: {}", "IAM");
 
     String iamUsername = getEnvOrProperty("DB_IAM_USERNAME");
-    String adminSecret = getEnvOrProperty("DB_IAM_ADMIN_SECRET");
     String dbHost = getEnvOrProperty("DB_HOST");
     String dbPort = getEnvOrProperty("DB_PORT");
     String dbName = getEnvOrProperty("DB_NAME");
@@ -106,7 +108,6 @@ public class DatabaseCredentialsEnvironmentPostProcessor implements EnvironmentP
 
     List<String> missingVars = new ArrayList<>();
     if (!isPresent(iamUsername)) missingVars.add("DB_IAM_USERNAME");
-    if (!isPresent(adminSecret)) missingVars.add("DB_IAM_ADMIN_SECRET");
     if (!isPresent(dbHost)) missingVars.add("DB_HOST");
     if (!isPresent(awsRegion)) missingVars.add("AWS_REGION");
 
@@ -135,8 +136,43 @@ public class DatabaseCredentialsEnvironmentPostProcessor implements EnvironmentP
         "spring.datasource.hikari.exception-override-class-name",
         "software.amazon.jdbc.util.HikariCPSQLException");
 
-    // Flyway admin DataSource: standard PostgreSQL with Secrets Manager credentials
-    configureFlywayAdminCredentials(adminSecret, dbHost, dbPort, dbName, awsRegion, propertyMap);
+    // Flyway admin credential source detection
+    String dbCredentialsJson = getEnvOrProperty("DB_CREDENTIALS");
+    String adminSecret = getEnvOrProperty("DB_IAM_ADMIN_SECRET");
+    String dbUsername = getEnvOrProperty("DB_USERNAME");
+    String dbPassword = getEnvOrProperty("DB_PASSWORD");
+
+    List<String> sources = new ArrayList<>();
+    if (isPresent(dbCredentialsJson)) sources.add("DB_CREDENTIALS");
+    if (isPresent(adminSecret)) sources.add("DB_IAM_ADMIN_SECRET");
+    if (isPresent(dbUsername) || isPresent(dbPassword)) sources.add("DB_USERNAME/DB_PASSWORD");
+
+    if (sources.isEmpty()) {
+      throw new IllegalStateException(
+          "Database credential configuration is invalid: "
+              + "IAM mode requires Flyway admin credentials from exactly one source: "
+              + "DB_CREDENTIALS (JSON), DB_IAM_ADMIN_SECRET + AWS_REGION (Secrets Manager), "
+              + "or DB_USERNAME + DB_PASSWORD (plain values). None configured.");
+    }
+
+    if (sources.size() > 1) {
+      throw new IllegalStateException(
+          "Database credential configuration is invalid: "
+              + "IAM mode requires exactly one Flyway admin credential source, "
+              + "but multiple are configured: "
+              + String.join(", ", sources)
+              + ". Remove all but one.");
+    }
+
+    // Route to the appropriate Flyway admin credential resolution
+    String flywayUrl = "jdbc:postgresql://" + dbHost + ":" + dbPort + "/" + dbName;
+    if (isPresent(dbCredentialsJson)) {
+      resolveFlywayFromCredentialsJson(dbCredentialsJson, flywayUrl, propertyMap);
+    } else if (isPresent(adminSecret)) {
+      configureFlywayAdminCredentials(adminSecret, dbHost, dbPort, dbName, awsRegion, propertyMap);
+    } else {
+      resolveFlywayFromPlainValues(dbUsername, dbPassword, flywayUrl, propertyMap);
+    }
   }
 
   private void configureFlywayAdminCredentials(
@@ -179,28 +215,65 @@ public class DatabaseCredentialsEnvironmentPostProcessor implements EnvironmentP
     }
   }
 
-  private void configureStaticJsonMode(String dbCredentialsJson, Map<String, Object> propertyMap) {
-    log.info("Database credential mode selected: {}", "STATIC_JSON");
+  private void resolveFlywayFromCredentialsJson(
+      String json, String flywayUrl, Map<String, Object> propertyMap) {
+    String[] creds = parseJsonCredentials(json);
+    if (!isPresent(creds[0]) || !isPresent(creds[1])) {
+      throw new IllegalStateException(
+          "Database credential configuration is invalid: "
+              + "DB_CREDENTIALS JSON must contain non-empty 'username' and 'password' fields.");
+    }
+    propertyMap.put("spring.flyway.url", flywayUrl);
+    propertyMap.put("spring.flyway.user", creds[0]);
+    propertyMap.put("spring.flyway.password", creds[1]);
+    log.info("Flyway admin credentials resolved from DB_CREDENTIALS JSON");
+  }
 
+  private void resolveFlywayFromPlainValues(
+      String username, String password, String flywayUrl, Map<String, Object> propertyMap) {
+    if (!isPresent(username)) {
+      throw new IllegalStateException(
+          "Database credential configuration is invalid: "
+              + "DB_PASSWORD is set but DB_USERNAME is missing. "
+              + "Both are required when using plain values as the Flyway admin credential source.");
+    }
+    if (!isPresent(password)) {
+      throw new IllegalStateException(
+          "Database credential configuration is invalid: "
+              + "DB_USERNAME is set but DB_PASSWORD is missing. "
+              + "Both are required when using plain values as the Flyway admin credential source.");
+    }
+    propertyMap.put("spring.flyway.url", flywayUrl);
+    propertyMap.put("spring.flyway.user", username);
+    propertyMap.put("spring.flyway.password", password);
+    log.info("Flyway admin credentials resolved from DB_USERNAME/DB_PASSWORD");
+  }
+
+  private String[] parseJsonCredentials(String json) {
     try {
       ObjectMapper mapper = new ObjectMapper();
-      JsonNode node = mapper.readTree(dbCredentialsJson);
+      JsonNode node = mapper.readTree(json);
       String username = node.has("username") ? node.get("username").asText() : null;
       String password = node.has("password") ? node.get("password").asText() : null;
-      if (username != null) {
-        propertyMap.put("DB_USERNAME", username);
-        propertyMap.put("spring.datasource.username", username);
-      }
-      if (password != null) {
-        propertyMap.put("DB_PASSWORD", password);
-        propertyMap.put("spring.datasource.password", password);
-      }
+      return new String[] {username, password};
     } catch (Exception e) {
-      log.error("Database credential configuration is invalid: {}", e.getMessage());
       throw new IllegalStateException(
           "DB_CREDENTIALS is set but could not be parsed as valid JSON with 'username' and"
               + " 'password' fields.",
           e);
+    }
+  }
+
+  private void configureStaticJsonMode(String dbCredentialsJson, Map<String, Object> propertyMap) {
+    log.info("Database credential mode selected: {}", "STATIC_JSON");
+    String[] creds = parseJsonCredentials(dbCredentialsJson);
+    if (creds[0] != null) {
+      propertyMap.put("DB_USERNAME", creds[0]);
+      propertyMap.put("spring.datasource.username", creds[0]);
+    }
+    if (creds[1] != null) {
+      propertyMap.put("DB_PASSWORD", creds[1]);
+      propertyMap.put("spring.datasource.password", creds[1]);
     }
   }
 
