@@ -33,7 +33,6 @@ class DatabaseCredentialsEnvironmentPostProcessorTest {
 
   @AfterEach
   void tearDown() {
-    // Clean up system properties used by the post-processor
     System.clearProperty("DB_CREDENTIALS");
     System.clearProperty("DB_USERNAME");
     System.clearProperty("DB_PASSWORD");
@@ -105,7 +104,7 @@ class DatabaseCredentialsEnvironmentPostProcessorTest {
     assertNull(environment.getProperty("spring.flyway.password"));
   }
 
-  // --- Mode 3: IAM ---
+  // --- Mode 3: IAM + Secrets Manager source ---
 
   @Test
   void iamMode_setsAllExpectedDataSourceProperties() throws Exception {
@@ -185,7 +184,6 @@ class DatabaseCredentialsEnvironmentPostProcessorTest {
             IllegalStateException.class,
             () -> processor.postProcessEnvironment(environment, application));
     assertTrue(ex.getMessage().contains("DB_IAM_USERNAME"));
-    assertTrue(ex.getMessage().contains("DB_IAM_ADMIN_SECRET"));
     assertTrue(ex.getMessage().contains("DB_HOST"));
     // AWS_REGION may already be set in CI environments, so only assert it's
     // mentioned when we know it's absent
@@ -210,39 +208,219 @@ class DatabaseCredentialsEnvironmentPostProcessorTest {
     assertTrue(ex.getMessage().contains("Secrets Manager"));
   }
 
-  // --- Mutual exclusivity ---
-
   @Test
-  void conflictingModes_credentialsJsonAndIam_throwsIllegalState() {
-    System.setProperty("DB_CREDENTIALS", "{\"username\":\"u\",\"password\":\"p\"}");
+  void iamModeSecretsManager_missingAwsRegion_throwsIllegalState() {
+    // AWS_REGION may be set as env var in CI — can't test missing scenario then
+    if (System.getenv("AWS_REGION") != null) {
+      return;
+    }
     System.setProperty("DB_IAM_AUTH", "true");
+    System.setProperty("DB_IAM_USERNAME", "app_user");
+    System.setProperty("DB_HOST", "mydb.rds.amazonaws.com");
+    System.setProperty("DB_IAM_ADMIN_SECRET", "prod/db-admin");
+    // AWS_REGION intentionally not set
 
     IllegalStateException ex =
         assertThrows(
             IllegalStateException.class,
             () -> processor.postProcessEnvironment(environment, application));
-    assertTrue(ex.getMessage().contains("multiple credential modes"));
+    assertTrue(ex.getMessage().contains("AWS_REGION"));
+  }
+
+  // --- Mode 3: IAM + DB_CREDENTIALS JSON source ---
+
+  @Test
+  void iamModeDbCredentials_setsCorrectFlywayAndRuntimeProperties() {
+    setIamBaseProperties();
+    System.setProperty("DB_CREDENTIALS", "{\"username\":\"admin\",\"password\":\"secret\"}");
+
+    processor.postProcessEnvironment(environment, application);
+
+    assertEquals(
+        "jdbc:postgresql://mydb.rds.amazonaws.com:5432/sharingservice",
+        environment.getProperty("spring.flyway.url"));
+    assertEquals("admin", environment.getProperty("spring.flyway.user"));
+    assertEquals("secret", environment.getProperty("spring.flyway.password"));
+    assertEquals(
+        "jdbc:aws-wrapper:postgresql://mydb.rds.amazonaws.com:5432/sharingservice",
+        environment.getProperty("spring.datasource.url"));
+    assertEquals(
+        "software.amazon.jdbc.Driver",
+        environment.getProperty("spring.datasource.driver-class-name"));
+    assertEquals("app_user", environment.getProperty("spring.datasource.username"));
+    assertEquals(
+        "iam",
+        environment.getProperty("spring.datasource.hikari.data-source-properties.wrapperPlugins"));
+    assertEquals(
+        "us-east-1",
+        environment.getProperty("spring.datasource.hikari.data-source-properties.iamRegion"));
   }
 
   @Test
-  void conflictingModes_usernamePasswordAndIam_throwsIllegalState() {
-    System.setProperty("DB_USERNAME", "user");
-    System.setProperty("DB_PASSWORD", "pass");
-    System.setProperty("DB_IAM_AUTH", "true");
+  void iamModeDbCredentials_malformedJson_throwsIllegalState() {
+    setIamBaseProperties();
+    System.setProperty("DB_CREDENTIALS", "not-json");
 
     IllegalStateException ex =
         assertThrows(
             IllegalStateException.class,
             () -> processor.postProcessEnvironment(environment, application));
-    assertTrue(ex.getMessage().contains("multiple credential modes"));
+    assertTrue(ex.getMessage().contains("DB_CREDENTIALS"));
+    assertTrue(ex.getMessage().contains("could not be parsed"));
   }
 
   @Test
-  void conflictingModes_allThreeSet_throwsIllegalState() {
+  void iamModeDbCredentials_missingFields_throwsIllegalState() {
+    setIamBaseProperties();
+    System.setProperty("DB_CREDENTIALS", "{\"username\":\"admin\"}");
+
+    IllegalStateException ex =
+        assertThrows(
+            IllegalStateException.class,
+            () -> processor.postProcessEnvironment(environment, application));
+    assertTrue(ex.getMessage().contains("DB_CREDENTIALS"));
+    assertTrue(ex.getMessage().contains("username"));
+    assertTrue(ex.getMessage().contains("password"));
+  }
+
+  // --- Mode 3: IAM + Plain Values source ---
+
+  @Test
+  void iamModePlainValues_setsCorrectFlywayAndRuntimeProperties() {
+    setIamBaseProperties();
+    System.setProperty("DB_USERNAME", "admin");
+    System.setProperty("DB_PASSWORD", "secret");
+
+    processor.postProcessEnvironment(environment, application);
+
+    assertEquals(
+        "jdbc:postgresql://mydb.rds.amazonaws.com:5432/sharingservice",
+        environment.getProperty("spring.flyway.url"));
+    assertEquals("admin", environment.getProperty("spring.flyway.user"));
+    assertEquals("secret", environment.getProperty("spring.flyway.password"));
+    assertEquals(
+        "jdbc:aws-wrapper:postgresql://mydb.rds.amazonaws.com:5432/sharingservice",
+        environment.getProperty("spring.datasource.url"));
+    assertEquals("app_user", environment.getProperty("spring.datasource.username"));
+  }
+
+  @Test
+  void iamModePlainValues_missingPassword_throwsIllegalState() {
+    setIamBaseProperties();
+    System.setProperty("DB_USERNAME", "admin");
+
+    IllegalStateException ex =
+        assertThrows(
+            IllegalStateException.class,
+            () -> processor.postProcessEnvironment(environment, application));
+    assertTrue(ex.getMessage().contains("DB_USERNAME"));
+    assertTrue(ex.getMessage().contains("DB_PASSWORD is missing"));
+  }
+
+  @Test
+  void iamModePlainValues_missingUsername_throwsIllegalState() {
+    setIamBaseProperties();
+    System.setProperty("DB_PASSWORD", "secret");
+
+    IllegalStateException ex =
+        assertThrows(
+            IllegalStateException.class,
+            () -> processor.postProcessEnvironment(environment, application));
+    assertTrue(ex.getMessage().contains("DB_PASSWORD"));
+    assertTrue(ex.getMessage().contains("DB_USERNAME is missing"));
+  }
+
+  // --- IAM: Conflict detection ---
+
+  @Test
+  void iamModeConflict_credentialsAndSecret_throwsIllegalState() {
+    setIamBaseProperties();
+    System.setProperty("DB_CREDENTIALS", "{\"username\":\"u\",\"password\":\"p\"}");
+    System.setProperty("DB_IAM_ADMIN_SECRET", "prod/db-admin");
+
+    IllegalStateException ex =
+        assertThrows(
+            IllegalStateException.class,
+            () -> processor.postProcessEnvironment(environment, application));
+    assertTrue(ex.getMessage().contains("multiple"));
+    assertTrue(ex.getMessage().contains("DB_CREDENTIALS"));
+    assertTrue(ex.getMessage().contains("DB_IAM_ADMIN_SECRET"));
+  }
+
+  @Test
+  void iamModeConflict_credentialsAndPlainValues_throwsIllegalState() {
+    setIamBaseProperties();
+    System.setProperty("DB_CREDENTIALS", "{\"username\":\"u\",\"password\":\"p\"}");
+    System.setProperty("DB_USERNAME", "admin");
+    System.setProperty("DB_PASSWORD", "secret");
+
+    IllegalStateException ex =
+        assertThrows(
+            IllegalStateException.class,
+            () -> processor.postProcessEnvironment(environment, application));
+    assertTrue(ex.getMessage().contains("multiple"));
+    assertTrue(ex.getMessage().contains("DB_CREDENTIALS"));
+    assertTrue(ex.getMessage().contains("DB_USERNAME/DB_PASSWORD"));
+  }
+
+  @Test
+  void iamModeConflict_secretAndPlainValues_throwsIllegalState() {
+    setIamBaseProperties();
+    System.setProperty("DB_IAM_ADMIN_SECRET", "prod/db-admin");
+    System.setProperty("DB_USERNAME", "admin");
+    System.setProperty("DB_PASSWORD", "secret");
+
+    IllegalStateException ex =
+        assertThrows(
+            IllegalStateException.class,
+            () -> processor.postProcessEnvironment(environment, application));
+    assertTrue(ex.getMessage().contains("multiple"));
+    assertTrue(ex.getMessage().contains("DB_IAM_ADMIN_SECRET"));
+    assertTrue(ex.getMessage().contains("DB_USERNAME/DB_PASSWORD"));
+  }
+
+  @Test
+  void iamModeConflict_allThreeSources_throwsIllegalState() {
+    setIamBaseProperties();
+    System.setProperty("DB_CREDENTIALS", "{\"username\":\"u\",\"password\":\"p\"}");
+    System.setProperty("DB_IAM_ADMIN_SECRET", "prod/db-admin");
+    System.setProperty("DB_USERNAME", "admin");
+    System.setProperty("DB_PASSWORD", "secret");
+
+    IllegalStateException ex =
+        assertThrows(
+            IllegalStateException.class,
+            () -> processor.postProcessEnvironment(environment, application));
+    assertTrue(ex.getMessage().contains("multiple"));
+    assertTrue(ex.getMessage().contains("DB_CREDENTIALS"));
+    assertTrue(ex.getMessage().contains("DB_IAM_ADMIN_SECRET"));
+    assertTrue(ex.getMessage().contains("DB_USERNAME/DB_PASSWORD"));
+  }
+
+  // --- IAM: Missing configuration ---
+
+  @Test
+  void iamModeNoFlywaySource_throwsIllegalState() {
+    setIamBaseProperties();
+    // No credential source set
+
+    IllegalStateException ex =
+        assertThrows(
+            IllegalStateException.class,
+            () -> processor.postProcessEnvironment(environment, application));
+    assertTrue(ex.getMessage().contains("None configured"));
+    assertTrue(ex.getMessage().contains("DB_CREDENTIALS"));
+    assertTrue(ex.getMessage().contains("DB_IAM_ADMIN_SECRET"));
+    assertTrue(ex.getMessage().contains("DB_USERNAME"));
+  }
+
+  // --- Mutual exclusivity (non-IAM) ---
+
+  @Test
+  void conflictingModes_credentialsJsonAndUsernamePassword_throwsIllegalState() {
     System.setProperty("DB_CREDENTIALS", "{\"username\":\"u\",\"password\":\"p\"}");
     System.setProperty("DB_USERNAME", "user");
     System.setProperty("DB_PASSWORD", "pass");
-    System.setProperty("DB_IAM_AUTH", "true");
 
     IllegalStateException ex =
         assertThrows(
@@ -284,13 +462,36 @@ class DatabaseCredentialsEnvironmentPostProcessorTest {
     assertTrue(ex.getMessage().contains("DB_USERNAME is missing"));
   }
 
-  private void setIamSystemProperties() {
+  // --- Edge cases ---
+
+  @Test
+  void iamModeEmptyStrings_treatedAsUnset() {
+    setIamBaseProperties();
+    System.setProperty("DB_CREDENTIALS", "");
+    System.setProperty("DB_IAM_ADMIN_SECRET", "");
+    System.setProperty("DB_USERNAME", "");
+    System.setProperty("DB_PASSWORD", "");
+
+    IllegalStateException ex =
+        assertThrows(
+            IllegalStateException.class,
+            () -> processor.postProcessEnvironment(environment, application));
+    assertTrue(ex.getMessage().contains("None configured"));
+  }
+
+  // --- Helpers ---
+
+  private void setIamBaseProperties() {
     System.setProperty("DB_IAM_AUTH", "true");
     System.setProperty("DB_IAM_USERNAME", "app_user");
-    System.setProperty("DB_IAM_ADMIN_SECRET", "prod/db-admin");
     System.setProperty("DB_HOST", "mydb.rds.amazonaws.com");
     System.setProperty("DB_PORT", "5432");
     System.setProperty("DB_NAME", "sharingservice");
     System.setProperty("AWS_REGION", "us-east-1");
+  }
+
+  private void setIamSystemProperties() {
+    setIamBaseProperties();
+    System.setProperty("DB_IAM_ADMIN_SECRET", "prod/db-admin");
   }
 }
