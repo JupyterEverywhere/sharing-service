@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.charset.StandardCharsets;
@@ -34,12 +35,13 @@ class JwtTokenServiceTest {
   private SecretKey secretKey;
   private String validToken;
   private UUID sessionId;
+  private PasswordEncoder passwordEncoder;
 
   @BeforeEach
   void setUp() {
     String secretKeyString = "testSecretKeyForJwtTokenService1234567890";
     secretKey = Keys.hmacShaKeyFor(secretKeyString.getBytes(StandardCharsets.UTF_8));
-    PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    passwordEncoder = new BCryptPasswordEncoder();
 
     jwtTokenService = new JwtTokenService(secretKeyString, 60, passwordEncoder);
     sessionId = UUID.randomUUID();
@@ -54,6 +56,35 @@ class JwtTokenServiceTest {
             .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60))
             .signWith(secretKey, SignatureAlgorithm.HS256)
             .compact();
+  }
+
+  @Test
+  void testSigningConfigurationRejectsMissingBlankAndShortKeys() {
+    assertThrows(
+        IllegalArgumentException.class, () -> new JwtTokenService(null, 60, passwordEncoder));
+    assertThrows(
+        IllegalArgumentException.class, () -> new JwtTokenService("   ", 60, passwordEncoder));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new JwtTokenService("1234567890123456789012345678901", 60, passwordEncoder));
+  }
+
+  @Test
+  void testSigningConfigurationAcceptsExactly32Bytes() {
+    JwtTokenService service =
+        new JwtTokenService("12345678901234567890123456789012", 60, passwordEncoder);
+    String token = service.generateToken(sessionId.toString());
+    assertTrue(service.validateToken(token));
+  }
+
+  @Test
+  void testSigningConfigurationRejectsNonPositiveExpiration() {
+    String validSecret = "12345678901234567890123456789012";
+    assertThrows(
+        IllegalArgumentException.class, () -> new JwtTokenService(validSecret, 0, passwordEncoder));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new JwtTokenService(validSecret, -1, passwordEncoder));
   }
 
   @Test

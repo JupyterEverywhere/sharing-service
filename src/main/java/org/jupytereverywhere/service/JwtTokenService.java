@@ -30,6 +30,7 @@ public class JwtTokenService {
   public static final String ROLE = "role";
   public static final String TOKEN_NAME = "token_name";
   public static final String ADMIN_ROLE = "ADMIN";
+  private static final int MIN_SIGNING_KEY_BYTES = 32;
   private final SecretKey secretKey;
   private final JwtParser jwtParser;
   private final int expirationMinutes;
@@ -38,6 +39,9 @@ public class JwtTokenService {
       @Value("${security.jwt.token.secret-key}") String secretKey,
       @Value("${security.jwt.token.expiration-minutes}") int expirationMinutes,
       PasswordEncoder passwordEncoder) {
+    if (expirationMinutes <= 0) {
+      throw new IllegalArgumentException("JWT expiration must be greater than zero");
+    }
     this.secretKey = createSecretKey(secretKey);
     this.jwtParser =
         Jwts.parserBuilder().setSigningKey(this.secretKey).setAllowedClockSkewSeconds(60).build();
@@ -45,7 +49,13 @@ public class JwtTokenService {
   }
 
   private SecretKey createSecretKey(String secretKeyString) {
+    if (secretKeyString == null || secretKeyString.isBlank()) {
+      throw new IllegalArgumentException("JWT signing key must be configured");
+    }
     byte[] keyBytes = secretKeyString.getBytes(StandardCharsets.UTF_8);
+    if (keyBytes.length < MIN_SIGNING_KEY_BYTES) {
+      throw new IllegalArgumentException("JWT signing key must contain at least 32 UTF-8 bytes");
+    }
     return new SecretKeySpec(keyBytes, "HmacSHA256");
   }
 

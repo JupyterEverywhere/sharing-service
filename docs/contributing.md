@@ -94,8 +94,12 @@ If you want to develop and iterate on the Java code locally you need to do a lit
 4. Start the Java service using Gradle. You can do this directly, but there is a pre-configured script here:
 
    ```bash
+   export JWT_SECRET_KEY="$(openssl rand -hex 32)"
    ./start.sh
    ```
+
+   `JWT_SECRET_KEY` must be at least 32 UTF-8 bytes. The command above creates an ephemeral
+   local-development key; changing it invalidates previously issued local tokens.
 
 ### Troubleshooting Gradle
 
@@ -114,7 +118,8 @@ If something is wrong, or you are seeing exceptions try to solve this by cleanin
    gradle clean
    ```
 
-4. Then you can use `./gradlew bootRun` or `./start.sh` again to start the Java service.
+4. Then, with `JWT_SECRET_KEY` set as above, you can use `./gradlew bootRun` or `./start.sh`
+   again to start the Java service.
 
 ### Run the Tests
 
