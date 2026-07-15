@@ -86,8 +86,8 @@ public class JwtTokenService {
     try {
       Claims claims = extractAllClaims(token);
       return claims.get(ROLE, String.class);
-    } catch (JwtException e) {
-      log.error("Invalid JWT token: {}", e.getMessage());
+    } catch (JwtException | IllegalArgumentException e) {
+      log.warn("JWT role extraction failed");
       return null;
     }
   }
@@ -99,8 +99,8 @@ public class JwtTokenService {
     try {
       Claims claims = extractAllClaims(token);
       return claims.get(TOKEN_NAME, String.class);
-    } catch (JwtException e) {
-      log.error("Invalid JWT token: {}", e.getMessage());
+    } catch (JwtException | IllegalArgumentException e) {
+      log.warn("JWT token-name extraction failed");
       return null;
     }
   }
@@ -121,7 +121,7 @@ public class JwtTokenService {
 
       return UUID.fromString(sessionId);
     } catch (ExpiredJwtException e) {
-      log.warn("Token has expired, extracting session ID from claims: {}", e.getClaims());
+      log.warn("Expired JWT session claim requested");
       String sessionId = e.getClaims().get(SESSION_ID, String.class);
       if (sessionId == null || sessionId.isEmpty()) {
         throw new IllegalArgumentException(
@@ -129,8 +129,8 @@ public class JwtTokenService {
       }
       return UUID.fromString(sessionId);
     } catch (JwtException e) {
-      log.error("Invalid JWT token: {}", e.getMessage());
-      throw new IllegalArgumentException("Invalid JWT token", e);
+      log.warn("JWT session extraction failed");
+      throw new IllegalArgumentException("Invalid JWT token");
     }
   }
 
@@ -143,11 +143,11 @@ public class JwtTokenService {
       Claims claims = extractAllClaims(token);
       return claims.get(NOTEBOOK_ID, String.class);
     } catch (ExpiredJwtException e) {
-      log.warn("Token has expired, extracting notebook ID from claims: {}", e.getClaims());
+      log.warn("Expired JWT notebook claim requested");
       return e.getClaims().get(NOTEBOOK_ID, String.class);
     } catch (JwtException e) {
-      log.error("Invalid JWT token: {}", e.getMessage());
-      throw new IllegalArgumentException("Invalid JWT token", e);
+      log.warn("JWT notebook extraction failed");
+      throw new IllegalArgumentException("Invalid JWT token");
     }
   }
 
@@ -156,7 +156,7 @@ public class JwtTokenService {
       Claims claims = extractAllClaims(token);
       return !claims.getExpiration().before(new Date());
     } catch (JwtException | IllegalArgumentException e) {
-      log.error("Token validation failed: {}", e.getMessage());
+      log.warn("JWT validation failed");
       return false;
     }
   }
@@ -168,7 +168,7 @@ public class JwtTokenService {
     try {
       return extractExpiration(token).before(new Date());
     } catch (JwtException e) {
-      log.error("Failed to check token expiration: {}", e.getMessage());
+      log.warn("JWT expiration check failed");
       return true;
     }
   }
@@ -185,11 +185,11 @@ public class JwtTokenService {
     try {
       return jwtParser.parseClaimsJws(token).getBody();
     } catch (ExpiredJwtException e) {
-      log.warn("Token has expired, returning claims: {}", e.getClaims());
+      log.warn("Expired JWT claims requested");
       return e.getClaims();
     } catch (JwtException e) {
-      log.error("Invalid JWT token: {}", e.getMessage());
-      throw new IllegalArgumentException("Invalid JWT token", e);
+      log.warn("JWT parsing failed");
+      throw new IllegalArgumentException("Invalid JWT token");
     }
   }
 }

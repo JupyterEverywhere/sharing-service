@@ -1,6 +1,7 @@
 package org.jupytereverywhere.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -20,11 +21,14 @@ import org.jupytereverywhere.service.AuthService;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
 @ExtendWith(MockitoExtension.class)
+@ExtendWith(OutputCaptureExtension.class)
 class AuthControllerTest {
 
   @InjectMocks private AuthController authController;
@@ -35,9 +39,10 @@ class AuthControllerTest {
   public void setUp() {}
 
   @Test
-  void testIssueToken_Success_WithAuthenticationRequest() {
+  void testIssueToken_Success_WithAuthenticationRequest(CapturedOutput output) {
+    String submittedNotebookId = "submitted-notebook-id-sentinel";
     AuthenticationRequest authenticationRequest = new AuthenticationRequest();
-    authenticationRequest.setNotebookId("notebook-id");
+    authenticationRequest.setNotebookId(submittedNotebookId);
     authenticationRequest.setPassword("password");
 
     AuthenticationResponse expectedResponse = new AuthenticationResponse("generated-token");
@@ -58,6 +63,8 @@ class AuthControllerTest {
     AuthenticationResponse responseBody = responseEntity.getBody();
     assertNotNull(responseBody);
     assertEquals("generated-token", responseBody.getToken());
+    assertFalse(output.getAll().contains("generated-token"));
+    assertFalse(output.getAll().contains(submittedNotebookId));
 
     verify(authService, times(1)).generateInitialTokenResponse(authenticationRequest);
   }
@@ -131,9 +138,11 @@ class AuthControllerTest {
   }
 
   @Test
-  void testRefreshToken_Success() {
-    TokenRefreshRequest refreshRequest = new TokenRefreshRequest("valid-refresh-token");
-    AuthenticationResponse expectedResponse = new AuthenticationResponse("refreshed-token");
+  void testRefreshToken_Success(CapturedOutput output) {
+    String submittedToken = "submitted-refresh-token-sentinel";
+    String refreshedToken = "refreshed-token-sentinel";
+    TokenRefreshRequest refreshRequest = new TokenRefreshRequest(submittedToken);
+    AuthenticationResponse expectedResponse = new AuthenticationResponse(refreshedToken);
 
     when(authService.refreshTokenResponse(refreshRequest.getToken())).thenReturn(expectedResponse);
 
@@ -145,14 +154,17 @@ class AuthControllerTest {
 
     AuthenticationResponse responseBody = responseEntity.getBody();
     assertNotNull(responseBody);
-    assertEquals("refreshed-token", responseBody.getToken());
+    assertEquals(refreshedToken, responseBody.getToken());
+    assertFalse(output.getAll().contains(submittedToken));
+    assertFalse(output.getAll().contains(refreshedToken));
 
     verify(authService, times(1)).refreshTokenResponse(refreshRequest.getToken());
   }
 
   @Test
-  void testRefreshToken_TokenRefreshException() {
-    TokenRefreshRequest refreshRequest = new TokenRefreshRequest("invalid-refresh-token");
+  void testRefreshToken_TokenRefreshException(CapturedOutput output) {
+    String submittedToken = "rejected-refresh-token-sentinel";
+    TokenRefreshRequest refreshRequest = new TokenRefreshRequest(submittedToken);
 
     when(authService.refreshTokenResponse(refreshRequest.getToken()))
         .thenThrow(new TokenRefreshException("Token refresh failed"));
@@ -165,6 +177,7 @@ class AuthControllerTest {
             });
 
     assertEquals("Token refresh failed", exception.getMessage());
+    assertFalse(output.getAll().contains(submittedToken));
 
     verify(authService, times(1)).refreshTokenResponse(refreshRequest.getToken());
   }

@@ -26,7 +26,6 @@ import lombok.extern.log4j.Log4j2;
 public class AuthController {
 
   private static final String MESSAGE_KEY = "Message";
-  private static final String TOKEN_KEY = "Token";
 
   private final AuthService authService;
 
@@ -53,10 +52,7 @@ public class AuthController {
   @PostMapping("/issue")
   public ResponseEntity<AuthenticationResponse> issueToken(
       @RequestBody(required = false) AuthenticationRequest authenticationRequest) {
-    logInfo(
-        "Received token issuance request",
-        "NotebookId",
-        authenticationRequest != null ? authenticationRequest.getNotebookId() : "None");
+    logInfo("Received token issuance request");
 
     try {
       AuthenticationResponse authenticationResponse =
@@ -64,10 +60,10 @@ public class AuthController {
       HttpHeaders headers =
           HttpHeaderUtils.createAuthorizationHeader(authenticationResponse.getToken());
 
-      logInfo("Initial token issued successfully", TOKEN_KEY, authenticationResponse.getToken());
+      logInfo("Initial token issued successfully");
       return ResponseEntity.ok().headers(headers).body(authenticationResponse);
     } catch (InvalidNotebookPasswordException e) {
-      logError("Invalid notebook ID or password", e);
+      logError("Initial token request rejected");
       return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
           .body(new AuthenticationResponse("Invalid notebook ID or password"));
     }
@@ -76,28 +72,28 @@ public class AuthController {
   @PostMapping("/refresh")
   public ResponseEntity<AuthenticationResponse> refreshToken(
       @RequestBody TokenRefreshRequest refreshRequest) {
-    logInfo("Received request to refresh JWT token", TOKEN_KEY, refreshRequest.getToken());
+    logInfo("Received request to refresh JWT token");
 
     try {
       AuthenticationResponse authenticationResponse =
           authService.refreshTokenResponse(refreshRequest.getToken());
-      logInfo("Token refreshed successfully", "NewToken", authenticationResponse.getToken());
+      logInfo("Token refreshed successfully");
       return ResponseEntity.ok(authenticationResponse);
     } catch (TokenRefreshException e) {
-      logError(refreshRequest.getToken(), e);
+      logError("Token refresh rejected");
       throw e;
     }
+  }
+
+  private void logInfo(String message) {
+    log.info(new StringMapMessage().with(MESSAGE_KEY, message));
   }
 
   private void logInfo(String message, String key, String value) {
     log.info(new StringMapMessage().with(MESSAGE_KEY, message).with(key, value));
   }
 
-  private void logError(String value, Exception e) {
-    log.error(
-        new StringMapMessage()
-            .with(MESSAGE_KEY, "Error refreshing token")
-            .with(AuthController.TOKEN_KEY, value),
-        e);
+  private void logError(String message) {
+    log.warn(new StringMapMessage().with(MESSAGE_KEY, message));
   }
 }

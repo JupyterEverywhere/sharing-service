@@ -143,10 +143,8 @@ issue_token() {
     API_TOKEN=$(echo "${response}" | jq -r '.token' 2>/dev/null || echo "")
     if [[ -n "${API_TOKEN}" && "${API_TOKEN}" != "null" ]]; then
       log_success "Token issued successfully"
-      log_info "Token: ${YELLOW}${API_TOKEN}${NC}"
     else
       log_error "Failed to parse token from response"
-      log_error "Response: ${response}"
       exit 1
     fi
   else

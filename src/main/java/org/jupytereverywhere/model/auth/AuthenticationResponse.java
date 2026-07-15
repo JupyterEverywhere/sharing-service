@@ -5,11 +5,12 @@ import org.springframework.stereotype.Component;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @Component
 public class AuthenticationResponse {
-  private String token;
+  @ToString.Exclude private String token;
 }

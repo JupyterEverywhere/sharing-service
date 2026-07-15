@@ -44,12 +44,9 @@ class TokenRefreshRequestTest {
 
   @Test
   void testToString() {
-    tokenRefreshRequest.setToken("sampleToken");
-    String expectedString = "TokenRefreshRequest(token=sampleToken)";
-    assertEquals(
-        expectedString,
-        tokenRefreshRequest.toString(),
-        "toString output should match the expected format");
+    String token = "sensitive-token-sentinel";
+    tokenRefreshRequest.setToken(token);
+    assertFalse(tokenRefreshRequest.toString().contains(token));
   }
 
   @Test

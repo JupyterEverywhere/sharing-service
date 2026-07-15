@@ -16,6 +16,9 @@ import javax.crypto.SecretKey;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
@@ -24,6 +27,7 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 
+@ExtendWith(OutputCaptureExtension.class)
 class JwtTokenServiceTest {
 
   private JwtTokenService jwtTokenService;
@@ -98,6 +102,28 @@ class JwtTokenServiceTest {
 
     UUID extractedSessionId = jwtTokenService.extractSessionIdFromToken(expiredToken);
     assertEquals(sessionId, extractedSessionId);
+  }
+
+  @Test
+  void testExpiredTokenDiagnosticsDoNotExposeTokenOrClaims(CapturedOutput output) {
+    String sensitiveClaim = "expired-claim-sentinel";
+    Map<String, Object> claims = new HashMap<>();
+    claims.put("session_id", sessionId.toString());
+    claims.put("notebook_id", sensitiveClaim);
+
+    String expiredToken =
+        Jwts.builder()
+            .setClaims(claims)
+            .setIssuedAt(new Date(System.currentTimeMillis() - 1000 * 60 * 10))
+            .setExpiration(new Date(System.currentTimeMillis() - 1000 * 60 * 5))
+            .signWith(secretKey, SignatureAlgorithm.HS256)
+            .compact();
+
+    assertEquals(sessionId, jwtTokenService.extractSessionIdFromToken(expiredToken));
+    assertEquals(sensitiveClaim, jwtTokenService.extractNotebookIdFromToken(expiredToken));
+    assertFalse(jwtTokenService.validateToken(expiredToken));
+    assertFalse(output.getAll().contains(expiredToken));
+    assertFalse(output.getAll().contains(sensitiveClaim));
   }
 
   @Test

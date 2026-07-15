@@ -56,7 +56,7 @@ public class AuthService {
       }
     }
 
-    logStructuredMessage("Generating initial token for session", sessionId, token);
+    logStructuredMessage("Generating initial token for session", sessionId);
     tokenStore.storeToken(sessionId, token);
 
     return createAuthenticationResponse(token);
@@ -77,14 +77,14 @@ public class AuthService {
     String token =
         jwtTokenService.generateAdminToken(sessionId.toString(), adminRequest.getTokenName());
 
-    logStructuredMessage("Admin token issued", sessionId, token);
+    logStructuredMessage("Admin token issued", sessionId);
     tokenStore.storeToken(sessionId, token);
 
     return createAuthenticationResponse(token);
   }
 
   public AuthenticationResponse refreshTokenResponse(String token) {
-    logStructuredMessage("Refreshing JWT token", null, token);
+    logStructuredMessage("Refreshing JWT token", null);
 
     UUID sessionId = jwtTokenService.extractSessionIdFromToken(token);
     String notebookId = jwtTokenService.extractNotebookIdFromToken(token);
@@ -104,7 +104,7 @@ public class AuthService {
     }
     tokenStore.storeToken(sessionId, refreshedToken);
 
-    logStructuredMessage("Token refreshed successfully", sessionId, refreshedToken);
+    logStructuredMessage("Token refreshed successfully", sessionId);
     return createAuthenticationResponse(refreshedToken);
   }
 
@@ -121,13 +121,10 @@ public class AuthService {
     return false;
   }
 
-  private void logStructuredMessage(String message, UUID sessionId, String token) {
+  private void logStructuredMessage(String message, UUID sessionId) {
     StringMapMessage logMessage = new StringMapMessage().with("Message", message);
     if (sessionId != null) {
       logMessage.with("SessionId", sessionId.toString());
-    }
-    if (token != null) {
-      logMessage.with("Token", token);
     }
     log.info(logMessage);
   }

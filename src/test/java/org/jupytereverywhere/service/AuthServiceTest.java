@@ -1,6 +1,7 @@
 package org.jupytereverywhere.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -25,9 +26,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
+@ExtendWith(OutputCaptureExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class AuthServiceTest {
 
@@ -38,8 +42,8 @@ class AuthServiceTest {
   @InjectMocks private AuthService authService;
 
   @Test
-  void testGenerateInitialTokenResponse_Success() {
-    String expectedToken = "some-jwt-token";
+  void testGenerateInitialTokenResponse_Success(CapturedOutput output) {
+    String expectedToken = "issued-token-sentinel";
     when(jwtTokenService.generateToken(anyString())).thenReturn(expectedToken);
 
     AuthenticationResponse response =
@@ -47,15 +51,16 @@ class AuthServiceTest {
 
     assertNotNull(response);
     assertEquals(expectedToken, response.getToken());
+    assertFalse(output.getAll().contains(expectedToken));
     verify(jwtTokenService).generateToken(anyString());
     verify(tokenStore).storeToken(any(UUID.class), eq(expectedToken));
   }
 
   @Test
-  void testRefreshTokenResponse_Success() {
-    String oldToken = "old-jwt-token";
+  void testRefreshTokenResponse_Success(CapturedOutput output) {
+    String oldToken = "old-token-sentinel";
     UUID sessionId = UUID.randomUUID();
-    String expectedToken = "new-jwt-token";
+    String expectedToken = "new-token-sentinel";
     String notebookId = "notebook-123";
 
     when(jwtTokenService.extractSessionIdFromToken(oldToken)).thenReturn(sessionId);
@@ -69,6 +74,8 @@ class AuthServiceTest {
     assertNotNull(response, "AuthenticationResponse should not be null");
     assertEquals(
         expectedToken, response.getToken(), "The new token should match the expected value");
+    assertFalse(output.getAll().contains(oldToken));
+    assertFalse(output.getAll().contains(expectedToken));
 
     verify(jwtTokenService).extractSessionIdFromToken(oldToken);
     verify(jwtTokenService).extractNotebookIdFromToken(oldToken);
@@ -92,9 +99,9 @@ class AuthServiceTest {
   }
 
   @Test
-  void testGenerateAdminTokenResponse_Success() {
+  void testGenerateAdminTokenResponse_Success(CapturedOutput output) {
     ReflectionTestUtils.setField(authService, "adminSecret", "test-secret");
-    String expectedToken = "admin-jwt-token";
+    String expectedToken = "admin-token-sentinel";
     when(jwtTokenService.generateAdminToken(anyString(), eq("ops-team-1")))
         .thenReturn(expectedToken);
 
@@ -103,6 +110,7 @@ class AuthServiceTest {
 
     assertNotNull(response);
     assertEquals(expectedToken, response.getToken());
+    assertFalse(output.getAll().contains(expectedToken));
     verify(jwtTokenService).generateAdminToken(anyString(), eq("ops-team-1"));
     verify(tokenStore).storeToken(any(UUID.class), eq(expectedToken));
   }
