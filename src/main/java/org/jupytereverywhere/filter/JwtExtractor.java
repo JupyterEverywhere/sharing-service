@@ -2,6 +2,7 @@ package org.jupytereverywhere.filter;
 
 import org.apache.logging.log4j.message.StringMapMessage;
 import org.jupytereverywhere.utils.HttpHeaderUtils;
+import org.jupytereverywhere.utils.SecretComparisonUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -52,7 +53,7 @@ public class JwtExtractor {
       log.debug(new StringMapMessage().with(MESSAGE_KEY, "Extra auth header present but empty"));
       return false;
     }
-    boolean isValid = extraAuthHeaderSecret.equals(headerValue);
+    boolean isValid = SecretComparisonUtils.constantTimeEquals(extraAuthHeaderSecret, headerValue);
     if (isValid) {
       log.debug(
           new StringMapMessage().with(MESSAGE_KEY, "Extra auth header validation successful"));

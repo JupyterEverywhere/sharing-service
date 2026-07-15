@@ -11,6 +11,7 @@ import org.jupytereverywhere.model.TokenStore;
 import org.jupytereverywhere.model.auth.AdminTokenRequest;
 import org.jupytereverywhere.model.auth.AuthenticationRequest;
 import org.jupytereverywhere.model.auth.AuthenticationResponse;
+import org.jupytereverywhere.utils.SecretComparisonUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -71,7 +72,7 @@ public class AuthService {
   public AuthenticationResponse generateAdminTokenResponse(AdminTokenRequest adminRequest) {
     if (adminSecret == null
         || adminSecret.isEmpty()
-        || !adminSecret.equals(adminRequest.getSecret())) {
+        || !SecretComparisonUtils.constantTimeEquals(adminSecret, adminRequest.getSecret())) {
       log.warn(
           new StringMapMessage()
               .with("Message", "Invalid admin secret presented")
