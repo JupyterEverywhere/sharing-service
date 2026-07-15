@@ -51,7 +51,7 @@ public class AuthController {
 
   @PostMapping("/issue")
   public ResponseEntity<AuthenticationResponse> issueToken(
-      @RequestBody(required = false) AuthenticationRequest authenticationRequest) {
+      @Valid @RequestBody(required = false) AuthenticationRequest authenticationRequest) {
     logInfo("Received token issuance request");
 
     try {
@@ -71,7 +71,7 @@ public class AuthController {
 
   @PostMapping("/refresh")
   public ResponseEntity<AuthenticationResponse> refreshToken(
-      @RequestBody TokenRefreshRequest refreshRequest) {
+      @Valid @RequestBody TokenRefreshRequest refreshRequest) {
     logInfo("Received request to refresh JWT token");
 
     try {
@@ -81,7 +81,8 @@ public class AuthController {
       return ResponseEntity.ok(authenticationResponse);
     } catch (TokenRefreshException e) {
       logError("Token refresh rejected");
-      throw e;
+      return ResponseEntity.status(HttpStatus.FORBIDDEN)
+          .body(new AuthenticationResponse("Invalid or expired token"));
     }
   }
 

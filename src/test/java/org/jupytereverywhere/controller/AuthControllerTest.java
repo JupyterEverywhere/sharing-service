@@ -169,14 +169,11 @@ class AuthControllerTest {
     when(authService.refreshTokenResponse(refreshRequest.getToken()))
         .thenThrow(new TokenRefreshException("Token refresh failed"));
 
-    TokenRefreshException exception =
-        assertThrows(
-            TokenRefreshException.class,
-            () -> {
-              authController.refreshToken(refreshRequest);
-            });
+    ResponseEntity<AuthenticationResponse> response = authController.refreshToken(refreshRequest);
 
-    assertEquals("Token refresh failed", exception.getMessage());
+    assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+    assertNotNull(response.getBody());
+    assertEquals("Invalid or expired token", response.getBody().getToken());
     assertFalse(output.getAll().contains(submittedToken));
 
     verify(authService, times(1)).refreshTokenResponse(refreshRequest.getToken());

@@ -3,6 +3,7 @@ package org.jupytereverywhere.utils;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -174,5 +175,30 @@ class HttpHeaderUtilsTest {
     String headerValue = HttpHeaderUtils.getHeaderValue(request, "X-Test-Header");
 
     assertNull(headerValue, "Header value should be null for an 'unknown' header value");
+  }
+
+  @Test
+  void testGetTokenFromRequest_UsesAuthorizationHeader() {
+    HttpServletRequest request = mock(HttpServletRequest.class);
+    when(request.getHeader("Authorization")).thenReturn("Bearer header-token");
+
+    assertEquals("header-token", HttpHeaderUtils.getTokenFromRequest(request));
+  }
+
+  @Test
+  void testGetTokenFromRequest_AcceptsCaseInsensitiveBearerScheme() {
+    HttpServletRequest request = mock(HttpServletRequest.class);
+    when(request.getHeader("Authorization")).thenReturn("bEaReR header-token");
+
+    assertEquals("header-token", HttpHeaderUtils.getTokenFromRequest(request));
+  }
+
+  @Test
+  void testGetTokenFromRequest_RejectsQueryParameterToken() {
+    HttpServletRequest request = mock(HttpServletRequest.class);
+    when(request.getParameter("token")).thenReturn("query-token");
+
+    assertThrows(
+        IllegalArgumentException.class, () -> HttpHeaderUtils.getTokenFromRequest(request));
   }
 }

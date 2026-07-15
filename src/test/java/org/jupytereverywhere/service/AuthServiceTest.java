@@ -10,13 +10,17 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.jupytereverywhere.exception.InvalidNotebookPasswordException;
+import org.jupytereverywhere.exception.NotebookNotFoundException;
 import org.jupytereverywhere.exception.TokenRefreshException;
+import org.jupytereverywhere.model.JupyterNotebookEntity;
 import org.jupytereverywhere.model.TokenStore;
 import org.jupytereverywhere.model.auth.AdminTokenRequest;
 import org.jupytereverywhere.model.auth.AuthenticationRequest;
@@ -28,6 +32,7 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -38,6 +43,10 @@ class AuthServiceTest {
   @Mock private JwtTokenService jwtTokenService;
 
   @Mock private TokenStore tokenStore;
+
+  @Mock private JupyterNotebookService notebookService;
+
+  @Mock private PasswordEncoder passwordEncoder;
 
   @InjectMocks private AuthService authService;
 
@@ -54,6 +63,56 @@ class AuthServiceTest {
     assertFalse(output.getAll().contains(expectedToken));
     verify(jwtTokenService).generateToken(anyString());
     verify(tokenStore).storeToken(any(UUID.class), eq(expectedToken));
+  }
+
+  @Test
+  void testGenerateInitialTokenResponse_MalformedNotebookIdIsNormalized() {
+    AuthenticationRequest request = new AuthenticationRequest("not-a-uuid", "password");
+
+    InvalidNotebookPasswordException exception =
+        assertThrows(
+            InvalidNotebookPasswordException.class,
+            () -> authService.generateInitialTokenResponse(request));
+
+    assertEquals("Invalid notebook ID or password", exception.getMessage());
+    verifyNoInteractions(notebookService);
+    verify(tokenStore, never()).storeToken(any(UUID.class), anyString());
+  }
+
+  @Test
+  void testGenerateInitialTokenResponse_UnknownNotebookIsNormalized() {
+    UUID notebookId = UUID.randomUUID();
+    when(notebookService.getNotebookById(notebookId))
+        .thenThrow(new NotebookNotFoundException("database detail sentinel"));
+
+    InvalidNotebookPasswordException exception =
+        assertThrows(
+            InvalidNotebookPasswordException.class,
+            () ->
+                authService.generateInitialTokenResponse(
+                    new AuthenticationRequest(notebookId.toString(), "password")));
+
+    assertEquals("Invalid notebook ID or password", exception.getMessage());
+    verify(tokenStore, never()).storeToken(any(UUID.class), anyString());
+  }
+
+  @Test
+  void testGenerateInitialTokenResponse_WrongPasswordUsesSameResponse() {
+    UUID notebookId = UUID.randomUUID();
+    JupyterNotebookEntity notebook = new JupyterNotebookEntity();
+    notebook.setPassword("encoded-password");
+    when(notebookService.getNotebookById(notebookId)).thenReturn(notebook);
+    when(passwordEncoder.matches("wrong-password", "encoded-password")).thenReturn(false);
+
+    InvalidNotebookPasswordException exception =
+        assertThrows(
+            InvalidNotebookPasswordException.class,
+            () ->
+                authService.generateInitialTokenResponse(
+                    new AuthenticationRequest(notebookId.toString(), "wrong-password")));
+
+    assertEquals("Invalid notebook ID or password", exception.getMessage());
+    verify(tokenStore, never()).storeToken(any(UUID.class), anyString());
   }
 
   @Test
@@ -96,6 +155,28 @@ class AuthServiceTest {
     verify(jwtTokenService, never()).generateToken(anyString());
     verify(tokenStore, never()).removeToken(any(UUID.class));
     verify(tokenStore, never()).storeToken(any(UUID.class), anyString());
+  }
+
+  @Test
+  void testRefreshTokenResponse_Failure_MalformedTokenIsNormalized() {
+    String malformedToken = "malformed-token";
+    when(jwtTokenService.extractSessionIdFromToken(malformedToken))
+        .thenThrow(new IllegalArgumentException("parser detail sentinel"));
+
+    TokenRefreshException exception =
+        assertThrows(
+            TokenRefreshException.class, () -> authService.refreshTokenResponse(malformedToken));
+
+    assertEquals("Invalid or expired token", exception.getMessage());
+  }
+
+  @Test
+  void testRefreshTokenResponse_Failure_BlankTokenIsNormalized() {
+    TokenRefreshException exception =
+        assertThrows(TokenRefreshException.class, () -> authService.refreshTokenResponse(" "));
+
+    assertEquals("Invalid or expired token", exception.getMessage());
+    verify(jwtTokenService, never()).extractSessionIdFromToken(anyString());
   }
 
   @Test

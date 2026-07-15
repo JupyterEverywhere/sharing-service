@@ -86,18 +86,22 @@ public class HttpHeaderUtils {
   }
 
   public static String getTokenFromRequest(HttpServletRequest request) {
-
-    String authorizationHeader = request.getHeader("Authorization");
-    if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
-      return authorizationHeader.substring(7);
+    String token = extractBearerToken(request.getHeader("Authorization"));
+    if (token != null) {
+      return token;
     }
 
-    String tokenFromQuery = request.getParameter("token");
-    if (tokenFromQuery != null && !tokenFromQuery.isEmpty()) {
-      return tokenFromQuery;
+    throw new IllegalArgumentException("No bearer token found in the Authorization header");
+  }
+
+  public static String extractBearerToken(String authorizationHeader) {
+    if (authorizationHeader == null
+        || !authorizationHeader.regionMatches(true, 0, "Bearer ", 0, 7)) {
+      return null;
     }
 
-    throw new IllegalArgumentException("No token found in the request");
+    String token = authorizationHeader.substring(7).trim();
+    return token.isEmpty() ? null : token;
   }
 
   private static void logInfo(String message, String key, String value) {

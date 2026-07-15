@@ -4,6 +4,7 @@ import java.util.UUID;
 
 import org.apache.logging.log4j.message.StringMapMessage;
 import org.jupytereverywhere.exception.InvalidNotebookPasswordException;
+import org.jupytereverywhere.exception.NotebookNotFoundException;
 import org.jupytereverywhere.exception.TokenRefreshException;
 import org.jupytereverywhere.model.JupyterNotebookEntity;
 import org.jupytereverywhere.model.TokenStore;
@@ -19,6 +20,8 @@ import lombok.extern.log4j.Log4j2;
 @Log4j2
 @Service
 public class AuthService {
+
+  private static final String INVALID_TOKEN_MESSAGE = "Invalid or expired token";
 
   private final JwtTokenService jwtTokenService;
   private final TokenStore tokenStore;
@@ -48,10 +51,13 @@ public class AuthService {
         || authRequest.getPassword() == null) {
       token = jwtTokenService.generateToken(sessionId.toString());
     } else {
-      if (verifyNotebookPassword(
-          UUID.fromString(authRequest.getNotebookId()), authRequest.getPassword())) {
-        token = jwtTokenService.generateToken(sessionId.toString(), authRequest.getNotebookId());
-      } else {
+      try {
+        UUID notebookId = UUID.fromString(authRequest.getNotebookId());
+        if (!verifyNotebookPassword(notebookId, authRequest.getPassword())) {
+          throw new InvalidNotebookPasswordException("Invalid notebook ID or password");
+        }
+        token = jwtTokenService.generateToken(sessionId.toString(), notebookId.toString());
+      } catch (IllegalArgumentException | NotebookNotFoundException e) {
         throw new InvalidNotebookPasswordException("Invalid notebook ID or password");
       }
     }
@@ -86,12 +92,26 @@ public class AuthService {
   public AuthenticationResponse refreshTokenResponse(String token) {
     logStructuredMessage("Refreshing JWT token", null);
 
+    if (token == null || token.isBlank()) {
+      throw new TokenRefreshException(INVALID_TOKEN_MESSAGE);
+    }
+
+    try {
+      return refreshValidatedToken(token);
+    } catch (TokenRefreshException e) {
+      throw e;
+    } catch (IllegalArgumentException e) {
+      throw new TokenRefreshException(INVALID_TOKEN_MESSAGE);
+    }
+  }
+
+  private AuthenticationResponse refreshValidatedToken(String token) {
     UUID sessionId = jwtTokenService.extractSessionIdFromToken(token);
     String notebookId = jwtTokenService.extractNotebookIdFromToken(token);
     String role = jwtTokenService.extractRoleFromToken(token);
     String tokenName = jwtTokenService.extractTokenNameFromToken(token);
     if (sessionId == null || !isTokenValid(token, sessionId)) {
-      throw new TokenRefreshException("Invalid or expired session ID");
+      throw new TokenRefreshException(INVALID_TOKEN_MESSAGE);
     }
 
     tokenStore.removeToken(sessionId);
