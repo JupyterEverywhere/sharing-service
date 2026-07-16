@@ -6,16 +6,24 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Set;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validation;
+import jakarta.validation.Validator;
 
 class TokenRefreshRequestTest {
 
   private TokenRefreshRequest tokenRefreshRequest;
+  private Validator validator;
 
   @BeforeEach
   public void setUp() {
     tokenRefreshRequest = new TokenRefreshRequest();
+    validator = Validation.buildDefaultValidatorFactory().getValidator();
   }
 
   @Test
@@ -44,12 +52,9 @@ class TokenRefreshRequestTest {
 
   @Test
   void testToString() {
-    tokenRefreshRequest.setToken("sampleToken");
-    String expectedString = "TokenRefreshRequest(token=sampleToken)";
-    assertEquals(
-        expectedString,
-        tokenRefreshRequest.toString(),
-        "toString output should match the expected format");
+    String token = "sensitive-token-sentinel";
+    tokenRefreshRequest.setToken(token);
+    assertFalse(tokenRefreshRequest.toString().contains(token));
   }
 
   @Test
@@ -118,5 +123,16 @@ class TokenRefreshRequestTest {
     assertFalse(
         request.canEqual("Some String"),
         "canEqual should return false for objects of different types");
+  }
+
+  @Test
+  void testValidationRejectsBlankAndOversizedTokens() {
+    Set<ConstraintViolation<TokenRefreshRequest>> blankViolations =
+        validator.validate(new TokenRefreshRequest(" "));
+    Set<ConstraintViolation<TokenRefreshRequest>> oversizedViolations =
+        validator.validate(new TokenRefreshRequest("x".repeat(8193)));
+
+    assertFalse(blankViolations.isEmpty());
+    assertFalse(oversizedViolations.isEmpty());
   }
 }

@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.10.2] - 2026-07-15
+
+### Security
+
+- Removed bearer tokens, decoded claims, and parser details from application diagnostics
+- Required a nonblank JWT signing key of at least 32 UTF-8 bytes at startup
+- Bounded authentication inputs and normalized invalid refresh credentials to a generic response
+- Removed query-parameter bearer token support; clients must use the `Authorization` header
+- Added constant-time comparison for shared authentication secrets
+- Updated Spring Boot to 3.5.16 and patched Tomcat, Netty, Jackson, and PostgreSQL JDBC dependencies to clear all HIGH/CRITICAL CVEs
+
+### Testing
+
+- Added credential-leak and authentication-boundary regression tests
+
 ## [0.7.0] - 2025-10-22
 
 ### Added

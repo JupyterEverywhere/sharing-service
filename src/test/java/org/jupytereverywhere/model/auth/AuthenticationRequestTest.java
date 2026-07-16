@@ -1,20 +1,28 @@
 package org.jupytereverywhere.model.auth;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.Set;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validation;
+import jakarta.validation.Validator;
+
 class AuthenticationRequestTest {
 
   private AuthenticationRequest authenticationRequest;
+  private Validator validator;
 
   @BeforeEach
   public void setUp() {
     authenticationRequest = new AuthenticationRequest();
+    validator = Validation.buildDefaultValidatorFactory().getValidator();
   }
 
   @Test
@@ -108,14 +116,24 @@ class AuthenticationRequestTest {
   }
 
   @Test
-  void testNotBlankValidation_NotebookId() {
-    AuthenticationRequest request = new AuthenticationRequest("", "testPassword");
-    assertTrue(request.getNotebookId().isBlank(), "NotebookId should be blank");
+  void validationRejectsBlankAndOversizedNotebookId() {
+    Set<ConstraintViolation<AuthenticationRequest>> blankViolations =
+        validator.validate(new AuthenticationRequest("", "testPassword"));
+    Set<ConstraintViolation<AuthenticationRequest>> oversizedViolations =
+        validator.validate(new AuthenticationRequest("x".repeat(37), "testPassword"));
+
+    assertFalse(blankViolations.isEmpty());
+    assertFalse(oversizedViolations.isEmpty());
   }
 
   @Test
-  void testNotBlankValidation_Password() {
-    AuthenticationRequest request = new AuthenticationRequest("notebook-123", "");
-    assertTrue(request.getPassword().isBlank(), "Password should be blank");
+  void validationRejectsBlankAndOversizedPassword() {
+    Set<ConstraintViolation<AuthenticationRequest>> blankViolations =
+        validator.validate(new AuthenticationRequest("notebook-123", ""));
+    Set<ConstraintViolation<AuthenticationRequest>> oversizedViolations =
+        validator.validate(new AuthenticationRequest("notebook-123", "x".repeat(1025)));
+
+    assertFalse(blankViolations.isEmpty());
+    assertFalse(oversizedViolations.isEmpty());
   }
 }

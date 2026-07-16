@@ -15,7 +15,7 @@ This project follows **GitHub Flow**, a lightweight, trunk-based development str
 3. **Pull Requests** are opened when work is ready for review
 4. **CI/CD automatically validates** all PRs with tests and security scans
 5. **Merge to `main`** after PR approval and passing checks
-6. **Tag releases** when ready to deploy (e.g., `v0.3.4`)
+6. **Tag releases** when ready to deploy (e.g., `0.3.4`)
 7. **Deploy** by manually promoting tagged images through staging → production
 
 ### Branch Naming Conventions
@@ -31,7 +31,7 @@ Use descriptive branch names that clearly indicate the purpose:
 
 Releases are controlled via Git tags, not branches:
 
-- Tag with semantic versions (e.g., `v0.3.4`)
+- Tag with semantic versions (e.g., `0.3.4`)
 - All tags automatically trigger CI/CD pipeline that builds, scans, and pushes to ECR
 - Manually promote ECR images to staging/production environments
 
@@ -43,7 +43,7 @@ For critical production bugs:
 2. Fix the issue and open a PR
 3. CI/CD runs security scans and tests
 4. Merge to `main` after approval
-5. Tag immediately for deployment: `git tag v0.3.5`
+5. Tag immediately for deployment: `git tag 0.3.5`
 6. Deploy the hotfix image to production
 
 ## Prerequisites
@@ -94,8 +94,12 @@ If you want to develop and iterate on the Java code locally you need to do a lit
 4. Start the Java service using Gradle. You can do this directly, but there is a pre-configured script here:
 
    ```bash
+   export JWT_SECRET_KEY="$(openssl rand -hex 32)"
    ./start.sh
    ```
+
+   `JWT_SECRET_KEY` must be at least 32 UTF-8 bytes. The command above creates an ephemeral
+   local-development key; changing it invalidates previously issued local tokens.
 
 ### Troubleshooting Gradle
 
@@ -114,7 +118,8 @@ If something is wrong, or you are seeing exceptions try to solve this by cleanin
    gradle clean
    ```
 
-4. Then you can use `./gradlew bootRun` or `./start.sh` again to start the Java service.
+4. Then, with `JWT_SECRET_KEY` set as above, you can use `./gradlew bootRun` or `./start.sh`
+   again to start the Java service.
 
 ### Run the Tests
 

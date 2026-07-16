@@ -10,11 +10,28 @@ servers:
 
 paths:
   /auth/issue:
-    get:
+    post:
       summary: Issue initial JWT token
-      description: Issue a JWT token for the user when they first visit the website. This token will be used for subsequent API requests and will include session data.
+      description: Issue an anonymous JWT when the body is omitted, or a notebook-scoped JWT when valid notebook credentials are supplied.
       tags:
         - Authentication
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notebookId:
+                  type: string
+                  format: uuid
+                  maxLength: 36
+                password:
+                  type: string
+                  maxLength: 1024
+              required:
+                - notebookId
+                - password
       responses:
         "200":
           description: Initial JWT token issued successfully
@@ -35,6 +52,23 @@ paths:
                     example: "initialJWTTokenHere"
         "403":
           $ref: "#/components/responses/OriginMismatch"
+        "400":
+          description: Malformed or invalid authentication request
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "Invalid request"
+        "401":
+          description: Invalid notebook ID or password
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    example: "Invalid notebook ID or password"
         "500":
           $ref: "#/components/responses/TokenGenerationError"
   /auth/refresh:
@@ -52,8 +86,11 @@ paths:
               properties:
                 token:
                   type: string
+                  maxLength: 8192
                   description: "The current valid JWT that is about to expire."
                   example: "currentJWTTokenHere"
+              required:
+                - token
       responses:
         "200":
           description: JWT refreshed successfully
@@ -66,8 +103,23 @@ paths:
                     type: string
                     description: "The new JWT token with an extended expiration time."
                     example: "newJWTTokenHere"
+        "400":
+          description: Malformed or invalid refresh request
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "Invalid request"
         "403":
-          $ref: "#/components/responses/InvalidJWT"
+          description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    example: "Invalid or expired token"
         "500":
           $ref: "#/components/responses/TokenGenerationError"
 

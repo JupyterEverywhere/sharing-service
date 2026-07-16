@@ -1,7 +1,7 @@
 plugins {
 	id 'java'
 	id 'jacoco'
-	id 'org.springframework.boot' version '3.5.12'
+	id 'org.springframework.boot' version '3.5.16'
 	id 'io.spring.dependency-management' version '1.1.6'
 	id("org.springdoc.openapi-gradle-plugin") version "1.9.0"
 	id 'org.openapi.generator' version '6.4.0'
@@ -10,7 +10,7 @@ plugins {
 }
 
 group = 'org.jupytereverywhere'
-version = '0.10.1'
+version = '0.10.2'
 
 java {
 	toolchain {
@@ -19,13 +19,13 @@ java {
 }
 
 ext {
-	set('jackson-bom.version', '2.21.1')
+	set('jackson-bom.version', '2.21.5')
 	lombokVersion = '1.18.42'
 	jjwtVersion = '0.11.5'
 	awsSdkBomVersion = '2.35.0'
 	awsJdbcWrapperVersion = '2.6.5'
 	springdocVersion = '1.8.0'
-	postgresVersion = '42.7.8'
+	postgresVersion = '42.7.13'
 	classgraphVersion = '4.8.69'
 	webjarsVersion = '0.47'
 	persistenceApiVersion = '2.2'

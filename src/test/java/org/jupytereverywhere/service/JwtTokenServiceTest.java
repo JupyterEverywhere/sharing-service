@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.charset.StandardCharsets;
@@ -16,6 +17,9 @@ import javax.crypto.SecretKey;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
@@ -24,18 +28,20 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 
+@ExtendWith(OutputCaptureExtension.class)
 class JwtTokenServiceTest {
 
   private JwtTokenService jwtTokenService;
   private SecretKey secretKey;
   private String validToken;
   private UUID sessionId;
+  private PasswordEncoder passwordEncoder;
 
   @BeforeEach
   void setUp() {
     String secretKeyString = "testSecretKeyForJwtTokenService1234567890";
     secretKey = Keys.hmacShaKeyFor(secretKeyString.getBytes(StandardCharsets.UTF_8));
-    PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    passwordEncoder = new BCryptPasswordEncoder();
 
     jwtTokenService = new JwtTokenService(secretKeyString, 60, passwordEncoder);
     sessionId = UUID.randomUUID();
@@ -50,6 +56,35 @@ class JwtTokenServiceTest {
             .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60))
             .signWith(secretKey, SignatureAlgorithm.HS256)
             .compact();
+  }
+
+  @Test
+  void testSigningConfigurationRejectsMissingBlankAndShortKeys() {
+    assertThrows(
+        IllegalArgumentException.class, () -> new JwtTokenService(null, 60, passwordEncoder));
+    assertThrows(
+        IllegalArgumentException.class, () -> new JwtTokenService("   ", 60, passwordEncoder));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new JwtTokenService("1234567890123456789012345678901", 60, passwordEncoder));
+  }
+
+  @Test
+  void testSigningConfigurationAcceptsExactly32Bytes() {
+    JwtTokenService service =
+        new JwtTokenService("12345678901234567890123456789012", 60, passwordEncoder);
+    String token = service.generateToken(sessionId.toString());
+    assertTrue(service.validateToken(token));
+  }
+
+  @Test
+  void testSigningConfigurationRejectsNonPositiveExpiration() {
+    String validSecret = "12345678901234567890123456789012";
+    assertThrows(
+        IllegalArgumentException.class, () -> new JwtTokenService(validSecret, 0, passwordEncoder));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new JwtTokenService(validSecret, -1, passwordEncoder));
   }
 
   @Test
@@ -92,12 +127,34 @@ class JwtTokenServiceTest {
         Jwts.builder()
             .setClaims(claims)
             .setIssuedAt(new Date(System.currentTimeMillis() - 1000 * 60 * 60))
-            .setExpiration(new Date(System.currentTimeMillis() - 1000 * 30))
+            .setExpiration(new Date(System.currentTimeMillis() - 1000 * 60 * 5))
             .signWith(secretKey, SignatureAlgorithm.HS256)
             .compact();
 
     UUID extractedSessionId = jwtTokenService.extractSessionIdFromToken(expiredToken);
     assertEquals(sessionId, extractedSessionId);
+  }
+
+  @Test
+  void testExpiredTokenDiagnosticsDoNotExposeTokenOrClaims(CapturedOutput output) {
+    String sensitiveClaim = "expired-claim-sentinel";
+    Map<String, Object> claims = new HashMap<>();
+    claims.put("session_id", sessionId.toString());
+    claims.put("notebook_id", sensitiveClaim);
+
+    String expiredToken =
+        Jwts.builder()
+            .setClaims(claims)
+            .setIssuedAt(new Date(System.currentTimeMillis() - 1000 * 60 * 10))
+            .setExpiration(new Date(System.currentTimeMillis() - 1000 * 60 * 5))
+            .signWith(secretKey, SignatureAlgorithm.HS256)
+            .compact();
+
+    assertEquals(sessionId, jwtTokenService.extractSessionIdFromToken(expiredToken));
+    assertEquals(sensitiveClaim, jwtTokenService.extractNotebookIdFromToken(expiredToken));
+    assertFalse(jwtTokenService.validateToken(expiredToken));
+    assertFalse(output.getAll().contains(expiredToken));
+    assertFalse(output.getAll().contains(sensitiveClaim));
   }
 
   @Test
@@ -112,7 +169,7 @@ class JwtTokenServiceTest {
         Jwts.builder()
             .setClaims(claims)
             .setIssuedAt(new Date(System.currentTimeMillis() - 1000 * 60 * 60))
-            .setExpiration(new Date(System.currentTimeMillis() - 1000 * 30))
+            .setExpiration(new Date(System.currentTimeMillis() - 1000 * 60 * 5))
             .signWith(secretKey, SignatureAlgorithm.HS256)
             .compact();
 
@@ -158,7 +215,7 @@ class JwtTokenServiceTest {
         Jwts.builder()
             .setClaims(claims)
             .setIssuedAt(new Date(System.currentTimeMillis() - 1000 * 60 * 60))
-            .setExpiration(new Date(System.currentTimeMillis() - 1000 * 30))
+            .setExpiration(new Date(System.currentTimeMillis() - 1000 * 60 * 5))
             .signWith(secretKey, SignatureAlgorithm.HS256)
             .compact();
 

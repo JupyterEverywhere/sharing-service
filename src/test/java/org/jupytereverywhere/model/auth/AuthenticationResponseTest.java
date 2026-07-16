@@ -38,9 +38,9 @@ class AuthenticationResponseTest {
 
   @Test
   void testToString() {
-    authenticationResponse.setToken("sampleToken");
-    String expectedString = "AuthenticationResponse(token=sampleToken)";
-    assertEquals(expectedString, authenticationResponse.toString());
+    String token = "sensitive-token-sentinel";
+    authenticationResponse.setToken(token);
+    assertFalse(authenticationResponse.toString().contains(token));
   }
 
   @Test

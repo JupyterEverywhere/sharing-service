@@ -4,12 +4,14 @@ import java.util.UUID;
 
 import org.apache.logging.log4j.message.StringMapMessage;
 import org.jupytereverywhere.exception.InvalidNotebookPasswordException;
+import org.jupytereverywhere.exception.NotebookNotFoundException;
 import org.jupytereverywhere.exception.TokenRefreshException;
 import org.jupytereverywhere.model.JupyterNotebookEntity;
 import org.jupytereverywhere.model.TokenStore;
 import org.jupytereverywhere.model.auth.AdminTokenRequest;
 import org.jupytereverywhere.model.auth.AuthenticationRequest;
 import org.jupytereverywhere.model.auth.AuthenticationResponse;
+import org.jupytereverywhere.utils.SecretComparisonUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -19,6 +21,8 @@ import lombok.extern.log4j.Log4j2;
 @Log4j2
 @Service
 public class AuthService {
+
+  private static final String INVALID_TOKEN_MESSAGE = "Invalid or expired token";
 
   private final JwtTokenService jwtTokenService;
   private final TokenStore tokenStore;
@@ -48,15 +52,18 @@ public class AuthService {
         || authRequest.getPassword() == null) {
       token = jwtTokenService.generateToken(sessionId.toString());
     } else {
-      if (verifyNotebookPassword(
-          UUID.fromString(authRequest.getNotebookId()), authRequest.getPassword())) {
-        token = jwtTokenService.generateToken(sessionId.toString(), authRequest.getNotebookId());
-      } else {
+      try {
+        UUID notebookId = UUID.fromString(authRequest.getNotebookId());
+        if (!verifyNotebookPassword(notebookId, authRequest.getPassword())) {
+          throw new InvalidNotebookPasswordException("Invalid notebook ID or password");
+        }
+        token = jwtTokenService.generateToken(sessionId.toString(), notebookId.toString());
+      } catch (IllegalArgumentException | NotebookNotFoundException e) {
         throw new InvalidNotebookPasswordException("Invalid notebook ID or password");
       }
     }
 
-    logStructuredMessage("Generating initial token for session", sessionId, token);
+    logStructuredMessage("Generating initial token for session", sessionId);
     tokenStore.storeToken(sessionId, token);
 
     return createAuthenticationResponse(token);
@@ -65,7 +72,7 @@ public class AuthService {
   public AuthenticationResponse generateAdminTokenResponse(AdminTokenRequest adminRequest) {
     if (adminSecret == null
         || adminSecret.isEmpty()
-        || !adminSecret.equals(adminRequest.getSecret())) {
+        || !SecretComparisonUtils.constantTimeEquals(adminSecret, adminRequest.getSecret())) {
       log.warn(
           new StringMapMessage()
               .with("Message", "Invalid admin secret presented")
@@ -77,21 +84,35 @@ public class AuthService {
     String token =
         jwtTokenService.generateAdminToken(sessionId.toString(), adminRequest.getTokenName());
 
-    logStructuredMessage("Admin token issued", sessionId, token);
+    logStructuredMessage("Admin token issued", sessionId);
     tokenStore.storeToken(sessionId, token);
 
     return createAuthenticationResponse(token);
   }
 
   public AuthenticationResponse refreshTokenResponse(String token) {
-    logStructuredMessage("Refreshing JWT token", null, token);
+    logStructuredMessage("Refreshing JWT token", null);
 
+    if (token == null || token.isBlank()) {
+      throw new TokenRefreshException(INVALID_TOKEN_MESSAGE);
+    }
+
+    try {
+      return refreshValidatedToken(token);
+    } catch (TokenRefreshException e) {
+      throw e;
+    } catch (IllegalArgumentException e) {
+      throw new TokenRefreshException(INVALID_TOKEN_MESSAGE);
+    }
+  }
+
+  private AuthenticationResponse refreshValidatedToken(String token) {
     UUID sessionId = jwtTokenService.extractSessionIdFromToken(token);
     String notebookId = jwtTokenService.extractNotebookIdFromToken(token);
     String role = jwtTokenService.extractRoleFromToken(token);
     String tokenName = jwtTokenService.extractTokenNameFromToken(token);
     if (sessionId == null || !isTokenValid(token, sessionId)) {
-      throw new TokenRefreshException("Invalid or expired session ID");
+      throw new TokenRefreshException(INVALID_TOKEN_MESSAGE);
     }
 
     tokenStore.removeToken(sessionId);
@@ -104,7 +125,7 @@ public class AuthService {
     }
     tokenStore.storeToken(sessionId, refreshedToken);
 
-    logStructuredMessage("Token refreshed successfully", sessionId, refreshedToken);
+    logStructuredMessage("Token refreshed successfully", sessionId);
     return createAuthenticationResponse(refreshedToken);
   }
 
@@ -121,13 +142,10 @@ public class AuthService {
     return false;
   }
 
-  private void logStructuredMessage(String message, UUID sessionId, String token) {
+  private void logStructuredMessage(String message, UUID sessionId) {
     StringMapMessage logMessage = new StringMapMessage().with("Message", message);
     if (sessionId != null) {
       logMessage.with("SessionId", sessionId.toString());
-    }
-    if (token != null) {
-      logMessage.with("Token", token);
     }
     log.info(logMessage);
   }

@@ -40,6 +40,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 @TestPropertySource(
     properties = {
       "storage.type=file",
+      "security.jwt.token.secret-key=test-only-jwt-signing-key-32-bytes-minimum",
       "python.interpreter.path=/usr/bin/python3" // Will be mocked in these tests
     })
 class JupyterNotebookServiceIntegrationTest {

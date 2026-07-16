@@ -1,6 +1,7 @@
 package org.jupytereverywhere.filter;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -18,6 +19,8 @@ import org.jupytereverywhere.service.JwtTokenService;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -28,6 +31,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletResponse;
 
 @ExtendWith(MockitoExtension.class)
+@ExtendWith(OutputCaptureExtension.class)
 class JwtRequestFilterTest {
 
   @InjectMocks private JwtRequestFilter jwtRequestFilter;
@@ -134,7 +138,8 @@ class JwtRequestFilterTest {
   }
 
   @Test
-  void testDoFilterInternal_ExceptionDuringProcessing() throws ServletException, IOException {
+  void testDoFilterInternal_ExceptionDuringProcessing(CapturedOutput output)
+      throws ServletException, IOException {
     String token = "someTokenString";
     MockHttpServletRequest request = new MockHttpServletRequest();
     request.addHeader("Authorization", "Bearer " + token);
@@ -142,7 +147,8 @@ class JwtRequestFilterTest {
     FilterChain filterChain = mock(FilterChain.class);
 
     when(jwtExtractor.extractJwtFromRequest(request)).thenReturn(token);
-    when(jwtValidator.isValid(token)).thenThrow(new RuntimeException("Unexpected error"));
+    String sensitiveMessage = "token-processing-error-sentinel";
+    when(jwtValidator.isValid(token)).thenThrow(new RuntimeException(sensitiveMessage));
 
     jwtRequestFilter.doFilterInternal(request, response, filterChain);
 
@@ -150,6 +156,8 @@ class JwtRequestFilterTest {
     verify(jwtTokenService, never()).extractSessionIdFromToken(anyString());
     verify(filterChain, never()).doFilter(request, response);
     assertEquals(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, response.getStatus());
+    assertFalse(output.getAll().contains(token));
+    assertFalse(output.getAll().contains(sensitiveMessage));
   }
 
   @Test

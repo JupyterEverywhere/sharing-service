@@ -112,10 +112,7 @@ public class JwtRequestFilter extends OncePerRequestFilter {
 
   private void handleExpiredToken(HttpServletResponse response, ExpiredJwtException e)
       throws IOException {
-    log.warn(
-        new StringMapMessage()
-            .with(MESSAGE_KEY, JWT_TOKEN_HAS_EXPIRED_MESSAGE)
-            .with(ERROR_MESSAGE_KEY, e.getMessage()));
+    log.warn(new StringMapMessage().with(MESSAGE_KEY, JWT_TOKEN_HAS_EXPIRED_MESSAGE));
     response.sendError(HttpServletResponse.SC_FORBIDDEN, JWT_TOKEN_HAS_EXPIRED_MESSAGE);
   }
 
@@ -124,8 +121,7 @@ public class JwtRequestFilter extends OncePerRequestFilter {
     log.error(
         new StringMapMessage()
             .with(MESSAGE_KEY, "Error during JWT Token processing")
-            .with(ERROR_MESSAGE_KEY, e.getMessage()),
-        e);
+            .with(ERROR_MESSAGE_KEY, e.getClass().getSimpleName()));
     response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Error processing JWT token");
   }
 
