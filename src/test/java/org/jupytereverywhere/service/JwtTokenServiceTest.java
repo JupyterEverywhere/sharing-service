@@ -127,7 +127,7 @@ class JwtTokenServiceTest {
         Jwts.builder()
             .setClaims(claims)
             .setIssuedAt(new Date(System.currentTimeMillis() - 1000 * 60 * 60))
-            .setExpiration(new Date(System.currentTimeMillis() - 1000 * 30))
+            .setExpiration(new Date(System.currentTimeMillis() - 1000 * 60 * 5))
             .signWith(secretKey, SignatureAlgorithm.HS256)
             .compact();
 
@@ -169,7 +169,7 @@ class JwtTokenServiceTest {
         Jwts.builder()
             .setClaims(claims)
             .setIssuedAt(new Date(System.currentTimeMillis() - 1000 * 60 * 60))
-            .setExpiration(new Date(System.currentTimeMillis() - 1000 * 30))
+            .setExpiration(new Date(System.currentTimeMillis() - 1000 * 60 * 5))
             .signWith(secretKey, SignatureAlgorithm.HS256)
             .compact();
 
@@ -215,7 +215,7 @@ class JwtTokenServiceTest {
         Jwts.builder()
             .setClaims(claims)
             .setIssuedAt(new Date(System.currentTimeMillis() - 1000 * 60 * 60))
-            .setExpiration(new Date(System.currentTimeMillis() - 1000 * 30))
+            .setExpiration(new Date(System.currentTimeMillis() - 1000 * 60 * 5))
             .signWith(secretKey, SignatureAlgorithm.HS256)
             .compact();
 
